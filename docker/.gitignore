@@ -1,0 +1,25 @@
+# Файл с реальными паролями - НЕ коммитить!
+.env
+
+# Данные баз данных - НЕ коммитить!
+arango-data/
+arango-apps/
+postgres-data/
+mssql-data/
+
+# Бэкапы
+backups/
+*.backup
+*.dump
+*.sql.gz
+*.tar.gz
+
+# Логи
+*.log
+logs/
+
+# Временные файлы
+*.tmp
+*.temp
+.DS_Store
+

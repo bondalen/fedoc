@@ -1,0 +1,180 @@
+version: '3.8'
+
+# =============================================================================
+# Docker Compose для развертывания БД на production сервере
+# Сервер: 176.108.244.252
+# Ресурсы: 2 CPU, 3.8 GB RAM, 30 GB Disk
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # ArangoDB - Multi-Model база данных для fedoc
+  # Назначение: Основная БД проекта fedoc (документы + графы + key-value)
+  # Потребление: ~400-600 MB RAM
+  # Порт: 8529 (только localhost)
+  # Режим: Запуск по требованию (./db-manager.sh start-arango)
+  # ===========================================================================
+  arangodb:
+    image: arangodb/arangodb:3.11
+    container_name: fedoc-arango
+    hostname: fedoc-arango
+    restart: "no"  # Запуск по требованию
+    
+    deploy:
+      resources:
+        limits:
+          memory: 800M
+          cpus: '0.7'
+        reservations:
+          memory: 400M
+    
+    environment:
+      ARANGO_NO_AUTH: 0
+      ARANGO_ROOT_PASSWORD: ${ARANGO_PASSWORD}
+    
+    ports:
+      - "127.0.0.1:8529:8529"
+    
+    volumes:
+      - ./arango-data:/var/lib/arangodb3
+      - ./arango-apps:/var/lib/arangodb3-apps
+      - ./init-scripts/arango:/docker-entrypoint-initdb.d:ro
+    
+    command: >
+      arangod
+      --server.endpoint tcp://0.0.0.0:8529
+      --database.maximal-journal-size 33554432
+      --rocksdb.block-cache-size 134217728
+      --rocksdb.total-write-buffer-size 33554432
+      --javascript.v8-max-heap 256
+    
+    networks:
+      - databases
+    
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8529/_api/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ===========================================================================
+  # PostgreSQL - универсальная реляционная БД
+  # Назначение: Общая БД для различных проектов
+  # Потребление: ~200-400 MB RAM
+  # Порт: 5432 (только localhost)
+  # Режим: Запуск по требованию (./db-manager.sh start-postgres)
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: fedoc-postgres
+    hostname: fedoc-postgres
+    restart: "no"  # Запуск по требованию
+    
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+    
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    
+    ports:
+      - "127.0.0.1:5432:5432"
+    
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+      - ./init-scripts/postgres:/docker-entrypoint-initdb.d:ro
+    
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=256MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=1GB
+      -c max_wal_size=2GB
+      -c max_worker_processes=2
+      -c max_parallel_workers_per_gather=1
+      -c max_parallel_workers=2
+      -c max_connections=50
+    
+    networks:
+      - databases
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ===========================================================================
+  # MS SQL Server - для проектов требующих MS SQL (например, FEMSQ)
+  # Назначение: БД для проектов с MS SQL Server
+  # Потребление: ~1.5-2 GB RAM
+  # Порт: 1433 (только localhost)
+  # Режим: Запуск по требованию (./db-manager.sh start-mssql)
+  # Остановка: ./db-manager.sh stop-mssql (освободить RAM)
+  # ===========================================================================
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: fedoc-mssql
+    hostname: fedoc-mssql
+    restart: "no"  # НЕ автозапуск! Запускать только когда нужно
+    
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1.5G
+    
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_PASSWORD}
+      MSSQL_PID: "Express"
+      MSSQL_MEMORY_LIMIT_MB: 1536
+      MSSQL_COLLATION: "SQL_Latin1_General_CP1_CI_AS"
+    
+    ports:
+      - "127.0.0.1:1433:1433"
+    
+    volumes:
+      - ./mssql-data:/var/opt/mssql
+      - ./init-scripts/mssql:/docker-entrypoint-initdb.d:ro
+    
+    networks:
+      - databases
+    
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"${MSSQL_PASSWORD}\" -Q \"SELECT 1\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  databases:
+    name: fedoc-databases
+    driver: bridge
+
+volumes:
+  arango-data:
+  arango-apps:
+  postgres-data:
+  mssql-data:
+
