@@ -1,0 +1,341 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Образец структуры project-docs.json для использования в качестве шаблона. Замените абстрактные значения на реальные данные вашего проекта.",
+  
+  "project": {
+    "metadata": {
+      "name": "AbstractProject",
+      "version": "1.0.0",
+      "description": "Описание абстрактного проекта - что делает система, для кого предназначена",
+      "author": "Имя автора или команды",
+      "created": "YYYY-MM-DD",
+      "lastUpdated": "YYYY-MM-DD",
+      "status": "planning|development|production|maintenance",
+      "repository": "https://github.com/username/project.git",
+      "license": "MIT|Apache-2.0|GPL-3.0|Proprietary",
+      "keywords": ["keyword1", "keyword2", "keyword3"],
+      "documentationRules": "docs/project-documentation-rules.md"
+    },
+    
+    "architecture": {
+      "type": "full-stack|backend|frontend|microservices|monolith",
+      "pattern": "modular-monolith|mvc|layered|hexagonal|clean-architecture",
+      "pattern_decision": "docs/project/decisions/00X-architecture-pattern.md",
+      
+      "backend": {
+        "framework": "Spring Boot 3.x.x | Django 4.x | Express.js 4.x",
+        "language": "Java 21 | Python 3.11 | Node.js 20",
+        "database": "PostgreSQL 16 | MySQL 8 | MongoDB 7",
+        "api": "REST|GraphQL|gRPC|WebSocket",
+        "security": "Spring Security | OAuth2 | JWT | не разрабатывается",
+        "migrations": "Liquibase|Flyway|Alembic|Prisma",
+        "monitoring": "Spring Boot Actuator | Prometheus | Grafana"
+      },
+      
+      "frontend": {
+        "framework": "Vue.js 3.x | React 18.x | Angular 17.x",
+        "language": "TypeScript 5.x | JavaScript ES2023",
+        "ui": "Quasar 2.x | Material-UI | Ant Design | Tailwind CSS",
+        "graphql": "Apollo Client | Relay | urql (если используется GraphQL)",
+        "build": "Vite | Webpack | Turbopack",
+        "routing": "Vue Router | React Router | Angular Router",
+        "state": "Pinia | Redux | Zustand | NgRx"
+      },
+      
+      "infrastructure": {
+        "database": "PostgreSQL Server | MS SQL Server | MongoDB Atlas",
+        "monitoring": "Prometheus + Grafana | ELK Stack | Datadog",
+        "ai": "MCP Servers | OpenAI API | Local LLM (если используется)",
+        "deployment": "Docker | Kubernetes | JAR | Native binary"
+      }
+    },
+    
+    "features": {
+      "core": [
+        "Основная функциональность 1 - краткое описание",
+        "Основная функциональность 2 - краткое описание",
+        "Основная функциональность 3 - краткое описание"
+      ],
+      "advanced": [
+        "Расширенная функциональность 1 - краткое описание",
+        "Расширенная функциональность 2 - краткое описание"
+      ]
+    },
+    
+    "modules": {
+      "description": "Структура модулей проекта",
+      "version": "1.0.0",
+      "lastUpdated": "YYYY-MM-DD",
+      "structure": {
+        "type": "recursive",
+        "entities": ["Module", "Component", "Class"],
+        "organization": "single_file",
+        "grouping": "artifact object for physical attributes"
+      },
+      "extensions": [
+        "docs/project/extensions/modules/modules.json"
+      ],
+      "diagrams": [
+        "docs/project/diagrams/database-module-classes.puml",
+        "docs/project/diagrams/components.puml",
+        "docs/project/diagrams/package-structure.puml"
+      ],
+      "_example": "См. docs/project/extensions/modules/modules-example.json",
+      "_note": "Для нового проекта скопируйте modules-example.json → modules.json",
+      "_documentation": "Типы артефактов описаны в project-docs-json-rules-af-types.md"
+    },
+
+    
+    "database": {
+      "schema": "ags",
+      "version": "1.0.0",
+      "engine": "MS SQL Server 2012+",
+      "target_version": "11.0.7507.2 (2012 SP4)",
+      "connection": {
+        "type": "external",
+        "driver": "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+        "url_template": "jdbc:sqlserver://{host}:{port};databaseName=FishEye;encrypt=false;trustServerCertificate=true"
+      },
+      "tables": [
+        {
+          "name": "users",
+          "description": "Таблица пользователей системы",
+          "columns": [
+            {
+              "name": "id",
+              "type": "UUID|BIGINT|INT",
+              "constraints": "PRIMARY KEY DEFAULT gen_random_uuid()"
+            },
+            {
+              "name": "username",
+              "type": "VARCHAR(100)",
+              "constraints": "UNIQUE NOT NULL"
+            },
+            {
+              "name": "email",
+              "type": "VARCHAR(255)",
+              "constraints": "UNIQUE NOT NULL"
+            },
+            {
+              "name": "created_at",
+              "type": "TIMESTAMP",
+              "constraints": "NOT NULL DEFAULT NOW()"
+            },
+            {
+              "name": "updated_at",
+              "type": "TIMESTAMP",
+              "constraints": "NOT NULL DEFAULT NOW()"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "idx_users_username",
+              "columns": ["username"],
+              "type": "UNIQUE"
+            },
+            {
+              "name": "idx_users_email",
+              "columns": ["email"],
+              "type": "UNIQUE"
+            }
+          ]
+        }
+      ],
+      "migrations": [
+        {
+          "version": "001",
+          "description": "Initial schema creation",
+          "file": "001-initial-schema.xml",
+          "status": "planned|applied|failed",
+          "changes": [
+            "Create users table",
+            "Create basic indexes"
+          ]
+        }
+      ],
+      "extensions": [
+        "docs/project/extensions/database/connection-config.json",
+        "docs/project/extensions/database/authentication-methods.json"
+      ]
+    },
+    
+    "development": {
+      "setup": {
+        "prerequisites": [
+          "Java 21 LTS",
+          "Node.js 20+",
+          "MS SQL Server 2019+ (для разработки)",
+          "Docker 24+",
+          "Maven 3.9+",
+          "Git 2.40+"
+        ],
+        "scripts": {
+          "dev": {
+            "command": "mvn spring-boot:run | npm run dev | python manage.py runserver",
+            "description": "Запуск приложения в режиме разработки",
+            "location": "backend/ | frontend/ | project root",
+            "usage": "Локальная разработка с hot-reload"
+          },
+          "build": {
+            "command": "mvn clean package | npm run build | python -m build",
+            "description": "Сборка приложения для production",
+            "location": "backend/ | frontend/ | project root",
+            "usage": "Создание production-ready артефактов"
+          },
+          "test": {
+            "command": "mvn test | npm test | pytest",
+            "description": "Запуск тестов",
+            "location": "backend/ | frontend/ | tests/",
+            "usage": "Проверка корректности кода"
+          }
+        }
+      },
+      "standards": {
+        "codeStyle": "Google Java Style | Airbnb JavaScript | PEP 8",
+        "gitFlow": "GitHub Flow | GitFlow | Trunk-Based Development",
+        "testing": "JUnit 5 + Mockito | Jest + Testing Library | pytest",
+        "documentation": "JSON + Markdown + ADR",
+        "api": "OpenAPI 3.0 | GraphQL Schema | gRPC Proto"
+      }
+    },
+    
+    "deployment": {
+      "strategy": "Описание стратегии: Docker-контейнеры, JAR-файл, бинарный файл",
+      "architecture": {
+        "type": "monolithic|microservices|serverless"
+      },
+      "environments": {
+        "database": "localhost:5432/dbname | cloud-instance:port/dbname",
+        "frontend": "http://localhost:3000 | https://app.example.com",
+        "backend": "http://localhost:8080 | https://api.example.com"
+      },
+      "configuration": {
+        "jar_name": "app-{version}.jar",
+        "startup_command": "java -jar app-{version}.jar"
+      },
+      "monitoring": {
+        "health_checks": true,
+        "prometheus_metrics": true,
+        "logging": "file-rotation|elk-stack|cloud-logging",
+        "backup": "daily-database|hourly-incremental|continuous-replication"
+      },
+      "update_strategy": {
+        "type": "rolling-update|blue-green|canary",
+        "backup_before_update": true,
+        "health_check_after_update": true,
+        "rollback_on_failure": true
+      },
+      "extensions": [
+        "docs/project/extensions/deployment/deployment-config.json",
+        "docs/project/extensions/deployment/environments.json"
+      ]
+    },
+    
+    "timeline": {
+      "phases": [
+        {
+          "name": "Phase 1: Foundation",
+          "duration": "2-4 weeks",
+          "startDate": "YYYY-MM-DD",
+          "tasks": [
+            "Настройка инфраструктуры",
+            "Базовая архитектура",
+            "Настройка CI/CD"
+          ],
+          "status": "planned|in_progress|completed",
+          "progress": 0
+        },
+        {
+          "name": "Phase 2: Core Features",
+          "duration": "4-6 weeks",
+          "startDate": "YYYY-MM-DD",
+          "tasks": [
+            "Основная функциональность",
+            "API разработка",
+            "UI/UX реализация"
+          ],
+          "status": "planned",
+          "progress": 0
+        }
+      ]
+    },
+    
+    "risks": [
+      {
+        "id": "R001",
+        "description": "Описание потенциального риска или проблемы",
+        "probability": "low|medium|high",
+        "impact": "low|medium|high",
+        "mitigation": "Конкретные шаги для снижения риска",
+        "status": "identified|monitoring|mitigated|resolved"
+      }
+    ],
+    
+    "resources": {
+      "team": [
+        {
+          "role": "Full-stack Developer | Backend Developer | Frontend Developer",
+          "name": "Имя разработчика",
+          "responsibilities": [
+            "Backend development",
+            "API design",
+            "Database management"
+          ],
+          "skills": [
+            "Java",
+            "Spring Boot",
+            "MS SQL Server"
+          ]
+        }
+      ],
+      "budget": {
+        "development": "0 (open-source) | $X/month | $X total",
+        "hosting": "$X/month | cloud credits",
+        "tools": "0 (free tools) | $X/month",
+        "total": "$X/month estimated"
+      },
+      "tools": [
+        "Cursor IDE",
+        "GitHub | GitLab | Bitbucket",
+        "Docker",
+        "Postman | Insomnia"
+      ],
+      "documentation": {
+        "main": "docs/"
+      }
+    },
+    
+    "ui": {
+      "setup_interface": {
+        "url": "/setup",
+        "title": "Настройка приложения"
+      },
+      "main_application": {
+        "url": "/",
+        "title": "Главное приложение"
+      },
+      "extensions": [
+        "docs/project/extensions/ui/setup-forms.json",
+        "docs/project/extensions/ui/status-pages.json"
+      ]
+    },
+    
+    "network": {
+      "type": "corporate | public | hybrid",
+      "authentication_methods": ["method1", "method2"],
+      "extensions": [
+        "docs/project/extensions/network/corporate-network.json"
+      ]
+    },
+    
+    "monitoring": {
+      "health_checks": true,
+      "logging": "file-rotation | elk-stack",
+      "extensions": [
+        "docs/project/extensions/monitoring/logging-config.json"
+      ]
+    }
+  }
+}
+
+

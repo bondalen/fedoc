@@ -1,0 +1,519 @@
+{
+    "project": {
+        "metadata": {
+            "name": "FEMSQ",
+            "version": "1.0.0",
+            "description": "Cистема работы с контрагентами и объектами при капитальном строительстве на основе БД MS SQL Server FEMSQ (Fish Eye MS SQL Server)",
+            "author": "Александр",
+            "created": "2025-10-08",
+            "lastUpdated": "2025-01-27",
+            "status": "planning",
+            "repository": "https://github.com/bondalen/femsq.git",
+            "license": "MIT",
+            "keywords": [
+                "crm",
+                "contractors",
+                "management"
+            ],
+            "documentationRules": "docs/project-documentation-rules.md"
+        },
+        "architecture": {
+            "type": "full-stack",
+            "pattern": "modular-monolith",
+            "pattern_decision": "docs/decisions/007-modular-monolith-pattern.md",
+            "backend": {
+                "framework": "Spring Boot 3.4.5",
+                "language": "Java 21 LTS",
+                "database": "MS SQL Server (внешняя)",
+                "database_driver": "Microsoft SQL Server JDBC Driver 12.x",
+                "api": "GraphQL",
+                "security": "не разрабатывается - безопасная внутренняя сеть организации",
+                "authentication": "без аутентификации пользователей",
+                "migrations": "Liquibase (встроенные в JAR)",
+                "monitoring": "Spring Boot Actuator"
+            },
+            "frontend": {
+                "framework": "Vue.js 3.4.21",
+                "language": "TypeScript 5.4.0",
+                "ui": "Quasar Framework 2.16.1",
+                "graphql": "Apollo Client",
+                "build": "Vite",
+                "maps": "Leaflet",
+                "routing": "Vue Router",
+                "state": "Pinia",
+                "serving": "Spring Boot Static Resources"
+            },
+            "infrastructure": {
+                "database": "MS SQL Server (внешняя)",
+                "monitoring": "Spring Boot Actuator",
+                "ai": "MCP Servers",
+                "deployment": "Spring Boot Fat JAR"
+            }
+        },
+        "features": {
+            "core": [
+                "Управление отношениями с контрагентами",
+                "CRM функциональность",
+                "Документооборот",
+                "Управленческий финансовый учет"
+            ],
+            "advanced": [
+                "Автоматическая генерация документов (PDF, Excel, CSV)",
+                "Система отчетности",
+                "Кэширование и оптимизация"
+            ]
+        },
+        "modules": {
+            "description": "Структура модулей проекта FEMSQ",
+            "version": "1.0.0",
+            "lastUpdated": "2025-01-27",
+            "structure": {
+                "type": "recursive",
+                "entities": ["Module", "Component", "Class"],
+                "organization": "single_file",
+                "grouping": "artifact object for physical attributes"
+            },
+            "extensions": [
+                "docs/project/extensions/modules/modules.json"
+            ],
+            "diagrams": [
+                "docs/project/diagrams/database-module-classes.puml",
+                "docs/project/diagrams/components.puml",
+                "docs/project/diagrams/package-structure.puml"
+            ]
+        },
+        "database": {
+            "schema": "ags",
+            "version": "1.0.0",
+            "engine": "MS SQL Server 2012+",
+            "target_version": "11.0.7507.2 (2012 SP4)",
+            "connection": {
+                "type": "external",
+                "driver": "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+                "url_template": "jdbc:sqlserver://{host}:{port};databaseName=FishEye;encrypt=false;trustServerCertificate=true"
+            },
+            "tables": [
+                {
+                    "name": "contractors",
+                    "description": "Таблица контрагентов",
+                    "columns": [
+                        {
+                            "name": "id",
+                            "type": "UUID",
+                            "constraints": "PRIMARY KEY DEFAULT gen_random_uuid()"
+                        },
+                        {
+                            "name": "name",
+                            "type": "VARCHAR(255)",
+                            "constraints": "NOT NULL"
+                        },
+                        {
+                            "name": "legal_name",
+                            "type": "VARCHAR(255)",
+                            "constraints": "NULL"
+                        },
+                        {
+                            "name": "inn",
+                            "type": "VARCHAR(12)",
+                            "constraints": "UNIQUE NULL"
+                        },
+                        {
+                            "name": "kpp",
+                            "type": "VARCHAR(9)",
+                            "constraints": "NULL"
+                        },
+                        {
+                            "name": "email",
+                            "type": "VARCHAR(255)",
+                            "constraints": "NULL"
+                        },
+                        {
+                            "name": "phone",
+                            "type": "VARCHAR(50)",
+                            "constraints": "NULL"
+                        },
+                        {
+                            "name": "address",
+                            "type": "TEXT",
+                            "constraints": "NULL"
+                        },
+                        {
+                            "name": "coordinates",
+                            "type": "GEOMETRY(POINT, 4326)",
+                            "constraints": "NULL"
+                        },
+                        {
+                            "name": "status",
+                            "type": "VARCHAR(50)",
+                            "constraints": "NOT NULL DEFAULT 'active'"
+                        },
+                        {
+                            "name": "created_at",
+                            "type": "TIMESTAMP",
+                            "constraints": "NOT NULL DEFAULT NOW()"
+                        },
+                        {
+                            "name": "updated_at",
+                            "type": "TIMESTAMP",
+                            "constraints": "NOT NULL DEFAULT NOW()"
+                        }
+                    ],
+                    "indexes": [
+                        {
+                            "name": "idx_contractors_inn",
+                            "columns": [
+                                "inn"
+                            ],
+                            "type": "UNIQUE"
+                        },
+                        {
+                            "name": "idx_contractors_coordinates",
+                            "columns": [
+                                "coordinates"
+                            ],
+                            "type": "GIST"
+                        },
+                        {
+                            "name": "idx_contractors_status",
+                            "columns": [
+                                "status"
+                            ],
+                            "type": "BTREE"
+                        },
+                        {
+                            "name": "idx_contractors_name",
+                            "columns": [
+                                "name"
+                            ],
+                            "type": "BTREE"
+                        }
+                    ]
+                },
+                {
+                    "name": "users",
+                    "description": "Таблица пользователей системы",
+                    "columns": [
+                        {
+                            "name": "id",
+                            "type": "UUID",
+                            "constraints": "PRIMARY KEY DEFAULT gen_random_uuid()"
+                        },
+                        {
+                            "name": "username",
+                            "type": "VARCHAR(100)",
+                            "constraints": "UNIQUE NOT NULL"
+                        },
+                        {
+                            "name": "email",
+                            "type": "VARCHAR(255)",
+                            "constraints": "UNIQUE NOT NULL"
+                        },
+                        {
+                            "name": "password_hash",
+                            "type": "VARCHAR(255)",
+                            "constraints": "NOT NULL"
+                        },
+                        {
+                            "name": "first_name",
+                            "type": "VARCHAR(100)",
+                            "constraints": "NULL"
+                        },
+                        {
+                            "name": "last_name",
+                            "type": "VARCHAR(100)",
+                            "constraints": "NULL"
+                        },
+                        {
+                            "name": "role",
+                            "type": "VARCHAR(50)",
+                            "constraints": "NOT NULL DEFAULT 'USER'"
+                        },
+                        {
+                            "name": "is_active",
+                            "type": "BOOLEAN",
+                            "constraints": "NOT NULL DEFAULT true"
+                        },
+                        {
+                            "name": "created_at",
+                            "type": "TIMESTAMP",
+                            "constraints": "NOT NULL DEFAULT NOW()"
+                        },
+                        {
+                            "name": "updated_at",
+                            "type": "TIMESTAMP",
+                            "constraints": "NOT NULL DEFAULT NOW()"
+                        }
+                    ],
+                    "indexes": [
+                        {
+                            "name": "idx_users_username",
+                            "columns": [
+                                "username"
+                            ],
+                            "type": "UNIQUE"
+                        },
+                        {
+                            "name": "idx_users_email",
+                            "columns": [
+                                "email"
+                            ],
+                            "type": "UNIQUE"
+                        },
+                        {
+                            "name": "idx_users_role",
+                            "columns": [
+                                "role"
+                            ],
+                            "type": "BTREE"
+                        }
+                    ]
+                }
+            ],
+            "migrations": [
+                {
+                    "version": "001",
+                    "description": "Initial schema creation",
+                    "file": "001-initial-schema.xml",
+                    "status": "planned",
+                    "changes": [
+                        "Create contractors table",
+                        "Create users table",
+                        "Create basic indexes"
+                    ]
+                },
+                {
+                    "version": "002",
+                    "description": "Add additional tables for CRM functionality",
+                    "file": "002-crm-tables.xml",
+                    "status": "planned",
+                    "changes": [
+                        "Create documents table",
+                        "Create contracts table",
+                        "Add relationships between contractors and documents"
+                    ]
+                }
+            ],
+            "extensions": [
+                "docs/project/extensions/database/connection-config.json",
+                "docs/project/extensions/database/authentication-methods.json",
+                "docs/project/extensions/database/migration-config.json",
+                "docs/project/extensions/database/compatibility.json"
+            ]
+        },
+        "development": {
+            "setup": {
+                "prerequisites": [
+                    "Java 21 LTS",
+                    "MS SQL Server (корпоративный или локальный)",
+                    "Maven 3.9+",
+                    "Git"
+                ],
+                "scripts": {
+                    "dev": {
+                        "command": "mvn spring-boot:run",
+                        "description": "Запуск в режиме разработки",
+                        "location": "project root",
+                        "usage": "Локальная разработка с встроенной формой настройки"
+                    },
+                    "build": {
+                        "command": "mvn clean package",
+                        "description": "Сборка единого JAR-файла с встроенным frontend",
+                        "location": "project root",
+                        "usage": "Создание production-ready JAR файла"
+                    },
+                    "run": {
+                        "command": "java -jar target/femsq-{version}.jar",
+                        "description": "Запуск готового JAR-файла",
+                        "location": "project root",
+                        "usage": "Production запуск с внешней БД"
+                    },
+                    "test": {
+                        "command": "mvn test",
+                        "description": "Запуск unit тестов",
+                        "location": "project root",
+                        "usage": "Тестирование кода"
+                    }
+                }
+            },
+            "standards": {
+                "codeStyle": "Google Java Style + ESLint/Prettier",
+                "gitFlow": "GitHub Flow",
+                "testing": "JUnit 5 + Vue Test Utils",
+                "documentation": "JSON + Markdown + ADR",
+                "api": "GraphQL-first"
+            }
+        },
+        "deployment": {
+            "strategy": "Единый JAR-файл с веб-интерфейсом настройки БД",
+            "architecture": {
+                "type": "monolithic",
+                "deployment_type": "fat-jar-corporate-network"
+            },
+            "environments": {
+                "frontend": "http://localhost:8080 (встроенный в JAR)",
+                "backend": "http://localhost:8080"
+            },
+            "configuration": {
+                "jar_name": "femsq-{version}.jar",
+                "startup_command": "java -jar femsq-{version}.jar"
+            },
+            "extensions": [
+                "docs/project/extensions/deployment/deployment-config.json",
+                "docs/project/extensions/deployment/environments.json",
+                "docs/project/extensions/deployment/security-config.json"
+            ]
+        },
+        
+        "ui": {
+            "setup_interface": {
+                "url": "/setup",
+                "title": "Настройка подключения к базе данных FEMSQ",
+                "description": "Веб-интерфейс для настройки подключения к MS SQL Server"
+            },
+            "main_application": {
+                "url": "/",
+                "title": "FEMSQ - Система работы с контрагентами"
+            },
+            "extensions": [
+                "docs/project/extensions/ui/setup-forms.json",
+                "docs/project/extensions/ui/status-pages.json",
+                "docs/project/extensions/ui/user-experience.json"
+            ]
+        },
+        
+        "network": {
+            "type": "controlled_corporate_network",
+            "authentication_methods": [
+                "integrated_security",
+                "trusted_connection",
+                "username_password"
+            ],
+            "extensions": [
+                "docs/project/extensions/network/corporate-network.json",
+                "docs/project/extensions/network/connection-detection.json"
+            ]
+        },
+        
+        "security": {
+            "scope": "internal_secure_network",
+            "description": "Проект предназначен для работы в безопасной внутренней сети организации",
+            "user_authentication": "не требуется",
+            "data_encryption": "не требуется",
+            "password_encryption": "не требуется (хранение в plain text допустимо)",
+            "network_security": "обеспечивается инфраструктурой организации",
+            "assumptions": [
+                "Приложение работает в защищенной корпоративной сети",
+                "Доступ к серверу БД ограничен на уровне сети",
+                "Пользователи имеют доверенный доступ",
+                "Файлы конфигурации защищены правами ОС (chmod 600)"
+            ]
+        },
+        
+        "monitoring": {
+            "health_checks": true,
+            "logging": "file-rotation",
+            "backup": "daily-database",
+            "extensions": [
+                "docs/project/extensions/monitoring/logging-config.json",
+                "docs/project/extensions/monitoring/health-checks.json"
+            ]
+        },
+        "timeline": {
+            "phases": [
+                {
+                    "name": "Phase 1: Foundation",
+                    "duration": "2 weeks",
+                    "startDate": "2025-01-27",
+                    "tasks": [
+                        "Настройка инфраструктуры",
+                        "Базовая архитектура Backend",
+                        "Базовая архитектура Frontend",
+                        "Настройка БД и миграций",
+                        "Создание JSON-документации"
+                    ],
+                    "status": "in_progress",
+                    "progress": 20
+                },
+                {
+                    "name": "Phase 2: Core Features",
+                    "duration": "4 weeks",
+                    "startDate": "2025-02-10",
+                    "tasks": [
+                        "Модуль управления отношениями с контрагентами",
+                        "Система аутентификации",
+                        "Базовый UI/UX",
+                        "API интеграция Frontend-Backend"
+                    ],
+                    "status": "planned",
+                    "progress": 0
+                },
+                {
+                    "name": "Phase 3: Advanced Features",
+                    "duration": "3 weeks",
+                    "startDate": "2025-03-10",
+                    "tasks": [
+                        "ГИС-аналитика",
+                        "Документооборот",
+                        "Система уведомлений",
+                        "Интеграции с внешними API"
+                    ],
+                    "status": "planned",
+                    "progress": 0
+                }
+            ]
+        },
+        "risks": [
+            {
+                "id": "R001",
+                "description": "Сложность интеграции с внешними API",
+                "probability": "medium",
+                "impact": "high",
+                "mitigation": "Поэтапная интеграция с тестированием",
+                "status": "monitoring"
+            },
+            {
+                "id": "R002",
+                "description": "Производительность при работе с большими объемами данных",
+                "probability": "low",
+                "impact": "medium",
+                "mitigation": "Оптимизация запросов и кэширование",
+                "status": "monitoring"
+            }
+        ],
+        "resources": {
+            "team": [
+                {
+                    "role": "Full-stack Developer",
+                    "name": "Александр",
+                    "responsibilities": [
+                        "Backend",
+                        "Frontend",
+                        "DevOps",
+                        "Database",
+                        "Architecture"
+                    ],
+                    "skills": [
+                        "Java",
+                        "Vue.js",
+                        "MS SQL Server",
+                        "GraphQL"
+                    ]
+                }
+            ],
+            "budget": {
+                "development": "0 (open-source)",
+                "hosting": "estimated $50/month",
+                "tools": "0 (free tools)",
+                "total": "estimated $50/month"
+            },
+            "tools": [
+                "Cursor",
+                "GitHub"
+            ],
+            "documentation": {
+                "main": "docs",
+                "journal": "docs/journal/project-journal.json"
+            }
+        }
+    }
+}

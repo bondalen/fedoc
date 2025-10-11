@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Образец структуры project-journal.json для ведения дневника разработки. Замените абстрактные значения на реальные записи вашего проекта.",
+  
+  "journal": {
+    "metadata": {
+      "version": "1.0.0",
+      "status": "active|archived",
+      "created": "YYYY-MM-DD",
+      "lastUpdated": "YYYY-MM-DD",
+      "description": "Дневник разработки с детальным описанием выполненных работ"
+    },
+    
+    "sessions": [
+      {
+        "chat": {
+          "displayName": "Настройка инфраструктуры проекта (active, high). № chat-YYYY-MM-DD-001",
+          "chat-attributes": {
+            "id": "chat-YYYY-MM-DD-001",
+            "created": "YYYY-MM-DD",
+            "lastUpdated": "YYYY-MM-DD",
+            "owner": "Имя разработчика",
+            "status": "active|completed|paused",
+            "priority": "critical|high|medium|low",
+            "tags": ["infrastructure", "setup", "configuration"],
+            "links": {
+              "projectDocsRefs": [
+                "project.modules.list[0].module.attributes.location",
+                "project.architecture.backend.framework"
+              ],
+              "developmentTasks": ["01.01", "01.02"],
+              "aiRuleRefs": ["src/ai-rules/infrastructure/"]
+            }
+          },
+          "entries": [
+            {
+              "log": {
+                "displayName": "Создание базовой структуры проекта (success). № log-YYYY-MM-DD-001",
+                "log-attributes": {
+                  "id": "log-YYYY-MM-DD-001",
+                  "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+                  "level": "info|success|warning|error|debug",
+                  "effort": "2h",
+                  "status": "started|in-progress|completed|blocked|failed",
+                  "links": {
+                    "projectDocsRefs": [
+                      "project.modules.list[0].module.attributes.location"
+                    ],
+                    "developmentTasks": ["01.01.01"],
+                    "aiRuleRefs": []
+                  }
+                },
+                "entries": [
+                  {
+                    "action": "Создание директорий проекта",
+                    "details": "Созданы основные директории: src/, docs/, tests/, scripts/",
+                    "outcome": "Структура проекта соответствует модульному монолиту",
+                    "references": [
+                      "src/",
+                      "docs/project/project-docs.json#modules"
+                    ]
+                  },
+                  {
+                    "action": "Инициализация системы контроля версий",
+                    "details": "Инициализирован Git репозиторий, создан .gitignore",
+                    "outcome": "Репозиторий готов к работе",
+                    "references": [
+                      ".git/",
+                      ".gitignore"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "log": {
+                "displayName": "Настройка конфигурационных файлов (info). № log-YYYY-MM-DD-002",
+                "log-attributes": {
+                  "id": "log-YYYY-MM-DD-002",
+                  "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+                  "level": "info",
+                  "effort": "1.5h",
+                  "status": "completed",
+                  "links": {
+                    "projectDocsRefs": [
+                      "project.modules.list[0].components[0].component.files[0].file.attributes.location"
+                    ],
+                    "developmentTasks": ["01.01.02"],
+                    "aiRuleRefs": []
+                  }
+                },
+                "entries": [
+                  {
+                    "action": "Создание application.properties",
+                    "details": "Настроены параметры подключения к БД, порты, логирование",
+                    "outcome": "Базовая конфигурация приложения готова",
+                    "references": [
+                      "src/main/resources/application.properties",
+                      "docs/development/tasks/01.01.02-config-details.md"
+                    ]
+                  },
+                  {
+                    "action": "Создание connections.json",
+                    "details": "Настроены параметры подключения к MS SQL и PostgreSQL",
+                    "outcome": "Конфигурация подключений к БД готова",
+                    "references": [
+                      "src/main/resources/connections.json"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "log": {
+                "displayName": "Решение проблемы с зависимостями (warning). № log-YYYY-MM-DD-003",
+                "log-attributes": {
+                  "id": "log-YYYY-MM-DD-003",
+                  "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+                  "level": "warning",
+                  "effort": "45m",
+                  "status": "completed",
+                  "links": {
+                    "projectDocsRefs": [],
+                    "developmentTasks": ["01.01.03"],
+                    "aiRuleRefs": []
+                  }
+                },
+                "entries": [
+                  {
+                    "action": "Обнаружена несовместимость версий библиотек",
+                    "details": "Spring Boot 3.4.5 конфликтует с некоторыми зависимостями",
+                    "problem": "java.lang.NoClassDefFoundError при запуске",
+                    "solution": "Обновлены версии зависимостей в pom.xml",
+                    "outcome": "Конфликт разрешен, приложение запускается",
+                    "references": [
+                      "pom.xml",
+                      "docs/journal/troubleshooting/dependency-conflict.md"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "chat": {
+          "displayName": "Разработка модуля БД (active, high). № chat-YYYY-MM-DD-002",
+          "chat-attributes": {
+            "id": "chat-YYYY-MM-DD-002",
+            "created": "YYYY-MM-DD",
+            "lastUpdated": "YYYY-MM-DD",
+            "owner": "Имя разработчика",
+            "status": "active",
+            "priority": "high",
+            "tags": ["database", "repository", "entities"],
+            "links": {
+              "projectDocsRefs": [
+                "project.modules.list[1].module.attributes.location",
+                "project.database.schema"
+              ],
+              "developmentTasks": ["02.01", "02.02"],
+              "aiRuleRefs": []
+            }
+          },
+          "entries": [
+            {
+              "log": {
+                "displayName": "Создание сущностей базы данных (success). № log-YYYY-MM-DD-004",
+                "log-attributes": {
+                  "id": "log-YYYY-MM-DD-004",
+                  "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+                  "level": "success",
+                  "effort": "3h",
+                  "status": "completed",
+                  "links": {
+                    "projectDocsRefs": [
+                      "project.database.tables[0].name",
+                      "project.database.tables[1].name"
+                    ],
+                    "developmentTasks": ["02.01.01", "02.01.02"],
+                    "aiRuleRefs": []
+                  }
+                },
+                "entries": [
+                  {
+                    "action": "Создание Entity классов",
+                    "details": "Созданы User, Contractor, Project entities с JPA аннотациями",
+                    "outcome": "Все сущности соответствуют схеме БД",
+                    "references": [
+                      "src/main/java/com/example/entity/User.java",
+                      "src/main/java/com/example/entity/Contractor.java",
+                      "docs/project/project-docs.json#database.tables"
+                    ]
+                  },
+                  {
+                    "action": "Настройка связей между сущностями",
+                    "details": "Настроены OneToMany, ManyToOne, ManyToMany отношения",
+                    "outcome": "Связи корректно отражают структуру БД",
+                    "references": [
+                      "docs/technical/entity-relationships.md"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "log": {
+                "displayName": "Ошибка при создании миграции (error). № log-YYYY-MM-DD-005",
+                "log-attributes": {
+                  "id": "log-YYYY-MM-DD-005",
+                  "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+                  "level": "error",
+                  "effort": "2h",
+                  "status": "completed",
+                  "links": {
+                    "projectDocsRefs": [
+                      "project.database.migrations[0]"
+                    ],
+                    "developmentTasks": ["02.02.01"],
+                    "aiRuleRefs": []
+                  }
+                },
+                "entries": [
+                  {
+                    "action": "Попытка создания первой миграции Liquibase",
+                    "details": "Liquibase не смог подключиться к БД",
+                    "problem": "Неверные параметры подключения в liquibase.properties",
+                    "solution": "Исправлены параметры: url, username, password",
+                    "outcome": "Миграция успешно создана и применена",
+                    "references": [
+                      "src/main/resources/liquibase.properties",
+                      "src/main/resources/db/changelog/001-initial-schema.xml",
+                      "docs/journal/troubleshooting/liquibase-connection-error.md"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "chat": {
+          "displayName": "Оптимизация и рефакторинг (completed, medium). № chat-YYYY-MM-DD-003",
+          "chat-attributes": {
+            "id": "chat-YYYY-MM-DD-003",
+            "created": "YYYY-MM-DD",
+            "lastUpdated": "YYYY-MM-DD",
+            "owner": "Имя разработчика",
+            "status": "completed",
+            "priority": "medium",
+            "tags": ["optimization", "refactoring", "performance"],
+            "links": {
+              "projectDocsRefs": [
+                "project.features.advanced"
+              ],
+              "developmentTasks": ["03.01"],
+              "aiRuleRefs": []
+            }
+          },
+          "entries": [
+            {
+              "log": {
+                "displayName": "Оптимизация запросов к БД (info). № log-YYYY-MM-DD-006",
+                "log-attributes": {
+                  "id": "log-YYYY-MM-DD-006",
+                  "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+                  "level": "info",
+                  "effort": "4h",
+                  "status": "completed",
+                  "links": {
+                    "projectDocsRefs": [
+                      "project.modules.list[1].components[0].component.classes[0].class.attributes.location"
+                    ],
+                    "developmentTasks": ["03.01.01"],
+                    "aiRuleRefs": []
+                  }
+                },
+                "entries": [
+                  {
+                    "action": "Анализ производительности запросов",
+                    "details": "Выявлены медленные запросы с N+1 проблемой",
+                    "before": "Запрос списка с 100 элементов: 2.5 секунды",
+                    "after": "Тот же запрос: 0.3 секунды",
+                    "changes": [
+                      "Добавлены @EntityGraph для fetch join",
+                      "Созданы индексы для часто используемых полей",
+                      "Добавлено кэширование для справочников"
+                    ],
+                    "outcome": "Производительность улучшена в 8 раз",
+                    "references": [
+                      "src/main/java/com/example/repository/ContractorRepository.java",
+                      "docs/technical/performance-optimization.md"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    
+    "links": {
+      "projectDocs": "../project/project-docs.json",
+      "development": "../development/project-development.json"
+    }
+  }
+}
+
+

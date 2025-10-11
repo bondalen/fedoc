@@ -1,0 +1,207 @@
+{
+  "_comment": "Пример структуры модулей проекта",
+  "_usage": "Скопируйте этот файл в modules.json и адаптируйте под свой проект",
+  "_documentation": "Типы артефактов описаны в project-docs-json-rules-af-types.md",
+  
+  "modules": {
+    "version": "1.0.0",
+    "lastUpdated": "YYYY-MM-DD",
+    "description": "Структура модулей проекта",
+    
+    "_recursive_structure": {
+      "entities": [
+        {
+          "name": "Module",
+          "contains": ["modules", "components", "classes"],
+          "represents": "Maven modules, проекты, пакеты верхнего уровня"
+        },
+        {
+          "name": "Component", 
+          "contains": ["components", "classes"],
+          "represents": "Java packages, пакеты, модули приложения"
+        },
+        {
+          "name": "Class",
+          "contains": ["classes"],
+          "represents": "Java classes, interfaces, enums, вложенные классы"
+        }
+      ]
+    },
+    
+    "_grouping": {
+      "principle": "Физические атрибуты группируются в объект artifact",
+      "benefit": "Улучшает читаемость, можно сворачивать в IDE"
+    },
+    
+    "items": [
+      {
+        "module": {
+          "displayName": "Backend Module. № 01",
+          "attributes": {
+            "id": "backend",
+            "number": "01",
+            "name": "Backend Module",
+            "description": "Основной backend модуль приложения",
+            "purpose": "Серверная логика, API, работа с БД",
+            "status": "planned",
+            "artifact": {
+              "location": "project-backend/",
+              "file_path": "project-backend/",
+              "type": "maven-module",
+              "artifact_type": "directory",
+              "build_file": "pom.xml"
+            },
+            "dependencies": []
+          },
+          
+          "modules": [
+            {
+              "module": {
+                "displayName": "Database Module. № 01.01",
+                "attributes": {
+                  "id": "database",
+                  "number": "01.01",
+                  "name": "Database Module",
+                  "description": "Модуль работы с базой данных",
+                  "purpose": "Управление подключением к БД",
+                  "status": "planned",
+                  "artifact": {
+                    "location": "project-backend/project-database/",
+                    "file_path": "project-backend/project-database/",
+                    "type": "maven-submodule",
+                    "artifact_type": "directory",
+                    "build_file": "pom.xml"
+                  },
+                  "dependencies": []
+                },
+                
+                "components": [
+                  {
+                    "component": {
+                      "displayName": "Configuration Package. № 01.01.01",
+                      "attributes": {
+                        "id": "config",
+                        "number": "01.01.01",
+                        "name": "Configuration Package",
+                        "description": "Пакет для управления конфигурацией БД",
+                        "status": "planned",
+                        "artifact": {
+                          "location": "com.example.database.config",
+                          "file_path": "src/main/java/com/example/database/config/",
+                          "type": "java-package",
+                          "artifact_type": "directory"
+                        },
+                        "responsibilities": [
+                          "Чтение/запись конфигурации",
+                          "Валидация параметров"
+                        ]
+                      },
+                      
+                      "classes": [
+                        {
+                          "class": {
+                            "displayName": "DatabaseConfigService. № 01.01.01.01",
+                            "attributes": {
+                              "id": "DatabaseConfigService",
+                              "number": "01.01.01.01",
+                              "name": "DatabaseConfigService",
+                              "description": "Сервис для работы с конфигурацией БД",
+                              "status": "planned",
+                              "artifact": {
+                                "location": "com.example.database.config.DatabaseConfigService",
+                                "file_path": "src/main/java/com/example/database/config/DatabaseConfigService.java",
+                                "type": "java-class",
+                                "artifact_type": "file"
+                              },
+                              "responsibilities": [
+                                "Управление конфигурацией",
+                                "Интеграция с UI"
+                              ],
+                              "dependsOn": ["ConfigFileManager"]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "module": {
+          "displayName": "Frontend Module. № 02",
+          "attributes": {
+            "id": "frontend",
+            "number": "02",
+            "name": "Frontend Module",
+            "description": "Frontend модуль приложения",
+            "purpose": "Пользовательский интерфейс",
+            "status": "planned",
+            "artifact": {
+              "location": "project-frontend/",
+              "file_path": "project-frontend/",
+              "type": "vue-module",
+              "artifact_type": "directory",
+              "build_file": "package.json"
+            },
+            "dependencies": ["backend"]
+          },
+          
+          "components": [
+            {
+              "component": {
+                "displayName": "Setup Components. № 02.01",
+                "attributes": {
+                  "id": "setup",
+                  "number": "02.01",
+                  "name": "Setup Components",
+                  "description": "Компоненты для настройки",
+                  "status": "planned",
+                  "artifact": {
+                    "location": "src/components/setup/",
+                    "file_path": "src/components/setup/",
+                    "type": "vue-components",
+                    "artifact_type": "directory"
+                  },
+                  "responsibilities": [
+                    "Мастер настройки",
+                    "Формы ввода параметров"
+                  ]
+                },
+                
+                "classes": [
+                  {
+                    "class": {
+                      "displayName": "SetupWizard.vue. № 02.01.01",
+                      "attributes": {
+                        "id": "SetupWizard",
+                        "number": "02.01.01",
+                        "name": "SetupWizard",
+                        "description": "Главный компонент мастера настройки",
+                        "status": "planned",
+                        "artifact": {
+                          "location": "src/components/setup/SetupWizard.vue",
+                          "file_path": "src/components/setup/SetupWizard.vue",
+                          "type": "vue-component",
+                          "artifact_type": "file"
+                        },
+                        "responsibilities": [
+                          "Управление шагами настройки",
+                          "Координация между дочерними компонентами"
+                        ],
+                        "dependsOn": []
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

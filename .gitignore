@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# Logs
+*.log
+logs/
+*.out
+
+# Config
+config/*.local.yaml
+config/*.local.json
+.env
+.env.local
+
+# Docker
+docker/data/
+docker/logs/
+
+# Temporary
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Database exports
+*.dump
+*.sql.gz
+
+# Backup files
+*.bak
+*~

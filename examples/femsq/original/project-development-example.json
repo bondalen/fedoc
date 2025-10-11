@@ -1,0 +1,383 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Образец структуры project-development.json v2.0 с разделением задач и структуры",
+  
+  "development": {
+    "metadata": {
+      "version": "2.0.0",
+      "created": "2025-10-09",
+      "lastUpdated": "2025-10-09",
+      "description": "DAG-структура с разделением задач и структурных пунктов для удобной навигации"
+    },
+    
+    "tasks": {
+      "description": "Словарь всех задач проекта (единственный источник истины)",
+      "nextTaskId": "0011",
+      "items": {
+        "0001": {
+          "task": {
+            "displayName": "Разработка проекта FEMSQ (in-progress, critical). № 0001",
+            "task-attributes": {
+              "status": "in-progress",
+              "priority": "critical",
+              "owner": "Александр",
+              "completionCriteria": [
+                "Все основные модули разработаны и протестированы",
+                "Система развернута и функционирует",
+                "Документация завершена"
+              ],
+              "description": "Корневая задача разработки всего проекта FEMSQ - системы работы с контрагентами",
+              "links": {
+                "projectDocsRefs": [],
+                "journalRefs": [],
+                "aiRuleRefs": []
+              },
+              "created": "2025-10-08",
+              "lastUpdated": "2025-10-09"
+            }
+          }
+        },
+        
+        "0002": {
+          "task": {
+            "displayName": "Разработка Backend модуля (in-progress, critical). № 0002",
+            "task-attributes": {
+              "status": "in-progress",
+              "priority": "critical",
+              "owner": "Александр",
+              "completionCriteria": [
+                "Все компоненты Backend созданы",
+                "API GraphQL работает",
+                "Интеграция с БД настроена"
+              ],
+              "description": "Разработка серверной части на Spring Boot с поддержкой GraphQL и MS SQL Server",
+              "links": {
+                "projectDocsRefs": ["module:backend"],
+                "journalRefs": [],
+                "aiRuleRefs": []
+              },
+              "created": "2025-10-08",
+              "lastUpdated": "2025-10-09"
+            }
+          }
+        },
+        
+        "0003": {
+          "task": {
+            "displayName": "Модуль конфигурации БД (pending, high). № 0003",
+            "task-attributes": {
+              "status": "pending",
+              "priority": "high",
+              "owner": "Александр",
+              "completionCriteria": [
+                "DatabaseConfigService класс создан",
+                "ConnectionManager работает",
+                "Unit-тесты написаны и проходят"
+              ],
+              "description": "Компонент для управления конфигурацией подключения к MS SQL Server",
+              "links": {
+                "projectDocsRefs": ["component:backend.database-config"],
+                "journalRefs": [],
+                "aiRuleRefs": []
+              },
+              "created": "2025-10-09",
+              "lastUpdated": "2025-10-09"
+            }
+          }
+        },
+        
+        "0004": {
+          "task": {
+            "displayName": "DatabaseConfigService класс (pending, critical). № 0004",
+            "task-attributes": {
+              "status": "pending",
+              "priority": "critical",
+              "owner": "Александр",
+              "completionCriteria": [
+                "Класс создан в пакете com.femsq.database.config",
+                "Методы loadConfig() и validateConfig() реализованы",
+                "Обработка ошибок конфигурации",
+                "Unit-тесты покрывают основные сценарии"
+              ],
+              "description": "Сервис для загрузки и валидации конфигурации подключения к БД",
+              "links": {
+                "projectDocsRefs": ["class:backend.database-config.DatabaseConfigService"],
+                "journalRefs": [],
+                "aiRuleRefs": []
+              },
+              "created": "2025-10-09",
+              "lastUpdated": "2025-10-09"
+            }
+          }
+        },
+        
+        "0005": {
+          "task": {
+            "displayName": "ConnectionManager класс (completed, high). № 0005",
+            "task-attributes": {
+              "status": "completed",
+              "priority": "high",
+              "owner": "Александр",
+              "completionCriteria": [
+                "Класс создан в пакете com.femsq.database.connection",
+                "Методы connect() и disconnect() работают",
+                "Connection pool настроен",
+                "Обработка ошибок подключения"
+              ],
+              "description": "Менеджер подключений к MS SQL Server с поддержкой pool'а соединений",
+              "links": {
+                "projectDocsRefs": ["class:backend.connection.ConnectionManager"],
+                "journalRefs": ["log:log-2025-10-09-001"],
+                "aiRuleRefs": []
+              },
+              "created": "2025-10-09",
+              "lastUpdated": "2025-10-09"
+            }
+          }
+        },
+        
+        "0006": {
+          "task": {
+            "displayName": "Функционал подключения к БД (pending, critical). № 0006",
+            "task-attributes": {
+              "status": "pending",
+              "priority": "critical",
+              "owner": "Александр",
+              "completionCriteria": [
+                "Приложение успешно подключается к MS SQL Server",
+                "Конфигурация загружается из properties файла",
+                "Обработка ошибок подключения работает",
+                "Reconnect при потере соединения"
+              ],
+              "description": "Полный функционал подключения приложения к внешней БД MS SQL Server",
+              "links": {
+                "projectDocsRefs": [
+                  "feature:database-connection"
+                ],
+                "journalRefs": [],
+                "aiRuleRefs": []
+              },
+              "created": "2025-10-09",
+              "lastUpdated": "2025-10-09"
+            }
+          }
+        },
+        
+        "0010": {
+          "task": {
+            "displayName": "Frontend модуль (pending, medium). № 0010",
+            "task-attributes": {
+              "status": "pending",
+              "priority": "medium",
+              "owner": "Александр",
+              "completionCriteria": [
+                "Vue 3 приложение настроено",
+                "Quasar UI интегрирован",
+                "Apollo Client настроен для GraphQL"
+              ],
+              "description": "Разработка клиентской части на Vue.js 3 с Quasar Framework",
+              "links": {
+                "projectDocsRefs": ["module:frontend"],
+                "journalRefs": [],
+                "aiRuleRefs": []
+              },
+              "created": "2025-10-09",
+              "lastUpdated": "2025-10-09"
+            }
+          }
+        }
+      }
+    },
+    
+    "structure": {
+      "description": "Иерархическая структура пунктов задач с номерами деревьев",
+      "trees": [
+        {
+          "tree": {
+            "displayName": "Дерево артефактов. № 01",
+            "tree-attributes": {
+              "treeNumber": "01",
+              "treeId": "artifacts",
+              "type": "artifacts",
+              "description": "Иерархия модулей, компонентов, классов проекта",
+              "positionInParent": 1
+            },
+            "task-items": [
+              {
+                "task-item": {
+                  "displayName": "🔄 Backend модуль (in-progress, critical). № 01.01 → 0002",
+                  "item-attributes": {
+                    "structureId": "01.01",
+                    "taskId": "0002",
+                    "positionInParent": 1
+                  },
+                  "task-items": [
+                    {
+                      "task-item": {
+                        "displayName": "⏳ Модуль конфигурации БД (pending, high). № 01.01.01 → 0003",
+                        "item-attributes": {
+                          "structureId": "01.01.01",
+                          "taskId": "0003",
+                          "positionInParent": 1
+                        },
+                        "task-items": [
+                          {
+                            "task-item": {
+                              "displayName": "⏳ DatabaseConfigService класс (pending, critical). № 01.01.01.01 → 0004",
+                              "item-attributes": {
+                                "structureId": "01.01.01.01",
+                                "taskId": "0004",
+                                "positionInParent": 1
+                              },
+                              "task-items": []
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "task-item": {
+                        "displayName": "✅ Модуль подключения (completed, high). № 01.01.02 → 0005",
+                        "item-attributes": {
+                          "structureId": "01.01.02",
+                          "taskId": "0005",
+                          "positionInParent": 2
+                        },
+                        "task-items": [
+                          {
+                            "task-item": {
+                              "displayName": "✅ ConnectionManager класс (completed, high). № 01.01.02.01 → 0005",
+                              "item-attributes": {
+                                "structureId": "01.01.02.01",
+                                "taskId": "0005",
+                                "positionInParent": 1,
+                                "comment": "Та же задача что и родительский пункт"
+                              },
+                              "task-items": []
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "task-item": {
+                  "displayName": "⏳ Frontend модуль (pending, medium). № 01.02 → 0010",
+                  "item-attributes": {
+                    "structureId": "01.02",
+                    "taskId": "0010",
+                    "positionInParent": 2
+                  },
+                  "task-items": []
+                }
+              }
+            ]
+          }
+        },
+        
+        {
+          "tree": {
+            "displayName": "Дерево функционала. № 02",
+            "tree-attributes": {
+              "treeNumber": "02",
+              "treeId": "features",
+              "type": "features",
+              "description": "Иерархия функциональных возможностей системы",
+              "positionInParent": 2
+            },
+            "task-items": [
+              {
+                "task-item": {
+                  "displayName": "⏳ Функционал подключения к БД (pending, critical). № 02.01 → 0006",
+                  "item-attributes": {
+                    "structureId": "02.01",
+                    "taskId": "0006",
+                    "positionInParent": 1
+                  },
+                  "task-items": [
+                    {
+                      "task-item": {
+                        "displayName": "⏳ Загрузка конфигурации (pending, critical). № 02.01.01 → 0004",
+                        "item-attributes": {
+                          "structureId": "02.01.01",
+                          "taskId": "0004",
+                          "positionInParent": 1,
+                          "comment": "Ссылка на задачу 0004 из дерева артефактов (01.01.01.01)"
+                        },
+                        "task-items": []
+                      }
+                    },
+                    {
+                      "task-item": {
+                        "displayName": "✅ Установка соединения (completed, high). № 02.01.02 → 0005",
+                        "item-attributes": {
+                          "structureId": "02.01.02",
+                          "taskId": "0005",
+                          "positionInParent": 2,
+                          "comment": "Ссылка на задачу 0005 из дерева артефактов (01.01.02)"
+                        },
+                        "task-items": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        
+        {
+          "tree": {
+            "displayName": "Дерево модулей архитектуры. № 0a",
+            "tree-attributes": {
+              "treeNumber": "0a",
+              "treeId": "modules",
+              "type": "modules",
+              "description": "Группировка по архитектурным модулям",
+              "positionInParent": 10
+            },
+            "task-items": [
+              {
+                "task-item": {
+                  "displayName": "Database модуль (группировочный). № 0a.01",
+                  "item-attributes": {
+                    "structureId": "0a.01",
+                    "taskId": null,
+                    "positionInParent": 1,
+                    "comment": "Группировочный пункт без собственной задачи"
+                  },
+                  "task-items": [
+                    {
+                      "task-item": {
+                        "displayName": "⏳ Конфигурация БД (pending, critical). № 0a.01.01 → 0004",
+                        "item-attributes": {
+                          "structureId": "0a.01.01",
+                          "taskId": "0004",
+                          "positionInParent": 1
+                        },
+                        "task-items": []
+                      }
+                    },
+                    {
+                      "task-item": {
+                        "displayName": "✅ Подключение к БД (completed, high). № 0a.01.02 → 0005",
+                        "item-attributes": {
+                          "structureId": "0a.01.02",
+                          "taskId": "0005",
+                          "positionInParent": 2
+                        },
+                        "task-items": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

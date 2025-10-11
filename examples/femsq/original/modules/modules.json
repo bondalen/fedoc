@@ -1,0 +1,422 @@
+{
+  "modules": {
+    "version": "1.0.0",
+    "lastUpdated": "2025-01-27",
+    "description": "Структура модулей проекта FEMSQ",
+    
+    "items": [
+      {
+        "module": {
+          "displayName": "Backend Module. № 01",
+          "attributes": {
+            "id": "backend",
+            "number": "01",
+            "name": "Backend Module",
+            "description": "Основной backend модуль приложения FEMSQ",
+            "purpose": "Серверная логика, GraphQL API, работа с MS SQL Server",
+            "status": "planned",
+            "artifact": {
+              "location": "femsq-backend/",
+              "file_path": "femsq-backend/",
+              "type": "maven-module",
+              "artifact_type": "directory",
+              "build_file": "pom.xml"
+            },
+            "dependencies": []
+          },
+          
+          "modules": [
+            {
+              "module": {
+                "displayName": "Database Module. № 01.01",
+                "attributes": {
+                  "id": "database",
+                  "number": "01.01",
+                  "name": "Database Module",
+                  "description": "Модуль работы с базой данных MS SQL Server",
+                  "purpose": "Управление подключением к MS SQL Server, конфигурация, аутентификация",
+                  "status": "planned",
+                  "artifact": {
+                    "location": "femsq-backend/femsq-database/",
+                    "file_path": "femsq-backend/femsq-database/",
+                    "type": "maven-submodule",
+                    "artifact_type": "directory",
+                    "build_file": "pom.xml"
+                  },
+                  "dependencies": []
+                },
+                
+                "components": [
+                  {
+                    "component": {
+                      "displayName": "Configuration Management. № 01.01.01",
+                      "attributes": {
+                        "id": "config",
+                        "number": "01.01.01",
+                        "name": "Configuration Management",
+                        "description": "Управление конфигурацией подключения к БД",
+                        "status": "planned",
+                        "artifact": {
+                          "location": "com.femsq.database.config",
+                          "file_path": "src/main/java/com/femsq/database/config/",
+                          "type": "java-package",
+                          "artifact_type": "directory"
+                        },
+                        "responsibilities": [
+                          "Чтение/запись конфигурации из ~/.femsq/database.properties",
+                          "Валидация параметров подключения",
+                          "Управление файлами конфигурации"
+                        ]
+                      },
+                      
+                      "classes": [
+                        {
+                          "class": {
+                            "displayName": "DatabaseConfigurationService. № 01.01.01.01",
+                            "attributes": {
+                              "id": "DatabaseConfigurationService",
+                              "number": "01.01.01.01",
+                              "name": "DatabaseConfigurationService",
+                              "description": "Основной сервис управления конфигурацией БД",
+                              "status": "planned",
+                              "artifact": {
+                                "location": "com.femsq.database.config.DatabaseConfigurationService",
+                                "file_path": "src/main/java/com/femsq/database/config/DatabaseConfigurationService.java",
+                                "type": "java-class",
+                                "artifact_type": "file"
+                              },
+                              "responsibilities": [
+                                "Загрузка конфигурации из файла",
+                                "Сохранение конфигурации в файл",
+                                "Валидация параметров подключения"
+                              ],
+                              "dependsOn": ["ConfigurationFileManager", "ConfigurationValidator"]
+                            }
+                          }
+                        },
+                        {
+                          "class": {
+                            "displayName": "ConfigurationFileManager. № 01.01.01.02",
+                            "attributes": {
+                              "id": "ConfigurationFileManager",
+                              "number": "01.01.01.02",
+                              "name": "ConfigurationFileManager",
+                              "description": "Менеджер файлов конфигурации",
+                              "status": "planned",
+                              "artifact": {
+                                "location": "com.femsq.database.config.ConfigurationFileManager",
+                                "file_path": "src/main/java/com/femsq/database/config/ConfigurationFileManager.java",
+                                "type": "java-class",
+                                "artifact_type": "file"
+                              },
+                              "responsibilities": [
+                                "Управление файлами конфигурации",
+                                "Создание директорий",
+                                "Установка прав доступа (chmod 600)"
+                              ],
+                              "dependsOn": []
+                            }
+                          }
+                        },
+                        {
+                          "class": {
+                            "displayName": "ConfigurationValidator. № 01.01.01.03",
+                            "attributes": {
+                              "id": "ConfigurationValidator",
+                              "number": "01.01.01.03",
+                              "name": "ConfigurationValidator",
+                              "description": "Валидатор параметров конфигурации",
+                              "status": "planned",
+                              "artifact": {
+                                "location": "com.femsq.database.config.ConfigurationValidator",
+                                "file_path": "src/main/java/com/femsq/database/config/ConfigurationValidator.java",
+                                "type": "java-class",
+                                "artifact_type": "file"
+                              },
+                              "responsibilities": [
+                                "Валидация хоста, порта, имени БД"
+                              ],
+                              "dependsOn": []
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "component": {
+                      "displayName": "Connection Management. № 01.01.02",
+                      "attributes": {
+                        "id": "connection",
+                        "number": "01.01.02",
+                        "name": "Connection Management",
+                        "description": "Управление подключениями к базе данных",
+                        "status": "planned",
+                        "artifact": {
+                          "location": "com.femsq.database.connection",
+                          "file_path": "src/main/java/com/femsq/database/connection/",
+                          "type": "java-package",
+                          "artifact_type": "directory"
+                        },
+                        "responsibilities": [
+                          "Создание подключений",
+                          "Управление пулом соединений (HikariCP)",
+                          "Тестирование подключений"
+                        ]
+                      },
+                      
+                      "classes": [
+                        {
+                          "class": {
+                            "displayName": "ConnectionFactory. № 01.01.02.01",
+                            "attributes": {
+                              "id": "ConnectionFactory",
+                              "number": "01.01.02.01",
+                              "name": "ConnectionFactory",
+                              "description": "Фабрика подключений к БД",
+                              "status": "planned",
+                              "artifact": {
+                                "location": "com.femsq.database.connection.ConnectionFactory",
+                                "file_path": "src/main/java/com/femsq/database/connection/ConnectionFactory.java",
+                                "type": "java-class",
+                                "artifact_type": "file"
+                              },
+                              "dependsOn": ["AuthenticationProvider"]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "component": {
+                      "displayName": "Authentication Providers. № 01.01.03",
+                      "attributes": {
+                        "id": "auth",
+                        "number": "01.01.03",
+                        "name": "Authentication Providers",
+                        "description": "Провайдеры аутентификации для MS SQL Server",
+                        "status": "planned",
+                        "artifact": {
+                          "location": "com.femsq.database.auth",
+                          "file_path": "src/main/java/com/femsq/database/auth/",
+                          "type": "java-package",
+                          "artifact_type": "directory"
+                        },
+                        "responsibilities": [
+                          "Integrated Security аутентификация",
+                          "Trusted Connection аутентификация",
+                          "Credentials аутентификация"
+                        ]
+                      },
+                      
+                      "classes": [
+                        {
+                          "class": {
+                            "displayName": "AuthenticationProvider. № 01.01.03.01",
+                            "attributes": {
+                              "id": "AuthenticationProvider",
+                              "number": "01.01.03.01",
+                              "name": "AuthenticationProvider",
+                              "description": "Интерфейс для провайдеров аутентификации",
+                              "status": "planned",
+                              "artifact": {
+                                "location": "com.femsq.database.auth.AuthenticationProvider",
+                                "file_path": "src/main/java/com/femsq/database/auth/AuthenticationProvider.java",
+                                "type": "java-interface",
+                                "artifact_type": "file"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "component": {
+                      "displayName": "Data Models. № 01.01.04",
+                      "attributes": {
+                        "id": "model",
+                        "number": "01.01.04",
+                        "name": "Data Models",
+                        "description": "Модели данных для конфигурации и статусов",
+                        "status": "planned",
+                        "artifact": {
+                          "location": "com.femsq.database.model",
+                          "file_path": "src/main/java/com/femsq/database/model/",
+                          "type": "java-package",
+                          "artifact_type": "directory"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "component": {
+                      "displayName": "Exception Handling. № 01.01.05",
+                      "attributes": {
+                        "id": "exception",
+                        "number": "01.01.05",
+                        "name": "Exception Handling",
+                        "description": "Централизованная обработка исключений",
+                        "status": "planned",
+                        "artifact": {
+                          "location": "com.femsq.database.exception",
+                          "file_path": "src/main/java/com/femsq/database/exception/",
+                          "type": "java-package",
+                          "artifact_type": "directory"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "module": {
+                "displayName": "Web API Module. № 01.02",
+                "attributes": {
+                  "id": "web",
+                  "number": "01.02",
+                  "name": "Web API Module",
+                  "description": "Модуль веб-API и жизненного цикла приложения",
+                  "purpose": "REST контроллеры, инициализация, health checks",
+                  "status": "planned",
+                  "artifact": {
+                    "location": "femsq-backend/femsq-web/",
+                    "file_path": "femsq-backend/femsq-web/",
+                    "type": "maven-submodule",
+                    "artifact_type": "directory",
+                    "build_file": "pom.xml"
+                  },
+                  "dependencies": ["database"]
+                },
+                
+                "components": [
+                  {
+                    "component": {
+                      "displayName": "REST Controllers. № 01.02.01",
+                      "attributes": {
+                        "id": "controller",
+                        "number": "01.02.01",
+                        "name": "REST Controllers",
+                        "description": "REST контроллеры для API",
+                        "status": "planned",
+                        "artifact": {
+                          "location": "com.femsq.web.controller",
+                          "file_path": "src/main/java/com/femsq/web/controller/",
+                          "type": "java-package",
+                          "artifact_type": "directory"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "component": {
+                      "displayName": "Lifecycle Management. № 01.02.02",
+                      "attributes": {
+                        "id": "lifecycle",
+                        "number": "01.02.02",
+                        "name": "Lifecycle Management",
+                        "description": "Управление жизненным циклом приложения",
+                        "status": "planned",
+                        "artifact": {
+                          "location": "com.femsq.web.lifecycle",
+                          "file_path": "src/main/java/com/femsq/web/lifecycle/",
+                          "type": "java-package",
+                          "artifact_type": "directory"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "component": {
+                      "displayName": "Health Checks. № 01.02.03",
+                      "attributes": {
+                        "id": "health",
+                        "number": "01.02.03",
+                        "name": "Health Checks",
+                        "description": "Spring Boot Actuator health checks",
+                        "status": "planned",
+                        "artifact": {
+                          "location": "com.femsq.web.health",
+                          "file_path": "src/main/java/com/femsq/web/health/",
+                          "type": "java-package",
+                          "artifact_type": "directory"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "module": {
+          "displayName": "Frontend Module. № 02",
+          "attributes": {
+            "id": "frontend",
+            "number": "02",
+            "name": "Frontend Module",
+            "description": "Frontend модуль приложения FEMSQ на Vue.js",
+            "purpose": "Пользовательский интерфейс для работы с контрагентами и объектами",
+            "status": "planned",
+            "artifact": {
+              "location": "femsq-frontend/",
+              "file_path": "femsq-frontend/",
+              "type": "vue-module",
+              "artifact_type": "directory",
+              "build_file": "package.json"
+            },
+            "dependencies": ["backend"]
+          },
+          
+          "components": [
+            {
+              "component": {
+                "displayName": "Setup Components. № 02.01",
+                "attributes": {
+                  "id": "setup",
+                  "number": "02.01",
+                  "name": "Setup Components",
+                  "description": "Компоненты для настройки подключения к БД",
+                  "status": "planned",
+                  "artifact": {
+                    "location": "src/components/setup/",
+                    "file_path": "src/components/setup/",
+                    "type": "vue-components",
+                    "artifact_type": "directory"
+                  },
+                  "responsibilities": [
+                    "Мастер настройки подключения",
+                    "Формы ввода параметров",
+                    "Тестирование подключения"
+                  ]
+                }
+              }
+            },
+            {
+              "component": {
+                "displayName": "API Services. № 02.02",
+                "attributes": {
+                  "id": "services",
+                  "number": "02.02",
+                  "name": "API Services",
+                  "description": "API клиенты для работы с backend",
+                  "status": "planned",
+                  "artifact": {
+                    "location": "src/services/",
+                    "file_path": "src/services/",
+                    "type": "typescript-modules",
+                    "artifact_type": "directory"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
