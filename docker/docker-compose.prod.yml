@@ -43,10 +43,6 @@ services:
     command: >
       arangod
       --server.endpoint tcp://0.0.0.0:8529
-      --database.maximal-journal-size 33554432
-      --rocksdb.block-cache-size 134217728
-      --rocksdb.total-write-buffer-size 33554432
-      --javascript.v8-max-heap 256
     
     networks:
       - databases
