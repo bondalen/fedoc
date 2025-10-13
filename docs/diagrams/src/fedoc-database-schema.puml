@@ -77,6 +77,7 @@ package "Projects" <<Database>> {
     metadata: object
     architecture: object
     features: object
+    principles: object
     created: datetime
     lastUpdated: datetime
     --
@@ -88,6 +89,11 @@ package "Projects" <<Database>> {
     + metadata.repository: string
     + metadata.license: string
     + metadata.keywords: array
+    --
+    + principles.system_principles: object
+    + principles.development_principles: object
+    + principles.version: string
+    + principles.lastUpdated: datetime
   }
   
   class Task <<Document Collection>> {
