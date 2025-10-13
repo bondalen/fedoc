@@ -1,0 +1,68 @@
+@startuml test-schema
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam classFontSize 11
+
+title fedoc - Test Schema\n(Проверка PlantUML рендеринга)
+
+class Project {
+  _key: string
+  _id: string
+  _rev: string
+  --
+  metadata: object
+  architecture: object
+  features: object
+  created: datetime
+  lastUpdated: datetime
+}
+
+class Task {
+  _key: string
+  _id: string
+  _rev: string
+  --
+  displayName: string
+  status: enum [pending, in-progress, completed]
+  priority: enum [critical, high, medium, low]
+  owner: string
+  completionCriteria: array [string]
+  description: string
+  created: datetime
+  lastUpdated: datetime
+}
+
+class Module {
+  _key: string
+  _id: string
+  _rev: string
+  --
+  id: string
+  number: string
+  displayName: string
+  name: string
+  description: string
+  purpose: string
+  status: enum
+  artifact: object
+  dependencies: array
+  created: datetime
+  lastUpdated: datetime
+}
+
+' Relationships
+Project "1" --> "0..*" Module : hasModule
+Project "1" --> "0..*" Task : hasTask
+Module "1" --> "0..*" Module : hasSubModule
+
+note right of Project
+  Основная сущность проекта
+  Содержит метаданные и архитектуру
+end note
+
+note right of Task
+  Задача с DAG структурой
+  Поддерживает множественные связи
+end note
+
+@enduml

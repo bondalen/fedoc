@@ -1,0 +1,37 @@
+@startuml fedoc-class-diagram
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam classFontSize 11
+skinparam packageStyle rectangle
+
+title fedoc - Class Diagram\n(Python Tools Architecture)
+
+' ============================================================
+' TODO: Добавить классы для Python инструментов fedoc
+' ============================================================
+
+' Планируемые компоненты:
+' - core/ - подключение и CRUD операции
+' - migration/ - миграция FEMSQ данных
+' - extraction/ - извлечение паттернов
+' - cli/ - интерфейс командной строки
+
+note top
+  **fedoc Python Tools**
+  
+  Этот файл будет содержать диаграмму классов
+  для Python инструментов проекта fedoc
+  
+  **Планируемые модули:**
+  - core/ - работа с ArangoDB
+  - migration/ - миграция данных FEMSQ
+  - extraction/ - извлечение паттернов
+  - cli/ - командный интерфейс
+end note
+
+' ============================================================
+' Добавить классы здесь
+' ============================================================
+
+@enduml
+и

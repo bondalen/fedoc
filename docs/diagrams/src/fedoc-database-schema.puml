@@ -1,0 +1,472 @@
+@startuml fedoc-database-schema
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam classFontSize 11
+skinparam packageStyle rectangle
+
+title fedoc - ArangoDB Database Schema\n(Multi-Model: Documents + Graphs + DAG)
+
+' ============================================================
+' LAYER 1: TEMPLATES & KNOWLEDGE BASE
+' ============================================================
+
+package "Knowledge Base" <<Database>> {
+  
+  class MetaPattern <<Document Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    name: string
+    type: enum [displayName, attributes, artifact, links]
+    description: string
+    template: object
+    examples: array
+    usageRules: string
+    version: string
+    created: datetime
+    lastUpdated: datetime
+  }
+  
+  class StructuralBlock <<Document Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    name: string
+    type: enum [Module, Component, Class, Task, Tree, Chat, Log]
+    description: string
+    schema: object
+    attributes: object
+    validationRules: object
+    examples: array
+    version: string
+    created: datetime
+    lastUpdated: datetime
+  }
+  
+  class SystemRule <<Document Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    name: string
+    category: enum [numbering, references, status, completion]
+    description: string
+    rule: string
+    examples: array
+    applicableTo: array [string]
+    priority: enum [required, recommended, optional]
+    version: string
+    created: datetime
+    lastUpdated: datetime
+  }
+}
+
+' ============================================================
+' LAYER 2: PROJECTS
+' ============================================================
+
+package "Projects" <<Database>> {
+  
+  class Project <<Document Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    metadata: object
+    architecture: object
+    features: object
+    created: datetime
+    lastUpdated: datetime
+    --
+    + metadata.name: string
+    + metadata.version: string
+    + metadata.description: string
+    + metadata.author: string
+    + metadata.status: enum
+    + metadata.repository: string
+    + metadata.license: string
+    + metadata.keywords: array
+  }
+  
+  class Task <<Document Collection>> {
+    _key: string (например: "0001")
+    _id: string
+    _rev: string
+    --
+    displayName: string
+    status: enum [pending, in-progress, completed, blocked, cancelled]
+    priority: enum [critical, high, medium, low]
+    owner: string
+    completionCriteria: array [string]
+    description: string
+    links: object
+    --
+    + links.projectDocsRefs: array
+    + links.journalRefs: array
+    + links.aiRuleRefs: array
+    created: datetime
+    lastUpdated: datetime
+  }
+  
+  class Module <<Document Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    id: string
+    number: string (например: "01")
+    displayName: string
+    name: string
+    description: string
+    purpose: string
+    status: enum
+    artifact: object
+    --
+    + artifact.location: string
+    + artifact.file_path: string
+    + artifact.type: string
+    + artifact.artifact_type: string
+    + artifact.build_file: string
+    dependencies: array
+    created: datetime
+    lastUpdated: datetime
+  }
+  
+  class Component <<Document Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    id: string
+    number: string (например: "01.01")
+    displayName: string
+    name: string
+    description: string
+    status: enum
+    artifact: object
+    --
+    + artifact.location: string
+    + artifact.file_path: string
+    + artifact.type: string
+    + artifact.artifact_type: string
+    responsibilities: array [string]
+    created: datetime
+    lastUpdated: datetime
+  }
+  
+  class Class <<Document Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    id: string
+    number: string (например: "01.01.01")
+    displayName: string
+    name: string
+    description: string
+    status: enum
+    artifact: object
+    --
+    + artifact.location: string
+    + artifact.file_path: string
+    + artifact.type: string
+    + artifact.artifact_type: string
+    responsibilities: array [string]
+    dependsOn: array [string]
+    created: datetime
+    lastUpdated: datetime
+  }
+}
+
+' ============================================================
+' LAYER 3: STRUCTURE & DAG
+' ============================================================
+
+package "Structure & DAG" <<Database>> {
+  
+  class Tree <<Document Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    treeNumber: string (например: "01", "02", "0a")
+    treeId: string (например: "artifacts", "features", "modules")
+    type: enum [artifacts, features, modules, custom]
+    displayName: string
+    description: string
+    created: datetime
+    lastUpdated: datetime
+  }
+  
+  class TaskItem <<Document Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    structureId: string (например: "01.01.01")
+    taskId: string (ссылка на Task)
+    displayName: string (синхронизируется с Task)
+    positionInParent: integer
+    level: integer
+    created: datetime
+    lastUpdated: datetime
+  }
+}
+
+' ============================================================
+' LAYER 4: JOURNAL
+' ============================================================
+
+package "Journal" <<Database>> {
+  
+  class Chat <<Document Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    displayName: string
+    id: string (например: "chat-2025-10-09-001")
+    created: datetime
+    lastUpdated: datetime
+    owner: string
+    status: enum [active, completed, archived]
+    priority: enum [critical, high, medium, low]
+    tags: array [string]
+    links: object
+    --
+    + links.projectDocsRefs: array
+    + links.developmentTasks: array
+    + links.aiRuleRefs: array
+  }
+  
+  class Log <<Document Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    displayName: string
+    id: string (например: "log-2025-10-09-001")
+    timestamp: datetime
+    level: enum [info, success, warning, error, debug]
+    effort: string (например: "3h")
+    status: enum [in-progress, completed, failed]
+    entries: array [Action]
+    links: object
+    --
+    + links.projectDocsRefs: array
+    + links.developmentTasks: array
+    + links.aiRuleRefs: array
+  }
+  
+  class Action <<Embedded>> {
+    action: string
+    details: string
+    outcome: string
+    references: array [string]
+  }
+}
+
+' ============================================================
+' EDGE COLLECTIONS (Graph relationships)
+' ============================================================
+
+package "Graph Edges" <<Database>> {
+  
+  class inTree <<Edge Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    _from: string (Task._id)
+    _to: string (Tree._id)
+    --
+    displayName: string
+    description: string
+    structureId: string
+    positionInTree: integer
+    created: datetime
+  }
+  
+  class dependsOn <<Edge Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    _from: string (Task._id)
+    _to: string (Task._id)
+    --
+    dependencyType: enum [blocks, requires, related]
+    description: string
+    created: datetime
+  }
+  
+  class basedOnTemplate <<Edge Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    _from: string (любой Document._id)
+    _to: string (MetaPattern/StructuralBlock/SystemRule._id)
+    --
+    appliedAt: datetime
+    customizations: object
+    description: string
+  }
+  
+  class hasModule <<Edge Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    _from: string (Project._id or Module._id)
+    _to: string (Module._id)
+    --
+    positionInParent: integer
+    created: datetime
+  }
+  
+  class hasComponent <<Edge Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    _from: string (Module._id or Component._id)
+    _to: string (Component._id)
+    --
+    positionInParent: integer
+    created: datetime
+  }
+  
+  class hasClass <<Edge Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    _from: string (Component._id or Class._id)
+    _to: string (Class._id)
+    --
+    positionInParent: integer
+    created: datetime
+  }
+  
+  class hasTaskItem <<Edge Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    _from: string (Tree._id or TaskItem._id)
+    _to: string (TaskItem._id)
+    --
+    positionInParent: integer
+    level: integer
+    created: datetime
+  }
+  
+  class hasChatEntry <<Edge Collection>> {
+    _key: string
+    _id: string
+    _rev: string
+    --
+    _from: string (Chat._id)
+    _to: string (Log._id)
+    --
+    positionInChat: integer
+    created: datetime
+  }
+}
+
+' ============================================================
+' GRAPH DEFINITIONS
+' ============================================================
+
+package "Named Graphs" <<Database>> {
+  
+  class knowledge_graph <<Named Graph>> {
+    name: "knowledge_graph"
+    --
+    + edge_definitions: basedOnTemplate
+    + vertex_collections: MetaPattern, StructuralBlock, SystemRule, Project, Module, Component, Class, Task
+  }
+  
+  class task_dag <<Named Graph>> {
+    name: "task_dag"
+    --
+    + edge_definitions: inTree, dependsOn
+    + vertex_collections: Task, Tree, TaskItem
+  }
+  
+  class project_structure <<Named Graph>> {
+    name: "project_structure"
+    --
+    + edge_definitions: hasModule, hasComponent, hasClass, hasTaskItem, hasChatEntry
+    + vertex_collections: Project, Module, Component, Class, Tree, TaskItem, Chat, Log
+  }
+}
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+' Knowledge Base relationships
+MetaPattern -[hidden]right-> StructuralBlock
+StructuralBlock -[hidden]right-> SystemRule
+
+' Project hierarchy
+Project "1" --> "0..*" Module : hasModule >
+Module "1" --> "0..*" Module : hasModule >
+Module "1" --> "0..*" Component : hasComponent >
+Component "1" --> "0..*" Component : hasComponent >
+Component "1" --> "0..*" Class : hasClass >
+Class "1" --> "0..*" Class : hasClass >
+
+' Task-Tree DAG relationships
+Task "0..*" --> "0..*" Tree : inTree > \n(DAG: одна задача в N деревьях)
+Task "0..*" --> "0..*" Task : dependsOn >
+
+' Tree structure
+Tree "1" --> "0..*" TaskItem : hasTaskItem >
+TaskItem "1" --> "0..*" TaskItem : hasTaskItem >
+TaskItem "0..1" --> "1" Task : references
+
+' Journal hierarchy
+Chat "1" --> "0..*" Log : hasChatEntry >
+Log "1" *--> "0..*" Action : contains
+
+' Template application (любой элемент может базироваться на шаблоне)
+Project --> MetaPattern : basedOnTemplate >
+Task --> StructuralBlock : basedOnTemplate >
+Module --> StructuralBlock : basedOnTemplate >
+
+' Graph associations
+knowledge_graph ..> basedOnTemplate : uses
+task_dag ..> inTree : uses
+task_dag ..> dependsOn : uses
+project_structure ..> hasModule : uses
+project_structure ..> hasComponent : uses
+project_structure ..> hasClass : uses
+project_structure ..> hasTaskItem : uses
+project_structure ..> hasChatEntry : uses
+
+legend right
+  **fedoc Database Schema**
+  
+  **Multi-Model Design:**
+  - Document Store: JSON документы
+  - Graph Database: DAG + иерархии
+  - Key Features:
+    • Одна задача в нескольких деревьях (DAG)
+    • Рекурсивные структуры (Module → Module)
+    • Граф знаний (шаблоны → проекты)
+  
+  **Collections:**
+  - 11 Document Collections
+  - 8 Edge Collections
+  - 3 Named Graphs
+  
+  **Version:** 1.0.0
+  **Created:** 2025-10-12
+endlegend
+
+@enduml
