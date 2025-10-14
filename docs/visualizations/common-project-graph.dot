@@ -1,0 +1,90 @@
+digraph CommonProjectGraph {
+  # Настройки графа
+  rankdir=TB;
+  node [shape=box, style=rounded, fontname="Arial"];
+  edge [fontname="Arial", fontsize=10];
+
+  # Цвета по типам узлов
+  node [fillcolor=lightblue, style="rounded,filled"];
+
+  "c:project" [label="Проект", fillcolor=lightblue, shape=box];
+  "c:dev-objects" [label="Объекты разработки", fillcolor=lightblue, shape=box];
+  "c:layer" [label="Слой", fillcolor=lightblue, shape=box];
+  "c:backend" [label="Бэкенд", fillcolor=lightblue, shape=box];
+  "c:project-database" [label="БД проекта", fillcolor=lightblue, shape=box];
+  "c:backend-database" [label="БД бэкенда", fillcolor=lightblue, shape=box];
+  "t:arangodb@3.11" [label="ArangoDB", fillcolor=lightgreen, shape=ellipse];
+  "t:postgresql@16" [label="PostgreSQL", fillcolor=lightgreen, shape=ellipse];
+  "t:mssql@2022" [label="MS SQL Server", fillcolor=lightgreen, shape=ellipse];
+  "c:backend-framework" [label="Фреймворк бакенда", fillcolor=lightblue, shape=box];
+  "c:backend-language" [label="Язык программирования", fillcolor=lightblue, shape=box];
+  "c:backend-api" [label="API бакенда", fillcolor=lightblue, shape=box];
+  "c:backend-security" [label="Безопасность бакенда", fillcolor=lightblue, shape=box];
+  "c:backend-cache" [label="Кэш бакенда", fillcolor=lightblue, shape=box];
+  "c:backend-reactive" [label="Реактивность бакенда", fillcolor=lightblue, shape=box];
+  "c:backend-migrations" [label="Миграции бакенда", fillcolor=lightblue, shape=box];
+  "c:backend-monitoring" [label="Мониторинг бакенда", fillcolor=lightblue, shape=box];
+  "t:spring-boot@3.4.5" [label="Spring Boot 3.4.5", fillcolor=lightgreen, shape=ellipse];
+  "t:java@21" [label="Java 21", fillcolor=lightgreen, shape=ellipse];
+  "t:graphql" [label="GraphQL", fillcolor=lightgreen, shape=ellipse];
+  "t:jwt" [label="JWT", fillcolor=lightgreen, shape=ellipse];
+  "t:spring-security" [label="Spring Security", fillcolor=lightgreen, shape=ellipse];
+  "t:no-auth" [label="Без аутентификации", fillcolor=lightgreen, shape=ellipse];
+  "t:hazelcast" [label="Hazelcast", fillcolor=lightgreen, shape=ellipse];
+  "t:caffeine" [label="Caffeine", fillcolor=lightgreen, shape=ellipse];
+  "t:r2dbc" [label="R2DBC", fillcolor=lightgreen, shape=ellipse];
+  "t:liquibase" [label="Liquibase", fillcolor=lightgreen, shape=ellipse];
+  "t:spring-actuator" [label="Spring Actuator", fillcolor=lightgreen, shape=ellipse];
+  "c:backend-stack" [label="Стек бакенда", fillcolor=lightblue, shape=box];
+  "c:with-security" [label="С безопасностью", fillcolor=lightblue, shape=box];
+  "c:no-security" [label="Без безопасности", fillcolor=lightblue, shape=box];
+
+  # Рёбра
+  "c:project" -> "c:dev-objects" [label="fepro, femsq, fedoc"];
+  "c:dev-objects" -> "c:layer" [label="fepro, femsq"];
+  "c:layer" -> "c:backend" [label="fepro, femsq"];
+  "c:dev-objects" -> "c:project-database" [label="fedoc"];
+  "c:backend" -> "c:backend-database" [label="fepro, femsq"];
+  "c:project-database" -> "t:arangodb@3.11" [label="fedoc"];
+  "c:backend-database" -> "t:postgresql@16" [label="fepro"];
+  "c:backend-database" -> "t:mssql@2022" [label="femsq"];
+  "c:backend" -> "c:backend-framework" [label="fepro, femsq"];
+  "c:backend" -> "c:backend-language" [label="fepro, femsq"];
+  "c:backend" -> "c:backend-api" [label="fepro, femsq"];
+  "c:backend" -> "c:backend-security" [label="fepro, femsq"];
+  "c:backend" -> "c:backend-cache" [label="fepro"];
+  "c:backend" -> "c:backend-reactive" [label="fepro"];
+  "c:backend" -> "c:backend-migrations" [label="fepro, femsq"];
+  "c:backend" -> "c:backend-monitoring" [label="fepro, femsq"];
+  "c:backend-framework" -> "t:spring-boot@3.4.5" [label="fepro, femsq"];
+  "c:backend-language" -> "t:java@21" [label="fepro, femsq"];
+  "c:backend-api" -> "t:graphql" [label="fepro, femsq"];
+  "c:backend-security" -> "t:jwt" [label="fepro"];
+  "c:backend-security" -> "t:spring-security" [label="fepro"];
+  "c:backend-security" -> "t:no-auth" [label="femsq"];
+  "c:backend-cache" -> "t:hazelcast" [label="fepro"];
+  "c:backend-cache" -> "t:caffeine" [label="fepro"];
+  "c:backend-reactive" -> "t:r2dbc" [label="fepro"];
+  "c:backend-migrations" -> "t:liquibase" [label="fepro, femsq"];
+  "c:backend-monitoring" -> "t:spring-actuator" [label="fepro, femsq"];
+  "c:backend" -> "c:backend-stack" [label="fepro, femsq"];
+  "c:backend-stack" -> "t:java@21" [label="fepro, femsq"];
+  "t:java@21" -> "c:backend-framework" [label="fepro, femsq"];
+  "c:backend-framework" -> "t:spring-boot@3.4.5" [label="fepro, femsq"];
+  "t:spring-boot@3.4.5" -> "c:backend-api" [label="fepro, femsq"];
+  "c:backend-api" -> "t:graphql" [label="fepro, femsq"];
+  "t:spring-boot@3.4.5" -> "c:backend-security" [label="fepro, femsq"];
+  "c:backend-security" -> "c:with-security" [label="fepro"];
+  "c:backend-security" -> "c:no-security" [label="femsq"];
+  "c:with-security" -> "t:jwt" [label="fepro"];
+  "c:with-security" -> "t:spring-security" [label="fepro"];
+  "t:spring-boot@3.4.5" -> "c:backend-reactive" [label="fepro"];
+  "c:backend-reactive" -> "t:r2dbc" [label="fepro"];
+  "t:spring-boot@3.4.5" -> "c:backend-cache" [label="fepro"];
+  "c:backend-cache" -> "t:hazelcast" [label="fepro"];
+  "c:backend-cache" -> "t:caffeine" [label="fepro"];
+  "t:spring-boot@3.4.5" -> "c:backend-migrations" [label="fepro, femsq"];
+  "c:backend-migrations" -> "t:liquibase" [label="fepro, femsq"];
+  "t:spring-boot@3.4.5" -> "c:backend-monitoring" [label="fepro"];
+  "c:backend-monitoring" -> "t:spring-actuator" [label="fepro"];
+}

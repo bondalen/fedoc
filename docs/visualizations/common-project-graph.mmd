@@ -1,0 +1,69 @@
+graph TB
+  %% Узлы
+  c_backend["c:backend"]:::concept
+  c_backend-api["c:backend-api"]:::concept
+  c_backend-cache["c:backend-cache"]:::concept
+  c_backend-database["c:backend-database"]:::concept
+  c_backend-framework["c:backend-framework"]:::concept
+  c_backend-language["c:backend-language"]:::concept
+  c_backend-migrations["c:backend-migrations"]:::concept
+  c_backend-monitoring["c:backend-monitoring"]:::concept
+  c_backend-reactive["c:backend-reactive"]:::concept
+  c_backend-security["c:backend-security"]:::concept
+  c_backend-stack["c:backend-stack"]:::concept
+  c_dev-objects["c:dev-objects"]:::concept
+  c_layer["c:layer"]:::concept
+  c_no-security["c:no-security"]:::concept
+  c_project["c:project"]:::concept
+  c_project-database["c:project-database"]:::concept
+  c_with-security["c:with-security"]:::concept
+  t_arangodb@3.11("t:arangodb@3.11"):::tech
+  t_caffeine("t:caffeine"):::tech
+  t_graphql("t:graphql"):::tech
+  t_hazelcast("t:hazelcast"):::tech
+  t_java@21("t:java@21"):::tech
+  t_jwt("t:jwt"):::tech
+  t_liquibase("t:liquibase"):::tech
+  t_mssql@2022("t:mssql@2022"):::tech
+  t_no-auth("t:no-auth"):::tech
+  t_postgresql@16("t:postgresql@16"):::tech
+  t_r2dbc("t:r2dbc"):::tech
+  t_spring-actuator("t:spring-actuator"):::tech
+  t_spring-boot@3.4.5("t:spring-boot@3.4.5"):::tech
+  t_spring-security("t:spring-security"):::tech
+
+  %% Рёбра
+  c_project --> |fepro, femsq| c_dev-objects
+  c_dev-objects --> |fepro, femsq| c_layer
+  c_layer --> |fepro, femsq| c_backend
+  c_dev-objects --> |fedoc| c_project-database
+  c_backend --> |fepro, femsq| c_backend-database
+  c_project-database --> |fedoc| t_arangodb@3.11
+  c_backend-database --> |fepro| t_postgresql@16
+  c_backend-database --> |femsq| t_mssql@2022
+  c_backend --> |fepro, femsq| c_backend-framework
+  c_backend --> |fepro, femsq| c_backend-language
+  c_backend --> |fepro, femsq| c_backend-api
+  c_backend --> |fepro, femsq| c_backend-security
+  c_backend --> |fepro| c_backend-cache
+  c_backend --> |fepro| c_backend-reactive
+  c_backend --> |fepro, femsq| c_backend-migrations
+  c_backend --> |fepro, femsq| c_backend-monitoring
+  c_backend-framework --> |fepro, femsq| t_spring-boot@3.4.5
+  c_backend-language --> |fepro, femsq| t_java@21
+  c_backend-api --> |fepro, femsq| t_graphql
+  c_backend-security --> |fepro| t_jwt
+  c_backend-security --> |fepro| t_spring-security
+  c_backend-security --> |femsq| t_no-auth
+  c_backend-cache --> |fepro| t_hazelcast
+  c_backend-cache --> |fepro| t_caffeine
+  c_backend-reactive --> |fepro| t_r2dbc
+  c_backend-migrations --> |fepro, femsq| t_liquibase
+  c_backend-monitoring --> |fepro, femsq| t_spring-actuator
+  c_backend --> |fepro, femsq| c_backend-stack
+  c_backend-stack --> |fepro, femsq| t_java@21
+  t_java@21 --> |fepro, femsq| c_backend-framework
+
+  %% Стили
+  classDef concept fill:#E3F2FD,stroke:#1976D2,stroke-width:2px
+  classDef tech fill:#C8E6C9,stroke:#388E3C,stroke-width:2px
