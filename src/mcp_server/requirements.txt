@@ -1,0 +1,15 @@
+# MCP протокол (будет добавлено при полной реализации)
+# mcp>=0.1.0
+
+# ArangoDB
+python-arango>=7.5.0
+
+# Визуализация (зависимости graph_viewer)
+pyvis>=0.3.2
+networkx>=3.1
+
+# Валидация
+pydantic>=2.0.0
+
+# Утилиты
+python-dotenv>=1.0.0

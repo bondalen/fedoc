@@ -1,0 +1,87 @@
+{
+    "project": {
+        "metadata": {
+            "name": "fedoc",
+            "version": "0.1.0",
+            "description": "Централизованная система правил и проектной документации для группы проектов",
+            "author": "Александр",
+            "created": "2025-01-28",
+            "lastUpdated": "2025-10-14",
+            "status": "development",
+            "repository": "https://github.com/bondalen/fedoc.git",
+            "license": "Apache-2.0",
+            "keywords": [
+                "documentation",
+                "project-management",
+                "rules",
+                "arangodb",
+                "mcp-server"
+            ],
+            "documentationRules": "docs/project-documentation-rules.md"
+        },
+        "architecture": {
+            "type": "infrastructure",
+            "pattern": "library-and-service",
+            "description": "Инфраструктурный проект для управления документацией группы проектов",
+            "components": {
+                "database": {
+                    "name": "ArangoDB",
+                    "version": "3.11",
+                    "type": "Multi-Model",
+                    "description": "База данных для хранения документации, правил и графов проектов"
+                },
+                "mcp-server": {
+                    "name": "fedoc MCP Server",
+                    "version": "0.1.0",
+                    "language": "Python 3.10+",
+                    "description": "MCP-сервер для интеграции с Cursor AI"
+                },
+                "graph-viewer": {
+                    "name": "ArangoDB Graph Viewer",
+                    "version": "0.1.0",
+                    "type": "library",
+                    "description": "Библиотека для визуализации графов проектов"
+                }
+            }
+        },
+        "objects": {
+            "description": "Объекты разработки проекта fedoc",
+            "database": {
+                "name": "ArangoDB",
+                "location": "dev/docker/docker-compose.prod.yml",
+                "collections": [
+                    "projects",
+                    "canonical_nodes",
+                    "rules",
+                    "templates",
+                    "project_edges"
+                ],
+                "graphs": [
+                    "common_project_graph"
+                ],
+                "status": "in-progress"
+            },
+            "mcp-server": {
+                "name": "fedoc MCP Server",
+                "location": "src/mcp_server",
+                "commands": [
+                    "show_graph",
+                    "query_graph",
+                    "get_project_docs",
+                    "list_projects",
+                    "get_rules"
+                ],
+                "status": "in-progress"
+            },
+            "graph-viewer": {
+                "name": "ArangoDB Graph Viewer",
+                "location": "src/lib/graph_viewer",
+                "components": [
+                    "ArangoGraphViewer",
+                    "web_viewer"
+                ],
+                "status": "in-progress"
+            }
+        }
+    }
+}
