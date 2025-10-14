@@ -1,0 +1,535 @@
+{
+  "journal": {
+    "metadata": {
+      "version": "1.0.0",
+      "status": "active",
+      "created": "2025-01-28",
+      "lastUpdated": "2025-10-14"
+    },
+    "sessions": [
+      {
+        "chat": {
+          "displayName": "✅ Inception проекта fedoc (completed, critical). № chat-2025-01-27",
+          "chat-attributes": {
+            "id": "chat-2025-01-27-inception",
+            "created": "2025-01-27",
+            "lastUpdated": "2025-01-28",
+            "owner": "Александр",
+            "status": "completed",
+            "priority": "critical",
+            "tags": ["inception", "architecture", "concept"],
+            "links": {
+              "projectDocsRefs": [],
+              "developmentTasks": ["task:0001", "task:0002", "task:0003"],
+              "decisionRefs": ["adr:001"],
+              "aiRuleRefs": []
+            }
+          },
+          "entries": [
+            {
+              "log": {
+                "displayName": "✅ Разработка концепции fedoc (success). № log-2025-01-27-001",
+                "log-attributes": {
+                  "id": "log-2025-01-27-001",
+                  "timestamp": "2025-01-27T00:00:00Z",
+                  "level": "success",
+                  "effort": "8h",
+                  "status": "completed",
+                  "links": {
+                    "projectDocsRefs": [],
+                    "developmentTasks": ["task:0001"],
+                    "decisionRefs": [],
+                    "aiRuleRefs": []
+                  }
+                },
+                "entries": [
+                  {
+                    "action": "Разработана концепция централизованной системы документации",
+                    "details": "Создана идея системы для хранения и переиспользования проектной документации между проектами. Система основана на опыте работы с FEMSQ, где была разработана детальная JSON-документация с DAG-структурой задач.",
+                    "outcome": "Определены основные цели, принципы и 4 уровня абстракции системы",
+                    "references": [
+                      "docs-preliminary/project-history/chat-2025-01-27-28-inception.md",
+                      "docs-preliminary/concepts/centralized-documentation-system-concept.md"
+                    ]
+                  },
+                  {
+                    "action": "Выбор ArangoDB как основной БД",
+                    "details": "Принято решение использовать ArangoDB Community Edition как multi-model базу данных (документы + графы + key-value). Выбор обоснован необходимостью хранить как документы (JSON), так и графы связей между проектами.",
+                    "outcome": "ArangoDB выбрана, создан ADR-001",
+                    "references": [
+                      "docs/project/decisions/001-arangodb-choice.md"
+                    ]
+                  },
+                  {
+                    "action": "Определены 4 уровня абстракции",
+                    "details": "Разработана система уровней: 1) Meta-паттерны (displayName, attributes, links), 2) Структурные блоки (Module, Task-DAG, Tree), 3) Системные правила (нумерация 01-zz, ссылки type:path), 4) Доменные расширения (технологии проектов).",
+                    "outcome": "Создана гибкая архитектура для переиспользования между проектами",
+                    "references": [
+                      "README.md"
+                    ]
+                  },
+                  {
+                    "action": "Создан GitHub репозиторий",
+                    "details": "Инициализирован Git репозиторий, создана базовая структура проекта, написан первый README.md с описанием концепции.",
+                    "outcome": "Проект fedoc создан и опубликован на GitHub",
+                    "references": [
+                      "https://github.com/bondalen/fedoc"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "chat": {
+          "displayName": "✅ Начальная разработка (completed, high). № chat-2025-10-11",
+          "chat-attributes": {
+            "id": "chat-2025-10-11-implementation",
+            "created": "2025-10-11",
+            "lastUpdated": "2025-10-11",
+            "owner": "Александр",
+            "status": "completed",
+            "priority": "high",
+            "tags": ["implementation", "python", "scripts"],
+            "links": {
+              "projectDocsRefs": [],
+              "developmentTasks": ["task:0002"],
+              "decisionRefs": [],
+              "aiRuleRefs": []
+            }
+          },
+          "entries": [
+            {
+              "log": {
+                "displayName": "✅ Базовые Python скрипты (success). № log-2025-10-11-001",
+                "log-attributes": {
+                  "id": "log-2025-10-11-001",
+                  "timestamp": "2025-10-11T00:00:00Z",
+                  "level": "success",
+                  "effort": "4h",
+                  "status": "completed",
+                  "links": {
+                    "projectDocsRefs": [],
+                    "developmentTasks": [],
+                    "decisionRefs": [],
+                    "aiRuleRefs": []
+                  }
+                },
+                "entries": [
+                  {
+                    "action": "Созданы базовые Python скрипты",
+                    "details": "Разработаны первые Python скрипты для работы с проектом.",
+                    "outcome": "Основа для дальнейшей разработки заложена",
+                    "references": [
+                      "docs-preliminary/project-history/chat-2025-10-11-implementation.md"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "chat": {
+          "displayName": "✅ Настройка БД и Docker (completed, high). № chat-2025-10-12",
+          "chat-attributes": {
+            "id": "chat-2025-10-12-database",
+            "created": "2025-10-12",
+            "lastUpdated": "2025-10-12",
+            "owner": "Александр",
+            "status": "completed",
+            "priority": "high",
+            "tags": ["database", "docker", "deployment"],
+            "links": {
+              "projectDocsRefs": ["tool:deploy-to-server", "tool:db-manager"],
+              "developmentTasks": ["task:0004"],
+              "decisionRefs": [],
+              "aiRuleRefs": []
+            }
+          },
+          "entries": [
+            {
+              "log": {
+                "displayName": "✅ Docker Compose конфигурация (success). № log-2025-10-12-001",
+                "log-attributes": {
+                  "id": "log-2025-10-12-001",
+                  "timestamp": "2025-10-12T00:00:00Z",
+                  "level": "success",
+                  "effort": "6h",
+                  "status": "completed",
+                  "links": {
+                    "projectDocsRefs": ["tool:deploy-to-server"],
+                    "developmentTasks": ["task:0004"],
+                    "decisionRefs": [],
+                    "aiRuleRefs": []
+                  }
+                },
+                "entries": [
+                  {
+                    "action": "Создана Docker Compose конфигурация для БД",
+                    "details": "Разработаны docker-compose файлы для развертывания трёх баз данных: ArangoDB (для fedoc), PostgreSQL (универсальная), MS SQL Server (для FEMSQ). Реализована система запуска по требованию для экономии ресурсов.",
+                    "outcome": "Все БД могут быть развернуты на сервере одной командой",
+                    "references": [
+                      "dev/docker/docker-compose.prod.yml",
+                      "dev/docker/DEPLOYMENT.md"
+                    ]
+                  },
+                  {
+                    "action": "Созданы скрипты управления БД",
+                    "details": "Разработаны скрипты deploy-to-server.sh для автоматического развертывания и db-manager.sh для управления базами данных.",
+                    "outcome": "Упрощено развертывание и управление инфраструктурой",
+                    "references": [
+                      "dev/docker/deploy-to-server.sh",
+                      "dev/docker/db-manager.sh"
+                    ]
+                  },
+                  {
+                    "action": "Настроен SSH доступ к серверу",
+                    "details": "Настроен безопасный SSH доступ к серверу 176.108.244.252 с использованием ключей.",
+                    "outcome": "Удалённое развертывание работает",
+                    "references": [
+                      "docs-preliminary/project-history/chat-2025-10-13-ssh-access-setup.md"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "chat": {
+          "displayName": "✅ Формулирование принципов проекта (completed, medium). № chat-2025-10-13",
+          "chat-attributes": {
+            "id": "chat-2025-10-13-principles",
+            "created": "2025-10-13",
+            "lastUpdated": "2025-10-13",
+            "owner": "Александр",
+            "status": "completed",
+            "priority": "medium",
+            "tags": ["principles", "architecture", "documentation"],
+            "links": {
+              "projectDocsRefs": [],
+              "developmentTasks": [],
+              "decisionRefs": [],
+              "aiRuleRefs": []
+            }
+          },
+          "entries": [
+            {
+              "log": {
+                "displayName": "✅ Определены принципы системы (success). № log-2025-10-13-001",
+                "log-attributes": {
+                  "id": "log-2025-10-13-001",
+                  "timestamp": "2025-10-13T00:00:00Z",
+                  "level": "success",
+                  "effort": "3h",
+                  "status": "completed",
+                  "links": {
+                    "projectDocsRefs": [],
+                    "developmentTasks": [],
+                    "decisionRefs": [],
+                    "aiRuleRefs": []
+                  }
+                },
+                "entries": [
+                  {
+                    "action": "Сформулированы системные принципы (6 принципов)",
+                    "details": "Определены 6 ключевых системных принципов: sys-001 (сборка через граф), sys-002 (контекстные правила), sys-003 (интерактивное создание через MCP), sys-004 (автодоступность инструментов), sys-005 (централизация знаний), sys-006 (AI-first подход).",
+                    "outcome": "Архитектурные принципы задокументированы в project-docs.json",
+                    "references": [
+                      "docs/project/project-docs.json",
+                      "docs-preliminary/project-history/chat-2025-10-13-project-principles.md"
+                    ]
+                  },
+                  {
+                    "action": "Сформулированы принципы разработки (4 принципа)",
+                    "details": "Определены принципы для проектов: dev-001 (нумерация 01-zz), dev-002 (инструменты как библиотеки), dev-003 (граф как первичная структура), dev-004 (документация как код).",
+                    "outcome": "Принципы разработки документации определены",
+                    "references": [
+                      "docs/project/project-docs.json"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "chat": {
+          "displayName": "✅ Разработка Graph Viewer (completed, high). № chat-2025-10-14-graph",
+          "chat-attributes": {
+            "id": "chat-2025-10-14-graph-visualization",
+            "created": "2025-10-14",
+            "lastUpdated": "2025-10-14",
+            "owner": "Александр",
+            "status": "completed",
+            "priority": "high",
+            "tags": ["visualization", "graph", "library"],
+            "links": {
+              "projectDocsRefs": [
+                "component:graph-viewer",
+                "module:lib.graph_viewer.viewer",
+                "module:lib.graph_viewer.web_viewer",
+                "tool:view-graph"
+              ],
+              "developmentTasks": ["task:0005"],
+              "decisionRefs": ["adr:003"],
+              "aiRuleRefs": []
+            }
+          },
+          "entries": [
+            {
+              "log": {
+                "displayName": "✅ Создана библиотека визуализации (success). № log-2025-10-14-graph-001",
+                "log-attributes": {
+                  "id": "log-2025-10-14-graph-001",
+                  "timestamp": "2025-10-14T10:00:00Z",
+                  "level": "success",
+                  "effort": "8h",
+                  "status": "completed",
+                  "links": {
+                    "projectDocsRefs": [
+                      "module:lib.graph_viewer.viewer",
+                      "module:lib.graph_viewer.web_viewer"
+                    ],
+                    "developmentTasks": ["task:0005"],
+                    "decisionRefs": ["adr:003"],
+                    "aiRuleRefs": []
+                  }
+                },
+                "entries": [
+                  {
+                    "action": "Разработан класс ArangoGraphViewer",
+                    "details": "Создан основной класс для извлечения графов из ArangoDB и построения визуализации. Реализовано подключение к БД, выполнение AQL запросов, обработка узлов и рёбер.",
+                    "outcome": "Базовая функциональность визуализации работает",
+                    "references": [
+                      "src/lib/graph_viewer/viewer.py"
+                    ]
+                  },
+                  {
+                    "action": "Реализован web интерфейс с vis-network",
+                    "details": "Создан web_viewer модуль с HTML интерфейсом, использующим библиотеку vis-network для интерактивной визуализации графов. Добавлены фильтры по проектам, типам узлов, управление расположением.",
+                    "outcome": "Интерактивный просмотр графов в браузере работает",
+                    "references": [
+                      "src/lib/graph_viewer/web_viewer.py",
+                      "src/lib/graph_viewer/assets/"
+                    ]
+                  },
+                  {
+                    "action": "Создан CLI инструмент view-graph.sh",
+                    "details": "Разработан удобный скрипт для запуска визуализации из командной строки с поддержкой параметров (проект, порт, хост).",
+                    "outcome": "CLI доступ к визуализации готов",
+                    "references": [
+                      "dev/tools/view-graph.sh",
+                      "dev/tools/README.md"
+                    ]
+                  },
+                  {
+                    "action": "Создан ADR-003: Архитектура graph_viewer",
+                    "details": "Задокументировано архитектурное решение о структуре graph_viewer как переиспользуемой библиотеки с интеграцией в MCP и CLI.",
+                    "outcome": "Решение задокументировано для будущих разработчиков",
+                    "references": [
+                      "docs/project/decisions/003-graph-viewer-arch.md"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "chat": {
+          "displayName": "✅ Интеграция MCP Server (completed, critical). № chat-2025-10-14-mcp",
+          "chat-attributes": {
+            "id": "chat-2025-10-14-mcp-integration",
+            "created": "2025-10-14",
+            "lastUpdated": "2025-10-14",
+            "owner": "Александр",
+            "status": "completed",
+            "priority": "critical",
+            "tags": ["mcp", "cursor", "integration"],
+            "links": {
+              "projectDocsRefs": [
+                "component:mcp-server",
+                "module:mcp_server.server",
+                "module:mcp_server.handlers.graph_visualizer"
+              ],
+              "developmentTasks": ["task:0006", "task:0007"],
+              "decisionRefs": ["adr:002"],
+              "aiRuleRefs": []
+            }
+          },
+          "entries": [
+            {
+              "log": {
+                "displayName": "✅ Создан MCP Server (success). № log-2025-10-14-mcp-001",
+                "log-attributes": {
+                  "id": "log-2025-10-14-mcp-001",
+                  "timestamp": "2025-10-14T14:00:00Z",
+                  "level": "success",
+                  "effort": "6h",
+                  "status": "completed",
+                  "links": {
+                    "projectDocsRefs": [
+                      "component:mcp-server",
+                      "module:mcp_server.server"
+                    ],
+                    "developmentTasks": ["task:0006"],
+                    "decisionRefs": ["adr:002"],
+                    "aiRuleRefs": []
+                  }
+                },
+                "entries": [
+                  {
+                    "action": "Создана базовая структура MCP сервера",
+                    "details": "Разработана структура MCP-сервера с конфигурацией, системой обработчиков (handlers) и главным файлом сервера. Настроена интеграция с MCP SDK.",
+                    "outcome": "MCP сервер готов к добавлению команд",
+                    "references": [
+                      "src/mcp_server/server.py",
+                      "src/mcp_server/config.py",
+                      "src/mcp_server/README.md"
+                    ]
+                  },
+                  {
+                    "action": "Реализован обработчик graph_visualizer",
+                    "details": "Создан первый обработчик для интеграции graph_viewer библиотеки в MCP. Команда show_graph доступна из Cursor AI.",
+                    "outcome": "Визуализация графов работает через MCP",
+                    "references": [
+                      "src/mcp_server/handlers/graph_visualizer.py"
+                    ]
+                  },
+                  {
+                    "action": "Создан ADR-002: Интеграция через MCP",
+                    "details": "Задокументировано решение об использовании Model Context Protocol для интеграции с Cursor AI. Обоснованы преимущества MCP перед альтернативами.",
+                    "outcome": "Стратегия интеграции задокументирована",
+                    "references": [
+                      "docs/project/decisions/002-mcp-integration.md"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "chat": {
+          "displayName": "✅ Реорганизация проекта (completed, high). № chat-2025-10-14-reorg",
+          "chat-attributes": {
+            "id": "chat-2025-10-14-reorg",
+            "created": "2025-10-14",
+            "lastUpdated": "2025-10-14",
+            "owner": "Александр",
+            "status": "completed",
+            "priority": "high",
+            "tags": ["refactoring", "structure", "documentation"],
+            "links": {
+              "projectDocsRefs": [],
+              "developmentTasks": ["task:0008", "task:0009", "task:0010"],
+              "decisionRefs": [],
+              "aiRuleRefs": []
+            }
+          },
+          "entries": [
+            {
+              "log": {
+                "displayName": "✅ Реорганизация структуры (success). № log-2025-10-14-reorg-001",
+                "log-attributes": {
+                  "id": "log-2025-10-14-reorg-001",
+                  "timestamp": "2025-10-14T16:00:00Z",
+                  "level": "success",
+                  "effort": "5h",
+                  "status": "completed",
+                  "links": {
+                    "projectDocsRefs": [],
+                    "developmentTasks": ["task:0008"],
+                    "decisionRefs": [],
+                    "aiRuleRefs": []
+                  }
+                },
+                "entries": [
+                  {
+                    "action": "Реорганизована структура директорий",
+                    "details": "Выполнена масштабная реорганизация: docker/ → dev/docker/, docs/ → docs-preliminary/, создана новая docs/ для актуальной документации. Разделение на актуальную (docs/) и предварительную (docs-preliminary/) документацию.",
+                    "outcome": "Структура проекта соответствует принципам fedoc",
+                    "references": [
+                      "docs-preliminary/project-history/chat_2025-10-14_reorg.md"
+                    ]
+                  },
+                  {
+                    "action": "Созданы ADR документы (001-003)",
+                    "details": "Написаны три архитектурных решения: ADR-001 (Выбор ArangoDB), ADR-002 (Интеграция через MCP), ADR-003 (Архитектура graph_viewer). Создан шаблон для будущих ADR.",
+                    "outcome": "Важные технические решения задокументированы",
+                    "references": [
+                      "docs/project/decisions/001-arangodb-choice.md",
+                      "docs/project/decisions/002-mcp-integration.md",
+                      "docs/project/decisions/003-graph-viewer-arch.md",
+                      "docs/project/decisions/decision-template.md"
+                    ]
+                  },
+                  {
+                    "action": "Создан project-docs.json",
+                    "details": "Разработан структурированный файл с описанием проекта: метаданные, архитектура, компоненты, цели, принципы, features. Файл следует формату FEMSQ v2.0.",
+                    "outcome": "Проектная документация структурирована",
+                    "references": [
+                      "docs/project/project-docs.json"
+                    ]
+                  },
+                  {
+                    "action": "Адаптированы правила документации",
+                    "details": "Скопированы и адаптированы правила документации из FEMSQ под специфику fedoc: project-documentation-rules.md, project-documentation-rules-reference.md, project-documentation-rules-structural-numbering.md.",
+                    "outcome": "Правила ведения документации готовы",
+                    "references": [
+                      "docs/project-documentation-rules.md",
+                      "docs/project-documentation-rules-reference.md",
+                      "docs/project-documentation-rules-structural-numbering.md"
+                    ]
+                  },
+                  {
+                    "action": "Создан project-development.json",
+                    "details": "Разработан файл планирования с DAG-структурой задач: 19 задач, 3 дерева (по компонентам, функциональности, фазам). Все текущие и будущие задачи проекта структурированы.",
+                    "outcome": "Планирование разработки задокументировано",
+                    "references": [
+                      "docs/development/project-development.json"
+                    ]
+                  },
+                  {
+                    "action": "Создан project-journal.json (этот файл)",
+                    "details": "Разработан журнал разработки проекта с историей всех ключевых работ от inception (2025-01-27) до реорганизации (2025-10-14). Структура: chats → logs → actions.",
+                    "outcome": "История проекта задокументирована в структурированном виде",
+                    "references": [
+                      "docs/journal/project-journal.json"
+                    ]
+                  },
+                  {
+                    "action": "Обновлен README.md",
+                    "details": "Полностью переработан главный README: добавлена структура проекта, описание компонентов (MCP Server, Graph Viewer), обновлены ссылки на документацию, исправлены пути после реорганизации.",
+                    "outcome": "README актуализирован и соответствует новой структуре",
+                    "references": [
+                      "README.md"
+                    ]
+                  },
+                  {
+                    "action": "Синхронизировано с GitHub",
+                    "details": "Все изменения зафиксированы и отправлены в репозиторий GitHub. 76 файлов изменено, +16,557 строк добавлено.",
+                    "outcome": "Вся работа сохранена и доступна в репозитории",
+                    "references": [
+                      "https://github.com/bondalen/fedoc"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
