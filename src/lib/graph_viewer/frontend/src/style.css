@@ -85,6 +85,15 @@ button {
   background: #388E3C;
 }
 
+.btn-info {
+  background: #2196F3;
+  color: white;
+}
+
+.btn-info:hover {
+  background: #1976D2;
+}
+
 .stats {
   margin-top: 10px;
   font-size: 11px;

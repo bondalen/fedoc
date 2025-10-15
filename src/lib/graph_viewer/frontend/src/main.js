@@ -292,8 +292,10 @@ window.graphViewer = function() {
         // Обычная строка - проверяем длину
         const textResult = this.truncateText(obj);
         if (textResult.isTruncated) {
-          const escapedFull = this.escapeHtml(textResult.fullText).replace(/'/g, '&apos;');
+          const escapedFull = this.escapeHtml(textResult.fullText).replace(/'/g, '&apos;').replace(/"/g, '&quot;');
+          const uniqueId = `text_${Math.random().toString(36).substr(2, 9)}`;
           return `<span class="json-string text-truncated" 
+                        id="${uniqueId}"
                         onclick="window.graphViewerInstance.openFullText('${escapedFull}')"
                         title="Кликните для просмотра полного текста">"${this.escapeHtml(textResult.text)}"</span>`;
         }
@@ -477,11 +479,21 @@ window.graphViewer = function() {
     
     // Показать полный текст
     openFullText(escapedText) {
-      // Декодируем HTML entities
-      const textarea = document.createElement('textarea');
-      textarea.innerHTML = escapedText;
-      this.fullText = textarea.value;
-      this.showFullText = true;
+      console.log('openFullText called with:', escapedText);
+      try {
+        // Декодируем HTML entities
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = escapedText;
+        this.fullText = textarea.value;
+        this.showFullText = true;
+        console.log('Full text set:', this.fullText);
+        console.log('showFullText set to:', this.showFullText);
+      } catch (error) {
+        console.error('Error in openFullText:', error);
+        // Fallback - используем текст как есть
+        this.fullText = escapedText;
+        this.showFullText = true;
+      }
     }
   };
   
