@@ -75,6 +75,15 @@
       <!-- Resizer -->
       <div id="resizer" :class="{ 'visible': showDetails }" 
            @mousedown="startResize($event)"></div>
+      
+      <!-- Панель полного текста -->
+      <div id="fullTextPanel" :class="{ 'visible': showFullText }" :style="{ right: showDetails ? panelWidth + 'px' : '0' }">
+        <div id="fullTextHeader">
+          <h4>Полный текст</h4>
+          <button @click="showFullText = false">✕</button>
+        </div>
+        <div id="fullTextContent" x-text="fullText"></div>
+      </div>
     </div>
     
     <script type="module" src="/src/main.js"></script>

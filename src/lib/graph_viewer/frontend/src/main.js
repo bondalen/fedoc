@@ -35,6 +35,10 @@ window.graphViewer = function() {
     isResizing: false,
     loadedDocs: new Set(),
     
+    // Панель полного текста
+    showFullText: false,
+    fullText: '',
+    
     // Инициализация
     async init() {
       console.log('Initializing Graph Viewer...');
@@ -285,7 +289,14 @@ window.graphViewer = function() {
           }
         }
         
-        // Обычная строка
+        // Обычная строка - проверяем длину
+        const textResult = this.truncateText(obj);
+        if (textResult.isTruncated) {
+          const escapedFull = this.escapeHtml(textResult.fullText).replace(/'/g, '&apos;');
+          return `<span class="json-string text-truncated" 
+                        onclick="window.graphViewerInstance.openFullText('${escapedFull}')"
+                        title="Кликните для просмотра полного текста">"${this.escapeHtml(textResult.text)}"</span>`;
+        }
         return `<span class="json-string">"${this.escapeHtml(obj)}"</span>`;
       }
       
@@ -437,6 +448,40 @@ window.graphViewer = function() {
           animation: { duration: 500, easingFunction: 'easeInOutQuad' }
         });
       }
+    },
+    
+    // Обрезка длинного текста
+    truncateText(text, maxLines = 2) {
+      if (!text || typeof text !== 'string') return { text, isTruncated: false };
+      
+      const lines = text.split('\n');
+      if (lines.length <= maxLines && text.length < 100) {
+        return { text, isTruncated: false };
+      }
+      
+      // Обрезаем до 2 строк
+      const truncatedLines = lines.slice(0, maxLines);
+      const truncated = truncatedLines.join('\n');
+      
+      // Если текст действительно длинный
+      if (lines.length > maxLines || text.length > 100) {
+        return {
+          text: truncated,
+          fullText: text,
+          isTruncated: true
+        };
+      }
+      
+      return { text, isTruncated: false };
+    },
+    
+    // Показать полный текст
+    openFullText(escapedText) {
+      // Декодируем HTML entities
+      const textarea = document.createElement('textarea');
+      textarea.innerHTML = escapedText;
+      this.fullText = textarea.value;
+      this.showFullText = true;
     }
   };
   
