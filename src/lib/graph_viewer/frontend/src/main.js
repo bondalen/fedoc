@@ -45,6 +45,17 @@ window.graphViewer = function() {
       await this.initNetwork();
       await this.loadNodes();
       await this.loadGraph();
+      
+      // Event delegation для обрезанного текста
+      document.addEventListener('click', (e) => {
+        const target = e.target.closest('.text-truncated');
+        if (target) {
+          const escapedText = target.getAttribute('data-full-text');
+          if (escapedText) {
+            this.openFullText(escapedText);
+          }
+        }
+      });
     },
     
     // Инициализация vis-network
@@ -293,10 +304,8 @@ window.graphViewer = function() {
         const textResult = this.truncateText(obj);
         if (textResult.isTruncated) {
           const escapedFull = this.escapeHtml(textResult.fullText).replace(/'/g, '&apos;').replace(/"/g, '&quot;');
-          const uniqueId = `text_${Math.random().toString(36).substr(2, 9)}`;
           return `<span class="json-string text-truncated" 
-                        id="${uniqueId}"
-                        onclick="window.graphViewerInstance.openFullText('${escapedFull}')"
+                        data-full-text="${escapedFull}"
                         title="Кликните для просмотра полного текста">"${this.escapeHtml(textResult.text)}"</span>`;
         }
         return `<span class="json-string">"${this.escapeHtml(obj)}"</span>`;
@@ -479,15 +488,13 @@ window.graphViewer = function() {
     
     // Показать полный текст
     openFullText(escapedText) {
-      console.log('openFullText called with:', escapedText);
       try {
         // Декодируем HTML entities
         const textarea = document.createElement('textarea');
         textarea.innerHTML = escapedText;
         this.fullText = textarea.value;
         this.showFullText = true;
-        console.log('Full text set:', this.fullText);
-        console.log('showFullText set to:', this.showFullText);
+        console.log('Full text panel opened');
       } catch (error) {
         console.error('Error in openFullText:', error);
         // Fallback - используем текст как есть
