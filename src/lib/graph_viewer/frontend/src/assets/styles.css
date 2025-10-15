@@ -1,0 +1,354 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #111;
+  color: #e0e0e0;
+  overflow: hidden;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+/* Панель управления */
+#controls {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.85);
+  color: white;
+  padding: 15px;
+  border-radius: 8px;
+  z-index: 1000;
+  min-width: 280px;
+  max-width: 320px;
+}
+
+#controls h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+}
+
+.row {
+  margin-bottom: 10px;
+}
+
+.row label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.row select,
+.row input[type="range"] {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #444;
+  background: #2d3748;
+  color: #e0e0e0;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.row.buttons {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  flex: 1;
+}
+
+.btn-primary {
+  background: #1976D2;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1565C0;
+}
+
+.btn-success {
+  background: #43A047;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #388E3C;
+}
+
+.btn-info {
+  background: #2196F3;
+  color: white;
+}
+
+.btn-info:hover {
+  background: #1976D2;
+}
+
+.stats {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #ccc;
+}
+
+/* Граф */
+#graph {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transition: right 0.3s ease;
+  border: 1px solid #333;
+}
+
+#graph.with-panel {
+  right: 420px;
+}
+
+/* Панель деталей */
+#detailsPanel {
+  position: fixed;
+  right: -420px;
+  top: 0;
+  width: 420px;
+  height: 100vh;
+  background: #1a1a1a;
+  border-left: 2px solid #333;
+  z-index: 999;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  transition: right 0.3s ease;
+}
+
+#detailsPanel.visible {
+  right: 0;
+}
+
+#detailsHeader {
+  padding: 12px 15px;
+  background: #252525;
+  border-bottom: 1px solid #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#detailsHeader h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: normal;
+}
+
+#detailsHeader button {
+  background: #333;
+  color: #999;
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+  border-radius: 4px;
+}
+
+#detailsHeader button:hover {
+  background: #444;
+  color: #fff;
+}
+
+#detailsContent {
+  padding: 15px;
+  flex: 1;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Resizer */
+#resizer {
+  position: fixed;
+  right: -5px;
+  top: 0;
+  width: 5px;
+  height: 100vh;
+  background: transparent;
+  cursor: ew-resize;
+  z-index: 1001;
+  transition: right 0.3s ease;
+}
+
+#resizer:hover {
+  background: #64B5F6;
+}
+
+#resizer.visible {
+  right: 420px;
+}
+
+/* JSON стили */
+.json-key {
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.json-string {
+  color: #90EE90;
+}
+
+.json-number {
+  color: #87CEEB;
+}
+
+.json-boolean {
+  color: #FFA500;
+}
+
+.json-null {
+  color: #999;
+}
+
+.doc-link {
+  color: #64B5F6;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.doc-link:hover {
+  color: #42A5F5;
+}
+
+.nested {
+  margin-left: 20px;
+  border-left: 1px solid #333;
+  padding-left: 10px;
+}
+
+.json-line {
+  margin: 2px 0;
+}
+
+.collapse-btn {
+  cursor: pointer;
+  color: #888;
+  margin-right: 5px;
+  user-select: none;
+  display: inline-block;
+  width: 12px;
+}
+
+.doc-expand-btn {
+  color: #64B5F6;
+}
+
+.doc-link-readonly {
+  color: #64B5F6;
+  text-decoration: none;
+}
+
+.show-on-graph-btn {
+  background: #1976D2;
+  color: #fff;
+  border: none;
+  padding: 2px 6px;
+  margin-left: 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.show-on-graph-btn:hover {
+  background: #1565C0;
+}
+
+.expanded-doc {
+  margin-top: 8px;
+}
+
+/* Панель полного текста */
+#fullTextPanel {
+  position: fixed;
+  bottom: -200px;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: #1a1a1a;
+  border-top: 2px solid #333;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  transition: bottom 0.3s ease, right 0.3s ease;
+}
+
+#fullTextPanel.visible {
+  bottom: 0;
+}
+
+#fullTextHeader {
+  padding: 8px 12px;
+  background: #252525;
+  border-bottom: 1px solid #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#fullTextHeader h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: normal;
+  color: #ccc;
+}
+
+#fullTextHeader button {
+  background: #333;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 14px;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+}
+
+#fullTextHeader button:hover {
+  background: #444;
+  color: #fff;
+}
+
+#fullTextContent {
+  padding: 12px;
+  flex: 1;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #e0e0e0;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.text-truncated {
+  cursor: pointer;
+  position: relative;
+  display: inline-block;
+  max-height: 2.8em; /* Примерно 2 строки */
+  overflow: hidden;
+}
+
+.text-truncated:hover {
+  background: rgba(100, 181, 246, 0.1);
+}
+
+.text-truncated::after {
+  content: '...';
+  color: #666;
+  font-style: italic;
+}
+

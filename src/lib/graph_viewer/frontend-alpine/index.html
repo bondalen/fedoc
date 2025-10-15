@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ArangoDB Graph Viewer</title>
+  </head>
+  <body>
+    <div id="app" x-data="graphViewer()">
+      <!-- Панель управления -->
+      <div id="controls">
+        <h3>🎛️ Управление графом</h3>
+        
+        <div class="row">
+          <label>Стартовая вершина:</label>
+          <select x-model="startNode" @change="loadGraph()">
+            <template x-for="node in nodes" :key="node._id">
+              <option :value="node._id" x-text="`${node._key} - ${node.name}`"></option>
+            </template>
+          </select>
+        </div>
+        
+        <div class="row">
+          <label>Глубина обхода:</label>
+          <input type="range" x-model="depth" min="1" max="15" @change="loadGraph()" />
+          <span x-text="depth"></span>
+        </div>
+        
+        <div class="row">
+          <label>Проект:</label>
+          <select x-model="project" @change="loadNodes(); loadGraph();">
+            <option value="">Все проекты</option>
+            <option value="fepro">FEPRO</option>
+            <option value="femsq">FEMSQ</option>
+            <option value="fedoc">FEDOC</option>
+          </select>
+        </div>
+        
+        <div class="row">
+          <label>Тема:</label>
+          <label><input type="radio" x-model="theme" value="dark" @change="applyTheme()"> 🌙 Тёмная</label>
+          <label><input type="radio" x-model="theme" value="light" @change="applyTheme()"> ☀️ Светлая</label>
+        </div>
+        
+        <div class="row buttons">
+          <button @click="loadGraph()" class="btn-primary">🔄 Обновить</button>
+          <button @click="fitGraph()" class="btn-success">📐 Подогнать</button>
+          <button @click="openFullText('Это тестовый длинный текст для проверки работы панели полного текста. Он должен отображаться в панели внизу экрана.')" class="btn-info">🧪 Тест панели</button>
+        </div>
+        
+        <div class="stats">
+          Узлов: <span x-text="nodeCount"></span> • Рёбер: <span x-text="edgeCount"></span>
+        </div>
+      </div>
+      
+      <!-- Граф -->
+      <div id="graph" :class="{ 'with-panel': showDetails }"></div>
+      
+      <!-- Панель деталей -->
+      <div id="detailsPanel" :class="{ 'visible': showDetails }">
+        <div id="detailsHeader">
+          <h3>Детали объекта</h3>
+          <button @click="closeDetails()">✕</button>
+        </div>
+        <div id="detailsContent">
+          <template x-if="!selectedObject">
+            <div style="color: #666; font-style: italic;">Выберите узел или ребро на графе</div>
+          </template>
+          <template x-if="selectedObject">
+            <div x-html="renderObject(selectedObject, 0, '', '_root')"></div>
+          </template>
+        </div>
+      </div>
+      
+      <!-- Resizer -->
+      <div id="resizer" :class="{ 'visible': showDetails }" 
+           @mousedown="startResize($event)"></div>
+      
+      <!-- Панель полного текста -->
+      <div id="fullTextPanel" :class="{ 'visible': showFullText }" :style="{ right: showDetails ? panelWidth + 'px' : '0' }">
+        <div id="fullTextHeader">
+          <h4>Полный текст</h4>
+          <button @click="showFullText = false">✕</button>
+        </div>
+        <div id="fullTextContent" x-text="fullText"></div>
+      </div>
+    </div>
+    
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
