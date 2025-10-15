@@ -9,6 +9,12 @@ from urllib.parse import urlparse, parse_qs
 from arango import ArangoClient
 import json
 import argparse
+import sys
+
+# Перенаправление print в stderr для MCP протокола
+def log(message):
+    """Вывод в stderr чтобы не нарушать MCP протокол"""
+    print(message, file=sys.stderr, flush=True)
 
 class APIHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -193,10 +199,10 @@ def main():
     args = parser.parse_args()
     
     # Подключение к ArangoDB
-    print(f"Connecting to ArangoDB at {args.db_host}...")
+    log(f"Connecting to ArangoDB at {args.db_host}...")
     client = ArangoClient(hosts=args.db_host)
     db = client.db(args.db_name, username=args.db_user, password=args.db_password)
-    print("✓ Connected to ArangoDB")
+    log("✓ Connected to ArangoDB")
     
     # Сохраняем db в сервере для доступа из обработчиков
     class _Server(HTTPServer):
@@ -205,13 +211,13 @@ def main():
     server = _Server((args.host, args.port), APIHandler)
     server.db = db
     
-    print(f"🌐 API Server running on http://{args.host}:{args.port}")
-    print("Press Ctrl+C to stop")
+    log(f"🌐 API Server running on http://{args.host}:{args.port}")
+    log("Press Ctrl+C to stop")
     
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\n✓ Server stopped")
+        log("\n✓ Server stopped")
         server.shutdown()
 
 if __name__ == '__main__':
