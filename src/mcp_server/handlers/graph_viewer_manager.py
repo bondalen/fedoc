@@ -323,9 +323,156 @@ def stop_graph_viewer(
         }
 
 
+def get_selected_nodes() -> Dict[str, any]:
+    """
+    Получить объекты, выбранные пользователем в Graph Viewer
+    
+    Эта команда запрашивает у браузера текущую выборку узлов и рёбер
+    через WebSocket соединение и возвращает детальную информацию.
+    
+    Returns:
+        Словарь с выбранными узлами и рёбрами
+    
+    Примеры использования в Cursor AI:
+        "Покажи выбранные объекты из Graph Viewer"
+        "Что выбрано в графе?"
+        "Покажи выбранные узлы"
+    """
+    try:
+        # Загружаем конфигурацию
+        config = get_or_create_config()
+        api_port = config.get('ports.api_server', 8899)
+        
+        log("\n📋 Запрашиваю выборку из Graph Viewer...")
+        
+        # Делаем запрос к API серверу, который запросит данные у браузера через WebSocket
+        import requests
+        
+        url = f'http://localhost:{api_port}/api/request_selection'
+        response = requests.get(url, params={'timeout': '3.0'}, timeout=5)
+        
+        if response.status_code == 408:  # Timeout
+            return {
+                "status": "timeout",
+                "message": "⏱️ Graph Viewer не ответил. Возможно:\n" +
+                          "  • Graph Viewer не открыт в браузере\n" +
+                          "  • WebSocket соединение не установлено\n" +
+                          "  • Браузер не активен\n\n" +
+                          "Попробуйте:\n" +
+                          "  1. Открыть Graph Viewer: 'Открой graph viewer'\n" +
+                          "  2. Выбрать объекты в графе (Ctrl+Click)\n" +
+                          "  3. Повторить команду"
+            }
+        
+        if response.status_code != 200:
+            return {
+                "status": "error",
+                "message": f"Ошибка получения выборки: HTTP {response.status_code}"
+            }
+        
+        data = response.json()
+        
+        if data.get('status') != 'success':
+            return {
+                "status": "error",
+                "message": data.get('message', 'Неизвестная ошибка')
+            }
+        
+        selection = data.get('selection', {})
+        nodes = selection.get('nodes', [])
+        edges = selection.get('edges', [])
+        
+        if not nodes and not edges:
+            return {
+                "status": "empty",
+                "message": "📭 Нет выбранных объектов\n\n" +
+                          "Выберите узлы или рёбра в Graph Viewer:\n" +
+                          "  • Кликните на узел для выбора\n" +
+                          "  • Ctrl+Click для множественного выбора\n" +
+                          "  • Клик на пустом месте для сброса выбора"
+            }
+        
+        # Форматируем красивый вывод
+        result_lines = ["✅ Выбрано в Graph Viewer:\n"]
+        
+        if nodes:
+            result_lines.append(f"📦 Узлы ({len(nodes)}):")
+            for i, node in enumerate(nodes, 1):
+                node_id = node.get('_id', 'N/A')
+                node_name = node.get('name', node.get('_key', 'Без названия'))
+                node_kind = node.get('kind', 'unknown')
+                
+                result_lines.append(f"{i}. {node_id}")
+                result_lines.append(f"   Название: {node_name}")
+                result_lines.append(f"   Тип: {node_kind}")
+                
+                if node.get('description'):
+                    desc = node['description'][:100]
+                    if len(node['description']) > 100:
+                        desc += '...'
+                    result_lines.append(f"   Описание: {desc}")
+                
+                result_lines.append("")
+        
+        if edges:
+            result_lines.append(f"🔗 Рёбра ({len(edges)}):")
+            for i, edge in enumerate(edges, 1):
+                edge_id = edge.get('_id', 'N/A')
+                edge_from = edge.get('_from', '?')
+                edge_to = edge.get('_to', '?')
+                projects = edge.get('projects', [])
+                
+                result_lines.append(f"{i}. {edge_id}")
+                result_lines.append(f"   От: {edge_from}")
+                result_lines.append(f"   К: {edge_to}")
+                
+                if projects:
+                    result_lines.append(f"   Проекты: {', '.join(projects)}")
+                
+                if edge.get('relationType'):
+                    result_lines.append(f"   Тип связи: {edge['relationType']}")
+                
+                result_lines.append("")
+        
+        log(f"✓ Получено: {len(nodes)} узлов, {len(edges)} рёбер")
+        
+        return {
+            "status": "success",
+            "message": "\n".join(result_lines),
+            "data": {
+                "nodes": nodes,
+                "edges": edges,
+                "count": {
+                    "nodes": len(nodes),
+                    "edges": len(edges),
+                    "total": len(nodes) + len(edges)
+                }
+            }
+        }
+        
+    except requests.exceptions.ConnectionError:
+        return {
+            "status": "error",
+            "message": "❌ Не удалось подключиться к API серверу\n\n" +
+                      "API сервер не запущен. Попробуйте:\n" +
+                      "  1. Запустить Graph Viewer: 'Открой graph viewer'\n" +
+                      "  2. Проверить статус: 'Проверь статус graph viewer'"
+        }
+    except Exception as e:
+        log(f"\n❌ Ошибка получения выборки: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        
+        return {
+            "status": "error",
+            "message": f"Ошибка получения выборки: {str(e)}"
+        }
+
+
 # Экспорт функций для регистрации в MCP сервере
 __all__ = [
     'open_graph_viewer',
     'graph_viewer_status',
-    'stop_graph_viewer'
+    'stop_graph_viewer',
+    'get_selected_nodes'
 ]

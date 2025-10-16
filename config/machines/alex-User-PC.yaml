@@ -1,0 +1,59 @@
+# Профиль машины: alex-User-PC
+# WSL2 окружение Александра
+machine:
+  hostname: "User-PC"
+  username: "alex"
+  os: "linux"
+  distribution: "WSL2"
+  kernel: "5.15.167.4-microsoft-standard-WSL2"
+  description: "WSL2 окружение для разработки fedoc"
+  added: "2025-10-16"
+  environment: "wsl2"
+
+# SSH настройки (Linux пути в WSL)
+ssh:
+  key_path: "~/.ssh/id_ed25519"
+  config_path: "~/.ssh/config"
+  known_hosts: "~/.ssh/known_hosts"
+
+# Пути к инструментам (проверены в WSL)
+tools:
+  python: "/usr/bin/python3"
+  node: "/usr/bin/node"
+  npm: "/usr/bin/npm"
+  pip: "/usr/bin/pip3"
+
+# Пути проекта (абсолютные Linux пути в WSL)
+project:
+  root: "/home/alex/fedoc"
+  venv: "/home/alex/fedoc/venv"
+  venv_python: "/home/alex/fedoc/venv/bin/python"
+  venv_pip: "/home/alex/fedoc/venv/bin/pip"
+
+# Особенности WSL окружения
+environment:
+  shell: "/bin/bash"
+  display: null  # WSL не имеет X server по умолчанию
+  wsl: true
+  windows_host: true  # Доступ к Windows хосту
+  
+# Опции для WSL
+options:
+  auto_open_browser: false  # WSL не может открыть браузер напрямую
+  verbose_logging: true    # Включить для отладки WSL
+  use_windows_browser: true # Попробовать открыть через Windows
+  wsl_display_fix: true     # Исправления для WSL
+
+# WSL специфичные настройки
+wsl:
+  version: "2"
+  distro: "Ubuntu"  # Предполагаем Ubuntu в WSL
+  windows_path: "/mnt/c"  # Доступ к Windows дискам
+  network_mode: "NAT"     # WSL2 использует NAT
+
+# Примечания для WSL
+# - Браузер нужно открывать вручную в Windows
+# - SSH работает как в обычном Linux
+# - Порты доступны из Windows как localhost
+# - Пути Linux-стиль, но доступ к Windows через /mnt/
+

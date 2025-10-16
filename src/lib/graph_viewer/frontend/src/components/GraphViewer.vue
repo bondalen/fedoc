@@ -12,6 +12,9 @@
     <!-- Панель полного текста (снизу) -->
     <FullTextPanel />
     
+    <!-- Строка выборки для Cursor AI (самый низ) -->
+    <SelectionBar />
+    
     <!-- Индикатор загрузки -->
     <div v-if="store.isLoading" class="loading-overlay">
       <div class="loading-spinner">
@@ -23,17 +26,30 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useGraphStore } from '@/stores/graph'
 import ControlPanel from './ControlPanel.vue'
 import GraphCanvas from './GraphCanvas.vue'
 import DetailsPanel from './DetailsPanel.vue'
 import FullTextPanel from './FullTextPanel.vue'
+import SelectionBar from './SelectionBar.vue'
 
 const store = useGraphStore()
 
 const themeClass = computed(() => {
   return `theme-${store.theme}`
+})
+
+// Инициализация WebSocket при монтировании компонента
+onMounted(() => {
+  console.log('GraphViewer mounted, initializing WebSocket...')
+  store.initWebSocket()
+})
+
+// Закрытие WebSocket при размонтировании
+onUnmounted(() => {
+  console.log('GraphViewer unmounted, closing WebSocket...')
+  store.closeWebSocket()
 })
 </script>
 

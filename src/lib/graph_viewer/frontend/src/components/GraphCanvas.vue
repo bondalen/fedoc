@@ -104,7 +104,9 @@ const options = {
     navigationButtons: true,
     keyboard: true,
     zoomView: true,
-    dragView: true
+    dragView: true,
+    multiselect: true,  // Включить множественный выбор (Ctrl+Click)
+    selectConnectedEdges: false  // Не выбирать связанные рёбра автоматически
   },
   layout: {
     hierarchical: {
@@ -145,23 +147,51 @@ const initNetwork = () => {
   )
   
   // Регистрация обработчиков событий
-  network.on('selectNode', (params) => {
-    if (params.nodes.length > 0) {
-      const nodeId = params.nodes[0]
-      store.selectNode(nodeId)
+  
+  // Обработка изменения выборки (узлы и/или рёбра)
+  network.on('select', async (params) => {
+    const selectedNodes = params.nodes || []
+    const selectedEdges = params.edges || []
+    
+    console.log(`Selection changed: ${selectedNodes.length} nodes, ${selectedEdges.length} edges`)
+    
+    // Обновить выборку в store
+    await store.updateSelectedNodes(selectedNodes)
+    await store.updateSelectedEdges(selectedEdges)
+    
+    // Показать панель деталей для первого выбранного объекта (старое поведение)
+    if (selectedNodes.length > 0) {
+      const firstNodeId = selectedNodes[0]
+      await store.selectNode(firstNodeId)
+    } else if (selectedEdges.length > 0) {
+      const firstEdgeId = selectedEdges[0]
+      await store.selectEdge(firstEdgeId)
     }
   })
   
-  network.on('selectEdge', (params) => {
-    if (params.edges.length > 0) {
-      const edgeId = params.edges[0]
-      store.selectEdge(edgeId)
+  // Обработка клика на пустом месте (снятие выделения)
+  network.on('deselectNode', (params) => {
+    // Проверить, есть ли еще выбранные объекты
+    const currentNodes = network.getSelectedNodes()
+    const currentEdges = network.getSelectedEdges()
+    
+    if (currentNodes.length === 0 && currentEdges.length === 0) {
+      console.log('All deselected, clearing selection')
+      store.clearSelection()
+      // Можно также закрыть панель деталей
+      // store.closeDetails()
     }
   })
   
-  network.on('deselectNode', () => {
-    // При снятии выделения можно закрыть панель или оставить открытой
-    // store.closeDetails()
+  network.on('deselectEdge', (params) => {
+    // Проверить, есть ли еще выбранные объекты
+    const currentNodes = network.getSelectedNodes()
+    const currentEdges = network.getSelectedEdges()
+    
+    if (currentNodes.length === 0 && currentEdges.length === 0) {
+      console.log('All deselected, clearing selection')
+      store.clearSelection()
+    }
   })
   
   network.on('stabilizationProgress', (params) => {

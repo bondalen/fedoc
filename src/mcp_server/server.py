@@ -302,6 +302,11 @@ class FedocMCPServer:
                 "name": "test_ssh",
                 "description": "Протестировать SSH туннель",
                 "inputSchema": {"type": "object", "properties": {}, "required": []}
+            },
+            "get_selected_nodes": {
+                "name": "get_selected_nodes",
+                "description": "Получить объекты, выбранные пользователем в Graph Viewer. Запрашивает у браузера текущую выборку узлов и рёбер через WebSocket.",
+                "inputSchema": {"type": "object", "properties": {}, "required": []}
             }
         }
     
@@ -315,7 +320,8 @@ class FedocMCPServer:
             "check_imports": self._handle_check_imports,
             "check_stubs": self._handle_check_stubs,
             "test_arango": self._handle_test_arango,
-            "test_ssh": self._handle_test_ssh
+            "test_ssh": self._handle_test_ssh,
+            "get_selected_nodes": self._handle_get_selected_nodes
         }
     
     def _handle_open_graph_viewer_v2(self, arguments: dict) -> dict:
@@ -597,6 +603,27 @@ class FedocMCPServer:
             status_text += f"❌ SSH туннель недоступен"
         
         return {"content": [{"type": "text", "text": status_text}]}
+    
+    def _handle_get_selected_nodes(self, arguments: dict) -> dict:
+        """Делегирование в обработчик получения выборки"""
+        try:
+            result = graph_viewer_manager.get_selected_nodes()
+            
+            # Всегда возвращаем message для отображения в чате
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": result.get("message", "Нет данных")
+                }]
+            }
+            
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Ошибка: {str(e)}"
+                }]
+            }
     
     def run(self):
         """Основной цикл сервера"""

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import io from 'socket.io-client'
 
 const API_BASE = '/api'
 
@@ -32,6 +33,14 @@ export const useGraphStore = defineStore('graph', () => {
   const loadedDocs = ref(new Set())
   const documentCache = ref(new Map())  // Кэш загруженных документов
   
+  // Выборка для отправки в Cursor AI
+  const selectedNodesList = ref([])  // Массив выбранных узлов с деталями
+  const selectedEdgesList = ref([])  // Массив выбранных рёбер с деталями
+  
+  // WebSocket соединение
+  let socket = null
+  const isSocketConnected = ref(false)
+  
   // Статус загрузки
   const isLoading = ref(false)
   const error = ref(null)
@@ -47,6 +56,18 @@ export const useGraphStore = defineStore('graph', () => {
   
   const edgeCount = computed(() => {
     return edgesDataSet.value ? edgesDataSet.value.length : 0
+  })
+  
+  const selectionCount = computed(() => {
+    return selectedNodesList.value.length + selectedEdgesList.value.length
+  })
+  
+  const selectedNodesCount = computed(() => {
+    return selectedNodesList.value.length
+  })
+  
+  const selectedEdgesCount = computed(() => {
+    return selectedEdgesList.value.length
   })
   
   // ========== ACTIONS ==========
@@ -478,6 +499,162 @@ export const useGraphStore = defineStore('graph', () => {
     await loadGraph()
   }
   
+  /**
+   * Инициализация WebSocket соединения
+   */
+  const initWebSocket = () => {
+    try {
+      // Подключение к WebSocket серверу
+      socket = io('http://localhost:8899', {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5
+      })
+      
+      // Обработка успешного подключения
+      socket.on('connect', () => {
+        console.log('✓ WebSocket connected')
+        isSocketConnected.value = true
+      })
+      
+      // Обработка отключения
+      socket.on('disconnect', () => {
+        console.log('✗ WebSocket disconnected')
+        isSocketConnected.value = false
+      })
+      
+      // Обработка подтверждения соединения от сервера
+      socket.on('connection_established', (data) => {
+        console.log('✓ Connection established:', data)
+      })
+      
+      // Обработка запроса выборки от сервера (MCP команда)
+      socket.on('request_selection', () => {
+        console.log('→ Server requested selection, sending...')
+        sendSelectionToServer()
+      })
+      
+      // Обработка ошибок
+      socket.on('error', (error) => {
+        console.error('WebSocket error:', error)
+      })
+      
+      console.log('WebSocket initialization started')
+    } catch (err) {
+      console.error('Failed to initialize WebSocket:', err)
+      setError('Не удалось подключиться к WebSocket серверу')
+    }
+  }
+  
+  /**
+   * Закрытие WebSocket соединения
+   */
+  const closeWebSocket = () => {
+    if (socket) {
+      socket.disconnect()
+      socket = null
+      isSocketConnected.value = false
+      console.log('WebSocket connection closed')
+    }
+  }
+  
+  /**
+   * Отправка текущей выборки на сервер через WebSocket
+   */
+  const sendSelectionToServer = () => {
+    if (!socket || !isSocketConnected.value) {
+      console.warn('WebSocket not connected, cannot send selection')
+      return
+    }
+    
+    // Получить детали выбранных объектов
+    const selectionData = {
+      nodes: selectedNodesList.value,
+      edges: selectedEdgesList.value,
+      timestamp: Date.now()
+    }
+    
+    console.log(`Sending selection: ${selectedNodesList.value.length} nodes, ${selectedEdgesList.value.length} edges`)
+    socket.emit('selection_response', selectionData)
+  }
+  
+  /**
+   * Обновление выборки узлов
+   */
+  const updateSelectedNodes = async (nodeIds) => {
+    try {
+      // Очистить текущую выборку узлов
+      selectedNodesList.value = []
+      
+      // Загрузить детали для каждого выбранного узла
+      for (const nodeId of nodeIds) {
+        try {
+          const url = `${API_BASE}/object_details?id=${encodeURIComponent(nodeId)}`
+          const response = await fetch(url)
+          
+          if (response.ok) {
+            const data = await response.json()
+            selectedNodesList.value.push(data)
+          } else {
+            console.warn(`Failed to load details for node ${nodeId}`)
+            // Добавляем хотя бы ID
+            selectedNodesList.value.push({ _id: nodeId, name: 'Не удалось загрузить' })
+          }
+        } catch (err) {
+          console.error(`Error loading node ${nodeId}:`, err)
+          selectedNodesList.value.push({ _id: nodeId, name: 'Ошибка загрузки' })
+        }
+      }
+      
+      console.log(`Updated node selection: ${selectedNodesList.value.length} nodes`)
+    } catch (err) {
+      console.error('Error updating selected nodes:', err)
+    }
+  }
+  
+  /**
+   * Обновление выборки рёбер
+   */
+  const updateSelectedEdges = async (edgeIds) => {
+    try {
+      // Очистить текущую выборку рёбер
+      selectedEdgesList.value = []
+      
+      // Загрузить детали для каждого выбранного ребра
+      for (const edgeId of edgeIds) {
+        try {
+          const url = `${API_BASE}/object_details?id=${encodeURIComponent(edgeId)}`
+          const response = await fetch(url)
+          
+          if (response.ok) {
+            const data = await response.json()
+            selectedEdgesList.value.push(data)
+          } else {
+            console.warn(`Failed to load details for edge ${edgeId}`)
+            selectedEdgesList.value.push({ _id: edgeId, projects: [] })
+          }
+        } catch (err) {
+          console.error(`Error loading edge ${edgeId}:`, err)
+          selectedEdgesList.value.push({ _id: edgeId, projects: [] })
+        }
+      }
+      
+      console.log(`Updated edge selection: ${selectedEdgesList.value.length} edges`)
+    } catch (err) {
+      console.error('Error updating selected edges:', err)
+    }
+  }
+  
+  /**
+   * Очистка выборки
+   */
+  const clearSelection = () => {
+    selectedNodesList.value = []
+    selectedEdgesList.value = []
+    console.log('Selection cleared')
+  }
+  
   // ========== RETURN ==========
   
   return {
@@ -498,9 +675,17 @@ export const useGraphStore = defineStore('graph', () => {
     isLoading,
     error,
     
+    // Selection state
+    selectedNodesList,
+    selectedEdgesList,
+    isSocketConnected,
+    
     // Computed
     nodeCount,
     edgeCount,
+    selectionCount,
+    selectedNodesCount,
+    selectedEdgesCount,
     
     // Actions
     setNetwork,
@@ -518,7 +703,17 @@ export const useGraphStore = defineStore('graph', () => {
     fitGraph,
     applyTheme,
     changeProject,
-    clearError
+    clearError,
+    
+    // WebSocket actions
+    initWebSocket,
+    closeWebSocket,
+    sendSelectionToServer,
+    
+    // Selection actions
+    updateSelectedNodes,
+    updateSelectedEdges,
+    clearSelection
   }
 })
 
