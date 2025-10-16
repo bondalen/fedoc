@@ -1,0 +1,55 @@
+# Конфигурация Graph Viewer для fedoc
+# Документация: docs/graph-viewer-setup.md
+version: "1.0"
+
+# Удаленный сервер с ArangoDB (общий для всех машин)
+remote_server:
+  host: "176.108.244.252"
+  user: "user1"
+  ssh_alias: "vuege-server"
+  description: "Production сервер с ArangoDB"
+
+# Порты (общие для всех, можно переопределить в профиле машины)
+ports:
+  ssh_tunnel: 8529      # Локальный порт SSH туннеля
+  api_server: 8899      # REST API для графов
+  vite_server: 5173     # Vue.js dev сервер
+
+# ArangoDB настройки
+arango:
+  host: "http://localhost:8529"  # Через SSH туннель
+  database: "fedoc"
+  user: "root"
+  password_env: "ARANGO_PASSWORD"  # Имя переменной окружения с паролем
+
+# Пути относительно корня проекта (могут быть переопределены в профиле)
+paths:
+  frontend: "src/lib/graph_viewer/frontend"
+  backend: "src/lib/graph_viewer/backend"
+  venv_python: "venv/bin/python"  # Относительный путь от project_root
+
+# Логи
+logs:
+  api_server: "/tmp/graph_viewer_api.log"
+  vite_server: "/tmp/graph_viewer_vite.log"
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+
+# Опции по умолчанию
+options:
+  auto_install_npm: false         # Спрашивать у пользователя
+  auto_create_ssh_config: true    # Автоматически создавать SSH config
+  auto_create_ssh_key: false      # Спрашивать у пользователя
+  check_dependencies: true        # Проверять зависимости перед запуском
+  timeout_seconds: 30             # Таймаут запуска компонентов
+  auto_open_browser: true         # Открывать браузер после запуска
+
+# Профили машин
+machines:
+  enabled: true
+  auto_detect: true               # Автоопределение по {user}-{hostname}
+  ask_if_unknown: true            # Спрашивать параметры для новой машины
+  directory: "config/machines"    # Где искать профили
+  save_new_profiles: true         # Сохранять новые профили автоматически
+
+
+

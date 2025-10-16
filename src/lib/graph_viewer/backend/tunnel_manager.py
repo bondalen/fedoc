@@ -6,12 +6,15 @@
 import subprocess
 import re
 import sys
-from typing import Optional, Dict
+from typing import Optional, Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .config_manager import ConfigManager
 
 # Перенаправление print в stderr для MCP протокола
 def log(message):
     """Вывод в stderr чтобы не нарушать MCP протокол"""
-    log(message, file=sys.stderr, flush=True)
+    print(message, file=sys.stderr, flush=True)
 
 
 class TunnelManager:
@@ -19,19 +22,30 @@ class TunnelManager:
     
     def __init__(
         self,
-        remote_host: str = "vuege-server",
-        local_port: int = 8529,
-        remote_port: int = 8529
+        config: Optional['ConfigManager'] = None,
+        remote_host: Optional[str] = None,
+        local_port: Optional[int] = None,
+        remote_port: Optional[int] = None
     ):
         """
         Args:
-            remote_host: Имя хоста из ~/.ssh/config или IP адрес
-            local_port: Локальный порт для туннеля
-            remote_port: Удаленный порт ArangoDB
+            config: Менеджер конфигурации (рекомендуется)
+            remote_host: Имя хоста из ~/.ssh/config или IP адрес (если без config)
+            local_port: Локальный порт для туннеля (если без config)
+            remote_port: Удаленный порт ArangoDB (если без config)
         """
-        self.remote_host = remote_host
-        self.local_port = local_port
-        self.remote_port = remote_port
+        if config is not None:
+            # Используем конфигурацию
+            self.remote_host = config.get('remote_server.ssh_alias', 'vuege-server')
+            self.local_port = config.get('ports.ssh_tunnel', 8529)
+            self.remote_port = config.get('ports.ssh_tunnel', 8529)
+            self.config = config
+        else:
+            # Старый способ - напрямую через параметры
+            self.remote_host = remote_host or "vuege-server"
+            self.local_port = local_port or 8529
+            self.remote_port = remote_port or 8529
+            self.config = None
         
     def check_tunnel(self) -> Optional[int]:
         """

@@ -1,19 +1,36 @@
 """
 MCP обработчик для управления системой визуализации графа
 Интегрирует Graph Viewer в MCP-сервер для работы через Cursor AI
+
+Версия 2.0 с поддержкой ConfigManager и профилей машин
 """
 
 import sys
 import webbrowser
 from pathlib import Path
 from typing import Optional, Dict
-import io
-import contextlib
+import importlib
 
 # Добавляем путь к библиотекам
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from lib.graph_viewer.backend import TunnelManager, ProcessManager
+# Импортируем модули
+import lib.graph_viewer.backend.config_manager
+import lib.graph_viewer.backend.interactive_setup
+import lib.graph_viewer.backend.tunnel_manager
+import lib.graph_viewer.backend.process_manager
+
+# Перезагружаем модули для получения последних изменений
+importlib.reload(lib.graph_viewer.backend.config_manager)
+importlib.reload(lib.graph_viewer.backend.interactive_setup)
+importlib.reload(lib.graph_viewer.backend.tunnel_manager)
+importlib.reload(lib.graph_viewer.backend.process_manager)
+
+from lib.graph_viewer.backend import (
+    ConfigManager, get_config,
+    InteractiveSetup,
+    TunnelManager, ProcessManager
+)
 
 
 # Перенаправление print в stderr для MCP протокола
@@ -22,15 +39,15 @@ def log(message):
     print(message, file=sys.stderr, flush=True)
 
 
-@contextlib.contextmanager
-def suppress_stdout():
-    """Контекстный менеджер для подавления stdout (для subprocess вызовов)"""
-    old_stdout = sys.stdout
-    sys.stdout = io.StringIO()
-    try:
-        yield
-    finally:
-        sys.stdout = old_stdout
+# Глобальный экземпляр конфигурации (singleton)
+_config = None
+
+def get_or_create_config() -> ConfigManager:
+    """Получить или создать ConfigManager"""
+    global _config
+    if _config is None:
+        _config = get_config()
+    return _config
 
 
 def open_graph_viewer(
@@ -41,10 +58,12 @@ def open_graph_viewer(
     Запустить систему визуализации графа в браузере
     
     Эта команда автоматически:
-    1. Проверяет/создает SSH туннель к ArangoDB
-    2. Запускает API сервер (если не запущен)
-    3. Запускает Vite dev сервер (если не запущен)  
-    4. Открывает браузер на интерфейсе визуализации
+    1. Загружает конфигурацию (с профилем машины)
+    2. Проверяет зависимости (первый запуск)
+    3. Проверяет/создает SSH туннель к ArangoDB
+    4. Запускает API сервер (если не запущен)
+    5. Запускает Vite dev сервер (если не запущен)  
+    6. Открывает браузер на интерфейсе визуализации
     
     Args:
         project: Фильтр по проекту (fepro, femsq, fedoc) или None для всех
@@ -59,49 +78,62 @@ def open_graph_viewer(
         "Покажи визуализацию"
     """
     try:
-        # Инициализация менеджеров
-        tunnel_mgr = TunnelManager()
-        process_mgr = ProcessManager()
+        # Загружаем конфигурацию
+        log("\n📦 Загрузка конфигурации...")
+        config = get_or_create_config()
+        
+        # Проверяем зависимости при первом запуске
+        if config.is_first_run():
+            log("\n🔧 Первый запуск - проверка зависимостей...")
+            setup = InteractiveSetup(config)
+            setup.check_all()
+        
+        # Инициализация менеджеров с конфигурацией
+        tunnel_mgr = TunnelManager(config=config)
+        process_mgr = ProcessManager(config=config)
         
         results = {
             "status": "success",
             "message": "Система визуализации графа запущена",
-            "url": "http://localhost:5173",
+            "url": f"http://localhost:{config.get('ports.vite_server', 5173)}",
             "components": {}
         }
         
         # 1. Проверяем/создаем SSH туннель
-        log("🔌 Проверка SSH туннеля...")
+        log("\n🔌 Проверка SSH туннеля...")
         tunnel_ok = tunnel_mgr.ensure_tunnel()
         if not tunnel_ok:
             return {
                 "status": "error",
                 "message": "Не удалось создать SSH туннель к ArangoDB",
-                "details": "Проверьте SSH доступ к серверу vuege-server"
+                "details": f"Проверьте SSH доступ к серверу {config.get('remote_server.ssh_alias')}"
             }
         
         tunnel_status = tunnel_mgr.get_status()
         results["components"]["ssh_tunnel"] = f"active on port {tunnel_status['local_port']}"
+        log(f"   ✓ SSH туннель активен (PID: {tunnel_status.get('pid', 'N/A')})")
         
         # 2. Запускаем API сервер
-        log("🚀 Проверка API сервера...")
+        log("\n🚀 Проверка API сервера...")
         api_ok = process_mgr.start_api_server()
         if not api_ok:
             return {
                 "status": "error",
                 "message": "Не удалось запустить API сервер",
-                "details": "Проверьте лог: /tmp/graph_viewer_api.log"
+                "details": "Проверьте логи API сервера"
             }
+        log(f"   ✓ API сервер запущен")
         
         # 3. Запускаем Vite dev сервер
-        log("⚡ Проверка Vite сервера...")
+        log("\n⚡ Проверка Vite сервера...")
         vite_ok = process_mgr.start_vite_server()
         if not vite_ok:
             return {
                 "status": "error",
                 "message": "Не удалось запустить Vite сервер",
-                "details": "Проверьте лог: /tmp/graph_viewer_vite.log"
+                "details": "Проверьте логи Vite сервера"
             }
+        log(f"   ✓ Vite сервер запущен")
         
         # Обновляем статус компонентов
         proc_status = process_mgr.get_status()
@@ -109,29 +141,33 @@ def open_graph_viewer(
         results["components"]["vite_server"] = f"running on port {proc_status['vite_server']['port']}"
         
         # 4. Формируем URL с параметрами
-        url = "http://localhost:5173"
+        url = results["url"]
         if project:
             url += f"?project={project}"
             results["url"] = url
             results["message"] = f"Система визуализации графа запущена для проекта {project}"
         
         # 5. Открываем браузер
-        if auto_open_browser:
-            log(f"🌐 Открываю браузер: {url}")
+        browser_setting = config.get('options.auto_open_browser', True)
+        if auto_open_browser and browser_setting:
+            log(f"\n🌐 Открываю браузер: {url}")
             webbrowser.open(url)
             results["browser_opened"] = True
         else:
             results["browser_opened"] = False
+            log(f"\n🌐 Интерфейс доступен: {url}")
         
         log(f"\n✅ {results['message']}")
         log(f"📊 URL: {results['url']}")
-        log(f"🔧 Компоненты:")
-        for name, status in results["components"].items():
-            log(f"   - {name}: {status}")
+        log(f"🖥️  Машина: {config.machine_name}")
         
         return results
         
     except Exception as e:
+        log(f"\n❌ Ошибка: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        
         return {
             "status": "error",
             "message": f"Ошибка запуска Graph Viewer: {str(e)}",
@@ -152,8 +188,11 @@ def graph_viewer_status() -> Dict[str, any]:
         "Какие компоненты graph viewer запущены?"
     """
     try:
-        tunnel_mgr = TunnelManager()
-        process_mgr = ProcessManager()
+        # Загружаем конфигурацию
+        config = get_or_create_config()
+        
+        tunnel_mgr = TunnelManager(config=config)
+        process_mgr = ProcessManager(config=config)
         
         # Получаем статусы
         tunnel_status = tunnel_mgr.get_status()
@@ -168,6 +207,7 @@ def graph_viewer_status() -> Dict[str, any]:
                 tunnel_status["status"] == "disconnected" and
                 process_status["overall_status"] == "stopped"
             ) else "partial",
+            "machine": config.machine_name,
             "components": {
                 "ssh_tunnel": {
                     "status": tunnel_status["status"],
@@ -186,7 +226,7 @@ def graph_viewer_status() -> Dict[str, any]:
                     "pid": process_status["vite_server"]["pid"]
                 }
             },
-            "url": "http://localhost:5173",
+            "url": f"http://localhost:{config.get('ports.vite_server', 5173)}",
             "ready": (
                 tunnel_status["status"] == "connected" and
                 process_status["overall_status"] == "running"
@@ -195,7 +235,8 @@ def graph_viewer_status() -> Dict[str, any]:
         
         # Выводим в удобном виде
         status_icon = "✅" if result["overall_status"] == "running" else "⚠️" if result["overall_status"] == "partial" else "❌"
-        log(f"{status_icon} Общий статус: {result['overall_status']}")
+        log(f"\n{status_icon} Общий статус: {result['overall_status']}")
+        log(f"🖥️  Машина: {result['machine']}")
         log("\n🔧 Компоненты:")
         for name, comp in result["components"].items():
             comp_icon = "✅" if comp["status"] in ["connected", "running"] else "❌"
@@ -208,6 +249,7 @@ def graph_viewer_status() -> Dict[str, any]:
         return result
         
     except Exception as e:
+        log(f"\n❌ Ошибка проверки статуса: {e}")
         return {
             "status": "error",
             "message": f"Ошибка проверки статуса: {str(e)}"
@@ -234,8 +276,10 @@ def stop_graph_viewer(
         "Закрой graph viewer и туннель"
     """
     try:
-        tunnel_mgr = TunnelManager()
-        process_mgr = ProcessManager()
+        config = get_or_create_config()
+        
+        tunnel_mgr = TunnelManager(config=config)
+        process_mgr = ProcessManager(config=config)
         
         results = {
             "status": "success",
@@ -244,30 +288,35 @@ def stop_graph_viewer(
         }
         
         # Останавливаем процессы
-        log("🛑 Останавливаю процессы...")
+        log("\n🛑 Останавливаю процессы...")
         
         if process_mgr.check_vite_server():
             process_mgr.stop_vite_server(force)
             results["stopped"].append("vite_server")
+            log("   ✓ Vite сервер остановлен")
         
         if process_mgr.check_api_server():
             process_mgr.stop_api_server(force)
             results["stopped"].append("api_server")
+            log("   ✓ API сервер остановлен")
         
         # Опционально останавливаем туннель
         if stop_tunnel and tunnel_mgr.check_tunnel():
             tunnel_mgr.close_tunnel()
             results["stopped"].append("ssh_tunnel")
+            log("   ✓ SSH туннель закрыт")
         
         if not results["stopped"]:
             results["message"] = "Компоненты уже остановлены"
+            log("   ℹ️  Компоненты уже были остановлены")
         else:
             results["message"] = f"Остановлено: {', '.join(results['stopped'])}"
         
-        log(f"✅ {results['message']}")
+        log(f"\n✅ {results['message']}")
         return results
         
     except Exception as e:
+        log(f"\n❌ Ошибка остановки: {e}")
         return {
             "status": "error",
             "message": f"Ошибка остановки: {str(e)}"
@@ -280,4 +329,3 @@ __all__ = [
     'graph_viewer_status',
     'stop_graph_viewer'
 ]
-

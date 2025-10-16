@@ -9,13 +9,16 @@ import re
 import os
 import signal
 import sys
-from typing import Optional, Dict
+from typing import Optional, Dict, TYPE_CHECKING
 from pathlib import Path
+
+if TYPE_CHECKING:
+    from .config_manager import ConfigManager
 
 # Перенаправление print в stderr для MCP протокола
 def log(message):
     """Вывод в stderr чтобы не нарушать MCP протокол"""
-    log(message, file=sys.stderr, flush=True)
+    print(message, file=sys.stderr, flush=True)
 
 
 class ProcessManager:
@@ -23,24 +26,49 @@ class ProcessManager:
     
     def __init__(
         self,
+        config: Optional['ConfigManager'] = None,
         graph_viewer_root: Optional[Path] = None,
-        arango_password: str = "fedoc_dev_2025"
+        arango_password: Optional[str] = None
     ):
         """
         Args:
-            graph_viewer_root: Корневая директория graph_viewer
-            arango_password: Пароль для ArangoDB
+            config: Менеджер конфигурации (рекомендуется)
+            graph_viewer_root: Корневая директория graph_viewer (если без config)
+            arango_password: Пароль для ArangoDB (если без config)
         """
-        if graph_viewer_root is None:
-            # Определяем путь относительно этого файла
-            graph_viewer_root = Path(__file__).parent.parent
-        
-        self.graph_viewer_root = Path(graph_viewer_root)
-        self.backend_dir = self.graph_viewer_root / "backend"
-        self.frontend_dir = self.graph_viewer_root / "frontend"
-        self.project_root = self.graph_viewer_root.parent.parent.parent
-        self.venv_python = self.project_root / "venv" / "bin" / "python"
-        self.arango_password = arango_password
+        if config is not None:
+            # Используем конфигурацию
+            self.config = config
+            self.project_root = config.get_path('project.root', relative_to_project=False)
+            self.graph_viewer_root = self.project_root / config.get('paths.frontend').rsplit('/', 1)[0]
+            self.backend_dir = self.project_root / config.get('paths.backend')
+            self.frontend_dir = self.project_root / config.get('paths.frontend')
+            
+            # Определяем путь к Python: venv или системный
+            venv_path = self.project_root / config.get('paths.venv_python', 'venv/bin/python')
+            if venv_path.exists():
+                self.venv_python = venv_path
+            else:
+                # Используем системный python из tools или который запустил скрипт
+                self.venv_python = Path(config.get('tools.python', sys.executable))
+            
+            self.arango_password = config.get_password() or "fedoc_dev_2025"
+            self.api_port = config.get('ports.api_server', 8899)
+            self.vite_port = config.get('ports.vite_server', 5173)
+        else:
+            # Старый способ - через параметры
+            self.config = None
+            if graph_viewer_root is None:
+                graph_viewer_root = Path(__file__).parent.parent
+            
+            self.graph_viewer_root = Path(graph_viewer_root)
+            self.backend_dir = self.graph_viewer_root / "backend"
+            self.frontend_dir = self.graph_viewer_root / "frontend"
+            self.project_root = self.graph_viewer_root.parent.parent.parent
+            self.venv_python = self.project_root / "venv" / "bin" / "python"
+            self.arango_password = arango_password or "fedoc_dev_2025"
+            self.api_port = 8899
+            self.vite_port = 5173
         
     def _find_process(self, pattern: str) -> Optional[int]:
         """
@@ -110,14 +138,14 @@ class ProcessManager:
             api_script = self.backend_dir / "api_server.py"
             log_file = Path("/tmp/graph_viewer_api.log")
             
-            with open(log_file, "w") as log:
+            with open(log_file, "w") as f:
                 subprocess.Popen(
                     [
                         str(self.venv_python),
                         str(api_script),
                         "--db-password", self.arango_password
                     ],
-                    stdout=log,
+                    stdout=f,
                     stderr=subprocess.STDOUT,
                     cwd=self.backend_dir,
                     start_new_session=True
@@ -135,8 +163,8 @@ class ProcessManager:
                 log(f"⚠ API сервер не запустился. Проверьте лог: {log_file}")
                 # Показываем последние строки лога
                 try:
-                    with open(log_file, "r") as log:
-                        lines = log.readlines()
+                    with open(log_file, "r") as f:
+                        lines = f.readlines()
                         if lines:
                             log("Последние строки лога:")
                             for line in lines[-5:]:
@@ -166,10 +194,10 @@ class ProcessManager:
             # Запускаем Vite в фоне
             log_file = Path("/tmp/graph_viewer_vite.log")
             
-            with open(log_file, "w") as log:
+            with open(log_file, "w") as f:
                 subprocess.Popen(
                     ["npm", "run", "dev"],
-                    stdout=log,
+                    stdout=f,
                     stderr=subprocess.STDOUT,
                     cwd=self.frontend_dir,
                     start_new_session=True
@@ -271,12 +299,12 @@ class ProcessManager:
             "api_server": {
                 "status": "running" if api_pid else "stopped",
                 "pid": api_pid,
-                "port": 8899
+                "port": self.api_port
             },
             "vite_server": {
                 "status": "running" if vite_pid else "stopped",
                 "pid": vite_pid,
-                "port": 5173
+                "port": self.vite_port
             },
             "overall_status": "running" if (api_pid and vite_pid) else (
                 "partial" if (api_pid or vite_pid) else "stopped"

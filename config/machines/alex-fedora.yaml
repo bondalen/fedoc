@@ -1,0 +1,43 @@
+# Профиль машины: alex-fedora
+# Рабочая машина Александра (Fedora 42)
+machine:
+  hostname: "fedora"
+  username: "alex"
+  os: "linux"
+  distribution: "Fedora 42"
+  description: "Основная рабочая машина"
+  added: "2025-10-16"
+
+# SSH настройки
+ssh:
+  key_path: "~/.ssh/id_ed25519"
+  config_path: "~/.ssh/config"
+
+# Пути к инструментам
+tools:
+  python: "/usr/bin/python3"
+  node: "/usr/bin/node"
+  npm: "/usr/bin/npm"
+
+# Пути проекта (абсолютные)
+project:
+  root: "/home/alex/projects/rules/fedoc"
+  venv: "/home/alex/projects/rules/fedoc/venv"
+
+# Особенности окружения
+environment:
+  shell: "/usr/bin/bash"
+  display: ":0"  # Для открытия браузера
+  
+# Опции для этой машины
+options:
+  auto_open_browser: true
+  verbose_logging: false
+
+# Примечания
+# - SSH ключ уже настроен
+# - SSH конфигурация для vuege-server добавлена
+# - npm зависимости установлены
+
+
+

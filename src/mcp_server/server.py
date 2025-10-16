@@ -2,18 +2,27 @@
 """
 Fedoc MCP Server - сервер для управления Graph Viewer
 Интеграция: ArangoDB + SSH туннели + Process Manager (API + Vite)
+
+Версия 2.0 с поддержкой ConfigManager
 """
 
 import sys
 import json
 import os
+from pathlib import Path
+
+# Добавляем путь к библиотекам
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Импортируем обработчики
+from handlers import graph_viewer_manager
 
 class FedocMCPServer:
     """MCP сервер для управления Graph Viewer"""
     
     def __init__(self):
         self.name = "fedoc"
-        self.version = "1.0.0"
+        self.version = "2.0.0"  # Обновлена версия после интеграции ConfigManager
         self.tools = {}
         self.handlers = {}
         self.config = self._load_config()
@@ -298,15 +307,83 @@ class FedocMCPServer:
     
     def _register_handlers(self):
         """Регистрация обработчиков"""
+        # Используем обработчики из handlers/graph_viewer_manager.py
         self.handlers = {
-            "open_graph_viewer": self._handle_open_graph_viewer,
-            "graph_viewer_status": self._handle_graph_viewer_status,
-            "stop_graph_viewer": self._handle_stop_graph_viewer,
+            "open_graph_viewer": self._handle_open_graph_viewer_v2,
+            "graph_viewer_status": self._handle_graph_viewer_status_v2,
+            "stop_graph_viewer": self._handle_stop_graph_viewer_v2,
             "check_imports": self._handle_check_imports,
             "check_stubs": self._handle_check_stubs,
             "test_arango": self._handle_test_arango,
             "test_ssh": self._handle_test_ssh
         }
+    
+    def _handle_open_graph_viewer_v2(self, arguments: dict) -> dict:
+        """Делегирование в новый обработчик с ConfigManager"""
+        try:
+            result = graph_viewer_manager.open_graph_viewer(
+                project=arguments.get("project"),
+                auto_open_browser=arguments.get("auto_open_browser", True)
+            )
+            
+            # Форматируем результат для MCP
+            if result.get("status") == "success":
+                text = f"✅ {result['message']}\n\n"
+                text += f"🌐 URL: {result['url']}\n\n"
+                text += "🔧 Компоненты:\n"
+                for name, status in result.get("components", {}).items():
+                    text += f"   • {name}: {status}\n"
+                return {"content": [{"type": "text", "text": text}]}
+            else:
+                text = f"❌ {result['message']}\n\n"
+                if "details" in result:
+                    text += f"Детали: {result['details']}"
+                return {"content": [{"type": "text", "text": text}]}
+                
+        except Exception as e:
+            return {"content": [{"type": "text", "text": f"❌ Ошибка: {e}"}]}
+    
+    def _handle_graph_viewer_status_v2(self, arguments: dict) -> dict:
+        """Делегирование в новый обработчик статуса"""
+        try:
+            result = graph_viewer_manager.graph_viewer_status()
+            
+            if result.get("status") != "error":
+                status_icon = "✅" if result["overall_status"] == "running" else "⚠️" if result["overall_status"] == "partial" else "❌"
+                text = f"{status_icon} Статус: {result['overall_status']}\n\n"
+                text += f"🖥️  Машина: {result.get('machine', 'N/A')}\n\n"
+                text += "🔧 Компоненты:\n"
+                for name, comp in result.get("components", {}).items():
+                    comp_icon = "✅" if comp["status"] in ["connected", "running"] else "❌"
+                    pid = f" (PID: {comp['pid']})" if comp.get("pid") else ""
+                    text += f"   {comp_icon} {name}: {comp['status']}{pid}\n"
+                
+                if result.get("ready"):
+                    text += f"\n🌐 URL: {result['url']}"
+                
+                return {"content": [{"type": "text", "text": text}]}
+            else:
+                return {"content": [{"type": "text", "text": f"❌ {result['message']}"}]}
+                
+        except Exception as e:
+            return {"content": [{"type": "text", "text": f"❌ Ошибка: {e}"}]}
+    
+    def _handle_stop_graph_viewer_v2(self, arguments: dict) -> dict:
+        """Делегирование в новый обработчик остановки"""
+        try:
+            result = graph_viewer_manager.stop_graph_viewer(
+                stop_tunnel=arguments.get("stop_tunnel", False),
+                force=arguments.get("force", False)
+            )
+            
+            text = f"✅ {result['message']}\n"
+            if result.get("stopped"):
+                text += f"\nОстановлено: {', '.join(result['stopped'])}"
+            
+            return {"content": [{"type": "text", "text": text}]}
+                
+        except Exception as e:
+            return {"content": [{"type": "text", "text": f"❌ Ошибка: {e}"}]}
     
     def _handle_open_graph_viewer(self, arguments: dict) -> dict:
         """Открыть Graph Viewer"""

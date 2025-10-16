@@ -29,6 +29,7 @@ logs/
 # Config
 config/*.local.yaml
 config/*.local.json
+config/.secrets.env
 .env
 .env.local
 

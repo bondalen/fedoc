@@ -1,0 +1,21 @@
+# Пример локальных переопределений для Graph Viewer
+# Скопируйте в graph_viewer.local.yaml и настройте под себя
+# Файл graph_viewer.local.yaml не коммитится в git
+
+# Переопределение портов (если заняты на вашей машине)
+# ports:
+#   api_server: 9000
+#   vite_server: 5174
+
+# Переопределение путей
+# project:
+#   root: "/custom/path/to/fedoc"
+
+# Опции разработки
+# options:
+#   verbose_logging: true
+#   debug_mode: true
+#   auto_open_browser: false
+
+
+
