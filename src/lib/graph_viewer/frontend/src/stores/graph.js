@@ -438,30 +438,36 @@ export const useGraphStore = defineStore('graph', () => {
     
     const isDark = theme.value === 'dark'
     
-    // Цвета для темы
-    const labelColor = isDark ? '#E0E0E0' : '#212121'
-    const edgeColor = isDark ? '#B0BEC5' : '#424242'
+    // Цвета для темы (улучшенные для светлой темы)
+    const labelColor = isDark ? '#E0E0E0' : '#000000'        // темнее для light
+    const edgeColor = isDark ? '#B0BEC5' : '#37474F'         // темнее для light
     const strokeColor = isDark ? '#000' : '#fff'
+    const strokeWidth = isDark ? 2 : 4                        // толще для light
+    
+    // Цвета для интерактивных состояний (универсальные для обеих тем)
+    const highlightColor = '#D2691E'                          // 🔥 оранжевый для выделения
+    const hoverColor = '#9c27b0'                              // 💜 фиолетовый для hover
     
     // Обновление настроек сети
     network.value.setOptions({
       nodes: {
         font: { 
           color: labelColor,
+          size: 12,
           bold: {
             color: isDark ? '#ffffff' : '#000000'
           }
         },
         color: {
-          background: isDark ? '#2d3748' : '#ffffff',
-          border: isDark ? '#4a5568' : '#cbd5e0',
+          background: isDark ? '#2d3748' : '#ffffff',        // белый для light
+          border: isDark ? '#4a5568' : '#e0e0e0',            // светлее для light
           highlight: {
-            background: isDark ? '#4299e1' : '#3182ce',
-            border: isDark ? '#63b3ed' : '#2c5282'
+            background: isDark ? '#2d3748' : '#f8f9fa',      // фон не меняется
+            border: highlightColor                            // 🔥 оранжевый
           },
           hover: {
-            background: isDark ? '#3a4a5e' : '#e8f4fd',
-            border: isDark ? '#5a6a88' : '#90caf9'
+            background: isDark ? '#2d3748' : '#f8f9fa',      // фон не меняется
+            border: hoverColor                                // 💜 фиолетовый
           }
         },
         shadow: {
@@ -473,18 +479,70 @@ export const useGraphStore = defineStore('graph', () => {
         }
       },
       edges: {
+        width: isDark ? 2 : 2.5,                             // толще для light
         font: { 
           color: labelColor,
           strokeColor: strokeColor,
-          strokeWidth: 2
+          strokeWidth: strokeWidth,                          // используем переменную
+          size: 12,
+          bold: !isDark                                      // жирный для light
         },
         color: { 
           color: edgeColor,
-          highlight: isDark ? '#4299e1' : '#1976D2',
-          hover: isDark ? '#64B5F6' : '#42A5F5'
+          highlight: highlightColor,                         // 🔥 оранжевый
+          hover: hoverColor                                  // 💜 фиолетовый
         }
       }
     })
+    
+    // 🎯 ПРИНУДИТЕЛЬНОЕ ИЗМЕНЕНИЕ ФОНА через CSS и DOM
+    setTimeout(() => {
+      // Ищем все canvas элементы в контейнере графа
+      const graphContainer = document.getElementById('graph')
+      if (graphContainer) {
+        const canvases = graphContainer.querySelectorAll('canvas')
+        canvases.forEach(canvas => {
+          canvas.style.background = isDark ? '#1e1e1e' : '#ffffff'
+        })
+        
+        // Также устанавливаем CSS переменную
+        graphContainer.style.setProperty('--canvas-bg', isDark ? '#1e1e1e' : '#ffffff')
+        graphContainer.style.background = isDark ? '#1e1e1e' : '#ffffff'
+      }
+    }, 100) // Небольшая задержка для инициализации
+    
+    // 🎯 РАДИКАЛЬНОЕ ОБНОВЛЕНИЕ - полная перезагрузка данных
+    setTimeout(() => {
+      if (network.value && nodesDataSet.value) {
+        // Получаем все узлы
+        const allNodes = nodesDataSet.value.get()
+        
+        // Обновляем каждый узел с новыми цветами
+        const updatedNodes = allNodes.map(node => ({
+          ...node,
+          color: {
+            background: isDark ? '#2d3748' : '#ffffff',        // белый для light
+            border: isDark ? '#4a5568' : '#e0e0e0',             // светлее для light
+            highlight: {
+              background: isDark ? '#2d3748' : '#ffffff',
+              border: highlightColor
+            },
+            hover: {
+              background: isDark ? '#2d3748' : '#ffffff',
+              border: hoverColor
+            }
+          }
+        }))
+        
+        // Полностью заменяем данные
+        nodesDataSet.value.clear()
+        nodesDataSet.value.add(updatedNodes)
+        
+        // Перерисовываем сеть
+        network.value.redraw()
+        network.value.fit()
+      }
+    }, 200) // Большая задержка для полного применения
     
     // Применить тему к body
     document.body.style.background = isDark ? '#111' : '#f5f5f5'

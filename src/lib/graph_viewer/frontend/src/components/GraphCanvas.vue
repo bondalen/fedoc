@@ -16,40 +16,13 @@ const store = useGraphStore()
 const graphContainer = ref(null)
 let network = null
 
-// Опции для vis-network
+// Опции для vis-network (только статичные, цвета задаются в applyTheme)
 const options = {
   nodes: {
     shape: 'box',
     margin: 10,
-    font: {
-      size: 16,
-      face: 'Arial, sans-serif',
-      color: '#e0e0e0',
-      bold: {
-        color: '#ffffff'
-      }
-    },
-    color: {
-      background: '#2d3748',
-      border: '#4a5568',
-      highlight: {
-        background: '#4299e1',
-        border: '#63b3ed'
-      },
-      hover: {
-        background: '#3a4a5e',
-        border: '#5a6a88'
-      }
-    },
     borderWidth: 1,
-    borderWidthSelected: 2,
-    shadow: {
-      enabled: true,
-      color: 'rgba(0,0,0,0.3)',
-      size: 5,
-      x: 2,
-      y: 2
-    }
+    borderWidthSelected: 2
   },
   edges: {
     arrows: {
@@ -58,25 +31,12 @@ const options = {
         scaleFactor: 0.5
       }
     },
-    color: {
-      color: '#B0BEC5',
-      highlight: '#4299e1',
-      hover: '#64B5F6',
-      inherit: false
-    },
     width: 1,
     smooth: {
       enabled: true,
       type: 'cubicBezier',
       forceDirection: 'vertical',
       roundness: 0.5
-    },
-    font: {
-      size: 12,
-      color: '#e0e0e0',
-      strokeWidth: 2,
-      strokeColor: '#000',
-      align: 'middle'
     },
     shadow: {
       enabled: false
@@ -288,9 +248,31 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #1e1e1e;
-  border: 1px solid #333;
+  background: var(--canvas-bg, #1e1e1e) !important;
+  border: 1px solid var(--border-color, #333);
   transition: right 0.3s ease;
+}
+
+/* 🎯 ПРИНУДИТЕЛЬНЫЙ ФОН для canvas элементов */
+#graph canvas {
+  background: var(--canvas-bg, #1e1e1e) !important;
+}
+
+/* 🎯 Специальные стили для тем */
+.theme-light #graph {
+  background: #ffffff !important;
+}
+
+.theme-light #graph canvas {
+  background: #ffffff !important;
+}
+
+.theme-dark #graph {
+  background: #1e1e1e !important;
+}
+
+.theme-dark #graph canvas {
+  background: #1e1e1e !important;
 }
 
 #graph.with-panel {

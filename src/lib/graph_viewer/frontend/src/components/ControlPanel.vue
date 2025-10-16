@@ -143,6 +143,10 @@ const onThemeChange = () => {
 
 const onRefresh = () => {
   store.loadGraph()
+  // 🎯 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ТЕМЫ после загрузки
+  setTimeout(() => {
+    store.applyTheme()
+  }, 500)
 }
 
 const onFit = () => {

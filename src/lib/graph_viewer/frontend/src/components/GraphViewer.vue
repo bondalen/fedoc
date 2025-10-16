@@ -59,8 +59,7 @@ onUnmounted(() => {
   height: 100vh;
   position: relative;
   overflow: hidden;
-  background: #111;
-  color: #e0e0e0;
+  /* Фон будет задаваться через темы */
 }
 
 /* Темы */
@@ -84,6 +83,7 @@ onUnmounted(() => {
   --text-tertiary: #757575;
   --border-color: #cbd5e0;
   --hover-bg: #e8f4fd;
+  --canvas-bg: #ffffff;
 }
 
 /* Глобальные стили для тёмной темы */
@@ -96,6 +96,7 @@ onUnmounted(() => {
   --text-tertiary: #999;
   --border-color: #444;
   --hover-bg: #2d3748;
+  --canvas-bg: #1e1e1e;
 }
 
 /* Индикатор загрузки */
