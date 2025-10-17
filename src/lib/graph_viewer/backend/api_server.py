@@ -14,6 +14,14 @@ import argparse
 import sys
 import time
 import threading
+import os
+from pathlib import Path
+
+# Добавить путь к модулям для импорта
+sys.path.insert(0, str(Path(__file__).parent))
+
+# Импорт валидатора рёбер
+from edge_validator import create_edge_validator
 
 # Перенаправление print в stderr для MCP протокола
 def log(message):
@@ -29,6 +37,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Глобальные переменные
 db = None  # ArangoDB connection
+edge_validator = None  # Валидатор рёбер
 _selection_response = None  # Последний ответ от браузера
 _selection_lock = threading.Lock()  # Блокировка для thread-safe доступа
 
@@ -384,6 +393,189 @@ def get_subgraph():
         return jsonify({'error': str(e)}), 500
 
 
+# ========== EDGE MANAGEMENT ENDPOINTS ==========
+
+@app.route('/api/edges', methods=['POST'])
+def create_edge():
+    """
+    Создать новое ребро с валидацией уникальности
+    
+    Request JSON:
+    {
+        "_from": "canonical_nodes/c:backend",
+        "_to": "canonical_nodes/t:java@21",
+        "relationType": "uses",
+        "projects": ["fepro", "femsq"]
+    }
+    
+    Response:
+    {
+        "success": true,
+        "edge": {"_id": "...", "_key": "...", "_rev": "..."}
+    }
+    """
+    try:
+        data = request.json
+        
+        # Валидация обязательных полей
+        if not data:
+            return jsonify({'success': False, 'error': 'Пустой запрос'}), 400
+        
+        if '_from' not in data:
+            return jsonify({'success': False, 'error': 'Отсутствует поле _from'}), 400
+        
+        if '_to' not in data:
+            return jsonify({'success': False, 'error': 'Отсутствует поле _to'}), 400
+        
+        # Вставка с валидацией
+        result = edge_validator.insert_edge_safely(data)
+        
+        log(f"✓ Edge created: {result['_id']} ({data['_from']} → {data['_to']})")
+        
+        return jsonify({
+            'success': True,
+            'edge': result
+        })
+        
+    except ValueError as e:
+        # Ошибка валидации (дубликат)
+        log(f"✗ Edge validation failed: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 409
+    
+    except KeyError as e:
+        # Отсутствует обязательное поле
+        log(f"✗ Missing required field: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 400
+    
+    except Exception as e:
+        # Другие ошибки
+        log(f"✗ Error creating edge: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/edges/<path:edge_id>', methods=['PUT'])
+def update_edge(edge_id):
+    """
+    Обновить существующее ребро с валидацией уникальности
+    
+    Path parameter:
+        edge_id: ID ребра (например "project_relations/12345")
+    
+    Request JSON:
+    {
+        "_from": "canonical_nodes/c:backend",  # optional
+        "_to": "canonical_nodes/t:java@21",     # optional
+        "projects": ["fepro"]                    # optional
+    }
+    """
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Пустой запрос'}), 400
+        
+        # Обновление с валидацией
+        result = edge_validator.update_edge_safely(edge_id, data)
+        
+        log(f"✓ Edge updated: {edge_id}")
+        
+        return jsonify({
+            'success': True,
+            'edge': result
+        })
+        
+    except ValueError as e:
+        # Ошибка валидации
+        log(f"✗ Edge validation failed: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 409
+    
+    except KeyError as e:
+        # Ребро не найдено
+        log(f"✗ Edge not found: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 404
+    
+    except Exception as e:
+        log(f"✗ Error updating edge: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/edges/<path:edge_id>', methods=['DELETE'])
+def delete_edge(edge_id):
+    """
+    Удалить ребро
+    
+    Path parameter:
+        edge_id: ID ребра (например "project_relations/12345")
+    """
+    try:
+        edge_validator.delete_edge(edge_id)
+        
+        log(f"✓ Edge deleted: {edge_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Ребро {edge_id} успешно удалено'
+        })
+        
+    except KeyError as e:
+        log(f"✗ Edge not found: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 404
+    
+    except Exception as e:
+        log(f"✗ Error deleting edge: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/edges/check', methods=['POST'])
+def check_edge_uniqueness():
+    """
+    Проверить уникальность связи между узлами
+    
+    Request JSON:
+    {
+        "_from": "canonical_nodes/c:backend",
+        "_to": "canonical_nodes/t:java@21",
+        "exclude_edge_id": "project_relations/12345"  # optional
+    }
+    
+    Response:
+    {
+        "is_unique": true/false,
+        "error": "..." (если не уникальна)
+    }
+    """
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Пустой запрос'}), 400
+        
+        if '_from' not in data or '_to' not in data:
+            return jsonify({
+                'success': False, 
+                'error': 'Отсутствуют обязательные поля _from и _to'
+            }), 400
+        
+        from_node = data['_from']
+        to_node = data['_to']
+        exclude_edge_id = data.get('exclude_edge_id')
+        
+        is_unique, error_msg = edge_validator.check_edge_uniqueness(
+            from_node, 
+            to_node, 
+            exclude_edge_id
+        )
+        
+        return jsonify({
+            'is_unique': is_unique,
+            'error': error_msg
+        })
+        
+    except Exception as e:
+        log(f"✗ Error checking edge uniqueness: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ========== WEBSOCKET HANDLERS ==========
 
 @socketio.on('connect')
@@ -467,9 +659,13 @@ def main():
     log(f"Connecting to ArangoDB at {args.db_host}...")
     client = ArangoClient(hosts=args.db_host)
     
-    global db
+    global db, edge_validator
     db = client.db(args.db_name, username=args.db_user, password=args.db_password)
     log("✓ Connected to ArangoDB")
+    
+    # Инициализация валидатора рёбер
+    edge_validator = create_edge_validator(db)
+    log("✓ Edge validator initialized")
     
     # Запуск сервера
     log(f"🌐 API Server (Flask + SocketIO) running on http://{args.host}:{args.port}")

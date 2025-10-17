@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Импортируем обработчики
 from handlers import graph_viewer_manager
+from handlers.edge_manager import create_edge_manager_handler
 
 class FedocMCPServer:
     """MCP сервер для управления Graph Viewer"""
@@ -30,6 +31,7 @@ class FedocMCPServer:
         self.arango_connection = self._init_arango()
         self.ssh_tunnel = self._init_ssh_tunnel()
         self.process_manager = self._init_process_manager()
+        self.edge_manager = create_edge_manager_handler()
         self._register_tools()
         self._register_handlers()
     
@@ -307,6 +309,101 @@ class FedocMCPServer:
                 "name": "get_selected_nodes",
                 "description": "Получить объекты, выбранные пользователем в Graph Viewer. Запрашивает у браузера текущую выборку узлов и рёбер через WebSocket.",
                 "inputSchema": {"type": "object", "properties": {}, "required": []}
+            },
+            "add_edge": {
+                "name": "add_edge",
+                "description": "Добавить новое ребро между узлами с автоматической проверкой уникальности. Предотвращает создание дублирующих связей в обоих направлениях (A→B и B→A).",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "from_node": {
+                            "type": "string",
+                            "description": "ID исходного узла (например 'canonical_nodes/c:backend')"
+                        },
+                        "to_node": {
+                            "type": "string",
+                            "description": "ID целевого узла (например 'canonical_nodes/t:java@21')"
+                        },
+                        "relation_type": {
+                            "type": "string",
+                            "description": "Тип связи (по умолчанию 'related')",
+                            "default": "related"
+                        },
+                        "projects": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Список проектов, использующих эту связь (например ['fepro', 'femsq'])"
+                        }
+                    },
+                    "required": ["from_node", "to_node"]
+                }
+            },
+            "update_edge": {
+                "name": "update_edge",
+                "description": "Обновить существующее ребро с проверкой уникальности. Можно изменить узлы, тип связи или список проектов.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "edge_id": {
+                            "type": "string",
+                            "description": "ID ребра (например 'project_relations/12345')"
+                        },
+                        "from_node": {
+                            "type": "string",
+                            "description": "Новый исходный узел (optional)"
+                        },
+                        "to_node": {
+                            "type": "string",
+                            "description": "Новый целевой узел (optional)"
+                        },
+                        "relation_type": {
+                            "type": "string",
+                            "description": "Новый тип связи (optional)"
+                        },
+                        "projects": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Новый список проектов (optional)"
+                        }
+                    },
+                    "required": ["edge_id"]
+                }
+            },
+            "delete_edge": {
+                "name": "delete_edge",
+                "description": "Удалить ребро из графа.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "edge_id": {
+                            "type": "string",
+                            "description": "ID ребра для удаления (например 'project_relations/12345')"
+                        }
+                    },
+                    "required": ["edge_id"]
+                }
+            },
+            "check_edge_uniqueness": {
+                "name": "check_edge_uniqueness",
+                "description": "Проверить, является ли связь между узлами уникальной. Проверяет оба направления (A→B и B→A).",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "from_node": {
+                            "type": "string",
+                            "description": "ID исходного узла"
+                        },
+                        "to_node": {
+                            "type": "string",
+                            "description": "ID целевого узла"
+                        },
+                        "exclude_edge_id": {
+                            "type": "string",
+                            "description": "ID ребра для исключения из проверки (optional)"
+                        }
+                    },
+                    "required": ["from_node", "to_node"]
+                }
             }
         }
     
@@ -321,7 +418,11 @@ class FedocMCPServer:
             "check_stubs": self._handle_check_stubs,
             "test_arango": self._handle_test_arango,
             "test_ssh": self._handle_test_ssh,
-            "get_selected_nodes": self._handle_get_selected_nodes
+            "get_selected_nodes": self._handle_get_selected_nodes,
+            "add_edge": self._handle_add_edge,
+            "update_edge": self._handle_update_edge,
+            "delete_edge": self._handle_delete_edge,
+            "check_edge_uniqueness": self._handle_check_edge_uniqueness
         }
     
     def _handle_open_graph_viewer_v2(self, arguments: dict) -> dict:
@@ -622,6 +723,180 @@ class FedocMCPServer:
                 "content": [{
                     "type": "text",
                     "text": f"❌ Ошибка: {str(e)}"
+                }]
+            }
+    
+    def _handle_add_edge(self, arguments: dict) -> dict:
+        """Обработка команды добавления ребра"""
+        try:
+            from_node = arguments.get("from_node")
+            to_node = arguments.get("to_node")
+            relation_type = arguments.get("relation_type", "related")
+            projects = arguments.get("projects", [])
+            
+            if not from_node or not to_node:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указаны обязательные параметры from_node и to_node"
+                    }]
+                }
+            
+            result = self.edge_manager.add_edge(
+                from_node=from_node,
+                to_node=to_node,
+                relation_type=relation_type,
+                projects=projects
+            )
+            
+            if result['success']:
+                from_label = from_node.split('/')[-1]
+                to_label = to_node.split('/')[-1]
+                text = f"✅ Связь создана!\n\n"
+                text += f"📊 Детали:\n"
+                text += f"   От: {from_label}\n"
+                text += f"   К: {to_label}\n"
+                text += f"   Тип: {relation_type}\n"
+                text += f"   Проекты: {', '.join(projects) if projects else 'нет'}\n"
+                text += f"   ID: {result['edge']['_id']}"
+            else:
+                text = f"❌ Ошибка создания связи\n\n"
+                text += f"Причина: {result['error']}"
+            
+            return {"content": [{"type": "text", "text": text}]}
+            
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
+                }]
+            }
+    
+    def _handle_update_edge(self, arguments: dict) -> dict:
+        """Обработка команды обновления ребра"""
+        try:
+            edge_id = arguments.get("edge_id")
+            
+            if not edge_id:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр edge_id"
+                    }]
+                }
+            
+            result = self.edge_manager.update_edge(
+                edge_id=edge_id,
+                from_node=arguments.get("from_node"),
+                to_node=arguments.get("to_node"),
+                relation_type=arguments.get("relation_type"),
+                projects=arguments.get("projects")
+            )
+            
+            if result['success']:
+                text = f"✅ Связь обновлена!\n\n"
+                text += f"📊 ID: {edge_id}\n"
+                if arguments.get("from_node"):
+                    text += f"   Новый from: {arguments['from_node'].split('/')[-1]}\n"
+                if arguments.get("to_node"):
+                    text += f"   Новый to: {arguments['to_node'].split('/')[-1]}\n"
+                if arguments.get("relation_type"):
+                    text += f"   Новый тип: {arguments['relation_type']}\n"
+                if arguments.get("projects") is not None:
+                    text += f"   Новые проекты: {', '.join(arguments['projects'])}\n"
+            else:
+                text = f"❌ Ошибка обновления связи\n\n"
+                text += f"Причина: {result['error']}"
+            
+            return {"content": [{"type": "text", "text": text}]}
+            
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
+                }]
+            }
+    
+    def _handle_delete_edge(self, arguments: dict) -> dict:
+        """Обработка команды удаления ребра"""
+        try:
+            edge_id = arguments.get("edge_id")
+            
+            if not edge_id:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр edge_id"
+                    }]
+                }
+            
+            result = self.edge_manager.delete_edge(edge_id)
+            
+            if result['success']:
+                text = f"✅ Связь удалена!\n\n"
+                text += f"📊 ID: {edge_id}"
+            else:
+                text = f"❌ Ошибка удаления связи\n\n"
+                text += f"Причина: {result['error']}"
+            
+            return {"content": [{"type": "text", "text": text}]}
+            
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
+                }]
+            }
+    
+    def _handle_check_edge_uniqueness(self, arguments: dict) -> dict:
+        """Обработка команды проверки уникальности"""
+        try:
+            from_node = arguments.get("from_node")
+            to_node = arguments.get("to_node")
+            exclude_edge_id = arguments.get("exclude_edge_id")
+            
+            if not from_node or not to_node:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указаны обязательные параметры from_node и to_node"
+                    }]
+                }
+            
+            result = self.edge_manager.check_edge_uniqueness(
+                from_node=from_node,
+                to_node=to_node,
+                exclude_edge_id=exclude_edge_id
+            )
+            
+            from_label = from_node.split('/')[-1]
+            to_label = to_node.split('/')[-1]
+            
+            if result.get('is_unique'):
+                text = f"✅ Связь уникальна!\n\n"
+                text += f"📊 Проверка:\n"
+                text += f"   От: {from_label}\n"
+                text += f"   К: {to_label}\n"
+                text += f"   Результат: Связи не существует\n\n"
+                text += f"💡 Можно создать эту связь"
+            else:
+                text = f"⚠️ Связь НЕ уникальна!\n\n"
+                text += f"📊 Проверка:\n"
+                text += f"   От: {from_label}\n"
+                text += f"   К: {to_label}\n"
+                text += f"   Результат: {result.get('error', 'Связь уже существует')}\n\n"
+                text += f"❌ Создание этой связи будет отклонено"
+            
+            return {"content": [{"type": "text", "text": text}]}
+            
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
                 }]
             }
     
