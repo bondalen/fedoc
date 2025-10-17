@@ -16,6 +16,9 @@ const store = useGraphStore()
 const graphContainer = ref(null)
 let network = null
 
+// Emit для передачи события контекстного меню наверх
+const emit = defineEmits(['show-context-menu'])
+
 // Опции для vis-network (только статичные, цвета задаются в applyTheme)
 const options = {
   nodes: {
@@ -211,6 +214,32 @@ const initNetwork = () => {
   
   network.on('blurEdge', () => {
     network.canvas.body.container.title = ''
+  })
+  
+  // Обработка правого клика (контекстное меню)
+  network.on('oncontext', (params) => {
+    params.event.preventDefault()  // Отключить стандартное браузерное меню
+    
+    const nodeId = network.getNodeAt(params.pointer.DOM)
+    
+    if (nodeId) {
+      // Получить позицию клика на странице
+      const domPosition = params.pointer.DOM
+      
+      // Получить позицию canvas на странице
+      const canvasRect = graphContainer.value.getBoundingClientRect()
+      
+      // Вычислить абсолютную позицию
+      const position = {
+        x: canvasRect.left + domPosition.x,
+        y: canvasRect.top + domPosition.y
+      }
+      
+      console.log(`Context menu on node: ${nodeId} at (${position.x}, ${position.y})`)
+      
+      // Передать событие наверх в GraphViewer
+      emit('show-context-menu', { nodeId, position })
+    }
   })
   
   // Сохранение ссылок в store

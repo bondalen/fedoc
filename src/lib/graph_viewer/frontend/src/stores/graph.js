@@ -41,6 +41,12 @@ export const useGraphStore = defineStore('graph', () => {
   let socket = null
   const isSocketConnected = ref(false)
   
+  // Управление видимостью узлов (для expand/collapse функционала)
+  const allNodesData = ref([])      // Все загруженные узлы
+  const allEdgesData = ref([])      // Все загруженные рёбра
+  const hiddenNodes = ref(new Set()) // ID скрытых узлов
+  const hiddenEdges = ref(new Set()) // ID скрытых рёбер
+  
   // Статус загрузки
   const isLoading = ref(false)
   const error = ref(null)
@@ -68,6 +74,14 @@ export const useGraphStore = defineStore('graph', () => {
   
   const selectedEdgesCount = computed(() => {
     return selectedEdgesList.value.length
+  })
+  
+  const visibleNodesCount = computed(() => {
+    return allNodesData.value.length - hiddenNodes.value.size
+  })
+  
+  const visibleEdgesCount = computed(() => {
+    return allEdgesData.value.length - hiddenEdges.value.size
   })
   
   // ========== ACTIONS ==========
@@ -209,7 +223,15 @@ export const useGraphStore = defineStore('graph', () => {
       nodesDataSet.value.clear()
       edgesDataSet.value.clear()
       
-      // Добавление новых данных
+      // Сохранить все данные для управления видимостью
+      allNodesData.value = data.nodes || []
+      allEdgesData.value = data.edges || []
+      
+      // Сбросить скрытые узлы при новой загрузке
+      hiddenNodes.value.clear()
+      hiddenEdges.value.clear()
+      
+      // Добавление новых данных в визуализацию
       if (data.nodes && data.nodes.length > 0) {
         nodesDataSet.value.add(data.nodes)
       }
@@ -484,8 +506,8 @@ export const useGraphStore = defineStore('graph', () => {
           color: labelColor,
           strokeColor: strokeColor,
           strokeWidth: strokeWidth,                          // используем переменную
-          size: 12,
-          bold: !isDark                                      // жирный для light
+          size: 12
+          // bold удален - vis-network не принимает boolean для этого параметра
         },
         color: { 
           color: edgeColor,
@@ -713,6 +735,282 @@ export const useGraphStore = defineStore('graph', () => {
     console.log('Selection cleared')
   }
   
+  /**
+   * Расширить узел - показать потомков (1 уровень вниз)
+   */
+  const expandNodeChildren = async (nodeId) => {
+    try {
+      isLoading.value = true
+      
+      const params = new URLSearchParams({
+        node_id: nodeId,
+        direction: 'outbound',
+        theme: theme.value
+      })
+      
+      if (project.value) {
+        params.append('project', project.value)
+      }
+      
+      const url = `${API_BASE}/expand_node?${params.toString()}`
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.error) {
+        throw new Error(data.error)
+      }
+      
+      // Добавить новые узлы и рёбра
+      const newNodes = data.nodes || []
+      const newEdges = data.edges || []
+      
+      let addedNodesCount = 0
+      let addedEdgesCount = 0
+      
+      // Добавить узлы, которых еще нет
+      for (const node of newNodes) {
+        // Проверить, есть ли узел в allNodesData
+        const exists = allNodesData.value.find(n => n.id === node.id)
+        if (!exists) {
+          allNodesData.value.push(node)
+        }
+        
+        // Убрать из скрытых и добавить в визуализацию
+        if (hiddenNodes.value.has(node.id)) {
+          hiddenNodes.value.delete(node.id)
+        }
+        
+        // Проверить, есть ли в DataSet
+        const existsInDataSet = nodesDataSet.value.get(node.id)
+        if (!existsInDataSet) {
+          nodesDataSet.value.add(node)
+          addedNodesCount++
+        }
+      }
+      
+      // Добавить рёбра, которых еще нет
+      for (const edge of newEdges) {
+        const exists = allEdgesData.value.find(e => e.id === edge.id)
+        if (!exists) {
+          allEdgesData.value.push(edge)
+        }
+        
+        if (hiddenEdges.value.has(edge.id)) {
+          hiddenEdges.value.delete(edge.id)
+        }
+        
+        const existsInDataSet = edgesDataSet.value.get(edge.id)
+        if (!existsInDataSet) {
+          edgesDataSet.value.add(edge)
+          addedEdgesCount++
+        }
+      }
+      
+      console.log(`Expanded ${nodeId} (children): +${addedNodesCount} nodes, +${addedEdgesCount} edges`)
+      
+      if (addedNodesCount === 0 && addedEdgesCount === 0) {
+        setError('Нет нижестоящих вершин для отображения')
+      }
+      
+    } catch (err) {
+      console.error('Error expanding node children:', err)
+      setError(`Не удалось отобразить нижестоящие вершины: ${err.message}`)
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * Расширить узел - показать предков (1 уровень вверх)
+   */
+  const expandNodeParents = async (nodeId) => {
+    try {
+      isLoading.value = true
+      
+      const params = new URLSearchParams({
+        node_id: nodeId,
+        direction: 'inbound',
+        theme: theme.value
+      })
+      
+      if (project.value) {
+        params.append('project', project.value)
+      }
+      
+      const url = `${API_BASE}/expand_node?${params.toString()}`
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.error) {
+        throw new Error(data.error)
+      }
+      
+      const newNodes = data.nodes || []
+      const newEdges = data.edges || []
+      
+      let addedNodesCount = 0
+      let addedEdgesCount = 0
+      
+      for (const node of newNodes) {
+        const exists = allNodesData.value.find(n => n.id === node.id)
+        if (!exists) {
+          allNodesData.value.push(node)
+        }
+        
+        if (hiddenNodes.value.has(node.id)) {
+          hiddenNodes.value.delete(node.id)
+        }
+        
+        const existsInDataSet = nodesDataSet.value.get(node.id)
+        if (!existsInDataSet) {
+          nodesDataSet.value.add(node)
+          addedNodesCount++
+        }
+      }
+      
+      for (const edge of newEdges) {
+        const exists = allEdgesData.value.find(e => e.id === edge.id)
+        if (!exists) {
+          allEdgesData.value.push(edge)
+        }
+        
+        if (hiddenEdges.value.has(edge.id)) {
+          hiddenEdges.value.delete(edge.id)
+        }
+        
+        const existsInDataSet = edgesDataSet.value.get(edge.id)
+        if (!existsInDataSet) {
+          edgesDataSet.value.add(edge)
+          addedEdgesCount++
+        }
+      }
+      
+      console.log(`Expanded ${nodeId} (parents): +${addedNodesCount} nodes, +${addedEdgesCount} edges`)
+      
+      if (addedNodesCount === 0 && addedEdgesCount === 0) {
+        setError('Нет вышестоящих вершин для отображения')
+      }
+      
+    } catch (err) {
+      console.error('Error expanding node parents:', err)
+      setError(`Не удалось отобразить вышестоящие вершины: ${err.message}`)
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * Скрыть узел с потомками (рекурсия)
+   */
+  const hideNodeWithChildren = async (nodeId) => {
+    try {
+      isLoading.value = true
+      
+      const params = new URLSearchParams({
+        node_id: nodeId,
+        direction: 'outbound',
+        max_depth: 100
+      })
+      
+      if (project.value) {
+        params.append('project', project.value)
+      }
+      
+      const url = `${API_BASE}/subgraph?${params.toString()}`
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.error) {
+        throw new Error(data.error)
+      }
+      
+      const nodeIds = [nodeId, ...(data.node_ids || [])]
+      const edgeIds = data.edge_ids || []
+      
+      // Добавить в скрытые
+      nodeIds.forEach(id => hiddenNodes.value.add(id))
+      edgeIds.forEach(id => hiddenEdges.value.add(id))
+      
+      // Удалить из визуализации
+      nodesDataSet.value.remove(nodeIds)
+      edgesDataSet.value.remove(edgeIds)
+      
+      console.log(`Hidden ${nodeId} with children: ${nodeIds.length} nodes, ${edgeIds.length} edges`)
+      
+    } catch (err) {
+      console.error('Error hiding node with children:', err)
+      setError(`Не удалось скрыть узел с нижестоящими: ${err.message}`)
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * Скрыть узел с предками (рекурсия)
+   */
+  const hideNodeWithParents = async (nodeId) => {
+    try {
+      isLoading.value = true
+      
+      const params = new URLSearchParams({
+        node_id: nodeId,
+        direction: 'inbound',
+        max_depth: 100
+      })
+      
+      if (project.value) {
+        params.append('project', project.value)
+      }
+      
+      const url = `${API_BASE}/subgraph?${params.toString()}`
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.error) {
+        throw new Error(data.error)
+      }
+      
+      const nodeIds = [nodeId, ...(data.node_ids || [])]
+      const edgeIds = data.edge_ids || []
+      
+      // Добавить в скрытые
+      nodeIds.forEach(id => hiddenNodes.value.add(id))
+      edgeIds.forEach(id => hiddenEdges.value.add(id))
+      
+      // Удалить из визуализации
+      nodesDataSet.value.remove(nodeIds)
+      edgesDataSet.value.remove(edgeIds)
+      
+      console.log(`Hidden ${nodeId} with parents: ${nodeIds.length} nodes, ${edgeIds.length} edges`)
+      
+    } catch (err) {
+      console.error('Error hiding node with parents:', err)
+      setError(`Не удалось скрыть узел с вышестоящими: ${err.message}`)
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
   // ========== RETURN ==========
   
   return {
@@ -771,7 +1069,21 @@ export const useGraphStore = defineStore('graph', () => {
     // Selection actions
     updateSelectedNodes,
     updateSelectedEdges,
-    clearSelection
+    clearSelection,
+    
+    // Expand/Hide actions
+    expandNodeChildren,
+    expandNodeParents,
+    hideNodeWithChildren,
+    hideNodeWithParents,
+    
+    // Visibility state
+    allNodesData,
+    allEdgesData,
+    hiddenNodes,
+    hiddenEdges,
+    visibleNodesCount,
+    visibleEdgesCount
   }
 })
 

@@ -210,6 +210,180 @@ def request_selection_endpoint():
         }), 500
 
 
+@app.route('/api/expand_node', methods=['GET'])
+def expand_node():
+    """
+    Получить соседние узлы (родители или потомки) для выбранного узла
+    
+    Query params:
+      - node_id: ID узла
+      - direction: 'outbound' (потомки) или 'inbound' (предки)
+      - project: фильтр по проекту (опционально)
+      - theme: тема оформления ('dark' или 'light')
+    """
+    try:
+        node_id = request.args.get('node_id', '')
+        direction = request.args.get('direction', 'outbound')
+        project = request.args.get('project', '')
+        theme = request.args.get('theme', 'dark')
+        
+        if not node_id:
+            return jsonify({'error': 'Missing "node_id" parameter'}), 400
+        
+        if direction not in ['outbound', 'inbound']:
+            return jsonify({'error': 'Invalid "direction" parameter. Must be "outbound" or "inbound"'}), 400
+        
+        # AQL запрос для получения соседей на 1 уровень
+        if direction == 'outbound':
+            query = """
+            FOR v, e IN 1..1 OUTBOUND @node GRAPH @graph
+                RETURN {
+                    node: v,
+                    edge: e
+                }
+            """
+        else:  # inbound
+            query = """
+            FOR v, e IN 1..1 INBOUND @node GRAPH @graph
+                RETURN {
+                    node: v,
+                    edge: e
+                }
+            """
+        
+        cursor = db.aql.execute(query, bind_vars={
+            'node': node_id,
+            'graph': 'common_project_graph'
+        })
+        
+        results = list(cursor)
+        
+        # Фильтрация по проекту (если указан)
+        if project:
+            results = [r for r in results if r['edge'] and project in (r['edge'].get('projects') or [])]
+        
+        # Форматирование для vis-network
+        nodes = []
+        edges = []
+        
+        for r in results:
+            node = r['node']
+            edge = r['edge']
+            
+            if node:
+                node_id_str = node['_id']
+                node_kind = node.get('kind', 'unknown')
+                
+                # Определение цвета и формы в зависимости от типа
+                if node_kind == 'concept':
+                    node_shape = 'box'
+                    node_color = {'background': '#263238' if theme == 'dark' else '#E3F2FD'}
+                else:  # technology
+                    node_shape = 'ellipse'
+                    node_color = {'background': '#1B5E20' if theme == 'dark' else '#C8E6C9'}
+                
+                nodes.append({
+                    'id': node_id_str,
+                    'label': node.get('name', node.get('_key', node_id_str)),
+                    'shape': node_shape,
+                    'color': node_color
+                })
+            
+            if edge:
+                edge_id_str = edge['_id']
+                edge_projects = edge.get('projects', [])
+                
+                edges.append({
+                    'id': edge_id_str,
+                    'from': edge['_from'],
+                    'to': edge['_to'],
+                    'label': ', '.join(edge_projects) if edge_projects else 'альтернатива',
+                    'color': {'color': '#64B5F6' if edge_projects else '#9E9E9E'}
+                })
+        
+        log(f"expand_node: {node_id} ({direction}) -> {len(nodes)} nodes, {len(edges)} edges")
+        
+        return jsonify({
+            'nodes': nodes,
+            'edges': edges
+        })
+        
+    except Exception as e:
+        log(f"Error in expand_node: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/subgraph', methods=['GET'])
+def get_subgraph():
+    """
+    Получить все узлы и рёбра в подграфе (для рекурсивного скрытия)
+    
+    Query params:
+      - node_id: ID узла
+      - direction: 'outbound' (потомки) или 'inbound' (предки)
+      - max_depth: максимальная глубина (по умолчанию 100)
+      - project: фильтр по проекту (опционально)
+    """
+    try:
+        node_id = request.args.get('node_id', '')
+        direction = request.args.get('direction', 'outbound')
+        max_depth = int(request.args.get('max_depth', '100'))
+        project = request.args.get('project', '')
+        
+        if not node_id:
+            return jsonify({'error': 'Missing "node_id" parameter'}), 400
+        
+        if direction not in ['outbound', 'inbound']:
+            return jsonify({'error': 'Invalid "direction" parameter. Must be "outbound" or "inbound"'}), 400
+        
+        # AQL запрос для получения всего подграфа
+        if direction == 'outbound':
+            query = """
+            FOR v, e, p IN 1..@depth OUTBOUND @node GRAPH @graph
+                RETURN {
+                    node_id: v._id,
+                    edge_id: e._id,
+                    edge_projects: e.projects
+                }
+            """
+        else:  # inbound
+            query = """
+            FOR v, e, p IN 1..@depth INBOUND @node GRAPH @graph
+                RETURN {
+                    node_id: v._id,
+                    edge_id: e._id,
+                    edge_projects: e.projects
+                }
+            """
+        
+        cursor = db.aql.execute(query, bind_vars={
+            'node': node_id,
+            'graph': 'common_project_graph',
+            'depth': max_depth
+        })
+        
+        results = list(cursor)
+        
+        # Фильтрация по проекту (если указан)
+        if project:
+            results = [r for r in results if project in (r.get('edge_projects') or [])]
+        
+        # Извлечение уникальных ID
+        node_ids = list(set([r['node_id'] for r in results if r['node_id']]))
+        edge_ids = list(set([r['edge_id'] for r in results if r['edge_id']]))
+        
+        log(f"get_subgraph: {node_id} ({direction}) -> {len(node_ids)} nodes, {len(edge_ids)} edges")
+        
+        return jsonify({
+            'node_ids': node_ids,
+            'edge_ids': edge_ids
+        })
+        
+    except Exception as e:
+        log(f"Error in get_subgraph: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 # ========== WEBSOCKET HANDLERS ==========
 
 @socketio.on('connect')

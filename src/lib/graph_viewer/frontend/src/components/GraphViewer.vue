@@ -4,7 +4,7 @@
     <ControlPanel />
     
     <!-- Холст с графом -->
-    <GraphCanvas />
+    <GraphCanvas @show-context-menu="handleShowContextMenu" />
     
     <!-- Панель деталей (справа) -->
     <DetailsPanel />
@@ -14,6 +14,14 @@
     
     <!-- Строка выборки для Cursor AI (самый низ) -->
     <SelectionBar />
+    
+    <!-- Контекстное меню -->
+    <ContextMenu 
+      :visible="contextMenu.visible"
+      :node-id="contextMenu.nodeId"
+      :position="contextMenu.position"
+      @close="handleCloseContextMenu"
+    />
     
     <!-- Индикатор загрузки -->
     <div v-if="store.isLoading" class="loading-overlay">
@@ -26,19 +34,48 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, reactive, onMounted, onUnmounted } from 'vue'
 import { useGraphStore } from '@/stores/graph'
 import ControlPanel from './ControlPanel.vue'
 import GraphCanvas from './GraphCanvas.vue'
 import DetailsPanel from './DetailsPanel.vue'
 import FullTextPanel from './FullTextPanel.vue'
 import SelectionBar from './SelectionBar.vue'
+import ContextMenu from './ContextMenu.vue'
 
 const store = useGraphStore()
 
 const themeClass = computed(() => {
   return `theme-${store.theme}`
 })
+
+// Состояние контекстного меню
+const contextMenu = reactive({
+  visible: false,
+  nodeId: '',
+  position: { x: 0, y: 0 }
+})
+
+/**
+ * Показать контекстное меню
+ */
+const handleShowContextMenu = ({ nodeId, position }) => {
+  contextMenu.visible = true
+  contextMenu.nodeId = nodeId
+  contextMenu.position = position
+  
+  console.log(`Show context menu for node: ${nodeId}`)
+}
+
+/**
+ * Закрыть контекстное меню
+ */
+const handleCloseContextMenu = () => {
+  contextMenu.visible = false
+  contextMenu.nodeId = ''
+  
+  console.log('Context menu closed')
+}
 
 // Инициализация WebSocket при монтировании компонента
 onMounted(() => {
