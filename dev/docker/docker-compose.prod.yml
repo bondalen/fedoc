@@ -167,6 +167,38 @@ services:
       retries: 3
       start_period: 60s
 
+  # ===========================================================================
+  # Adminer - веб-интерфейс для управления базами данных
+  # Назначение: Веб-менеджер для PostgreSQL, MySQL, MS SQL, etc.
+  # Потребление: ~50-100 MB RAM
+  # Порт: 8080 (только localhost)
+  # Режим: Запуск по требованию (./db-manager.sh start-adminer)
+  # ===========================================================================
+  adminer:
+    image: adminer:latest
+    container_name: fedoc-adminer
+    hostname: fedoc-adminer
+    restart: "no"  # Запуск по требованию
+    
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.2'
+    
+    environment:
+      ADMINER_DEFAULT_SERVER: fedoc-postgres
+      ADMINER_DESIGN: pepa-linha  # Современная тема
+    
+    ports:
+      - "127.0.0.1:8080:8080"
+    
+    networks:
+      - databases
+    
+    depends_on:
+      - postgres
+
 networks:
   databases:
     name: fedoc-databases
