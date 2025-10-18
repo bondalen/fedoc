@@ -20,8 +20,9 @@ RUN apk add --no-cache --virtual .build-deps \
     git
 
 # Клонировать и собрать Apache AGE
+# Используем PG16/v1.6.0-rc0 (стабильной версии 1.6.0 для PG16 пока нет)
 WORKDIR /tmp
-RUN git clone --branch PG16/v1.6.0 --depth 1 https://github.com/apache/age.git && \
+RUN git clone --branch PG16/v1.6.0-rc0 --depth 1 https://github.com/apache/age.git && \
     cd age && \
     make && \
     make install
