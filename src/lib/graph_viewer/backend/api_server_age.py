@@ -13,10 +13,10 @@ import psycopg2
 from psycopg2.extras import Json, RealDictCursor
 import argparse
 import sys
+import json
 import time
 import threading
 import os
-import json
 from pathlib import Path
 
 # Добавить путь к модулям для импорта
@@ -63,13 +63,24 @@ def execute_cypher(query: str, params: dict = None):
         cur.execute("LOAD 'age';")
         cur.execute("SET search_path = ag_catalog, public;")
         
-        # Обернуть в cypher() вызов
+        # Обернуть в cypher() вызов с правильной структурой
         if params:
-            full_query = f"SELECT * FROM cypher('{graph_name}', $${query}$$, %s)"
-            cur.execute(full_query, (Json(params),))
+            # Заменить параметры в запросе напрямую
+            for key, value in params.items():
+                if isinstance(value, str):
+                    query = query.replace(f'${key}', f"'{value}'")
+                else:
+                    query = query.replace(f'${key}', str(value))
+        
+        # Определить количество возвращаемых колонок по запросу
+        if "edge_id" in query and "from_id" in query:
+            # Запрос для графа - много колонок
+            full_query = f"SELECT * FROM cypher('{graph_name}', $${query}$$) as (edge_id agtype, from_id agtype, to_id agtype, from_name agtype, to_name agtype, from_key agtype, to_key agtype, from_kind agtype, to_kind agtype, projects agtype, rel_type agtype)"
         else:
-            full_query = f"SELECT * FROM cypher('{graph_name}', $${query}$$)"
-            cur.execute(full_query)
+            # Запрос для узлов - 3 колонки
+            full_query = f"SELECT * FROM cypher('{graph_name}', $${query}$$) as (id agtype, key agtype, name agtype)"
+        
+        cur.execute(full_query)
         
         return cur.fetchall()
 
@@ -111,18 +122,18 @@ def get_nodes():
         
         if project:
             # Получить узлы, связанные с проектом
-            query = """
+            query = f"""
             MATCH (a)-[e:project_relation]->(b)
-            WHERE $project = ANY(e.projects)
+            WHERE '{project}' IN e.projects
             WITH DISTINCT a as node
             RETURN id(node) as id, node.arango_key as key, node.name as name
             UNION
             MATCH (a)-[e:project_relation]->(b)
-            WHERE $project = ANY(e.projects)
+            WHERE '{project}' IN e.projects
             WITH DISTINCT b as node
             RETURN id(node) as id, node.arango_key as key, node.name as name
             """
-            results = execute_cypher(query, {'project': project})
+            results = execute_cypher(query)
         else:
             # Все узлы
             query = """
@@ -150,37 +161,146 @@ def get_nodes():
 def get_graph():
     """Построить граф"""
     try:
-        start = request.args.get('start', 'canonical_nodes/c:backend')
+        start = request.args.get('start', '')
         depth = int(request.args.get('depth', '5'))
         project = request.args.get('project', '') or None
         theme = request.args.get('theme', 'dark')
         
-        # Извлечь ключ из start (например, "canonical_nodes/c:backend" -> "c:backend")
-        start_key = start.split('/')[-1] if '/' in start else start
+        # Если start не указан, вернуть все узлы и ребра проекта
+        if not start:
+            if project:
+                query = f"""
+                MATCH (n)-[e:project_relation]->(m)
+                WHERE '{project}' IN e.projects
+                RETURN 
+                    id(e) as edge_id,
+                    id(n) as from_id,
+                    id(m) as to_id,
+                    n.name as from_name,
+                    m.name as to_name,
+                    n.arango_key as from_key,
+                    m.arango_key as to_key,
+                    n.kind as from_kind,
+                    m.kind as to_kind,
+                    e.projects as projects,
+                    e.relationType as rel_type
+                LIMIT 5000
+                """
+            else:
+                query = """
+                MATCH (n)-[e:project_relation]->(m)
+                RETURN 
+                    id(e) as edge_id,
+                    id(n) as from_id,
+                    id(m) as to_id,
+                    n.name as from_name,
+                    m.name as to_name,
+                    n.arango_key as from_key,
+                    m.arango_key as to_key,
+                    n.kind as from_kind,
+                    m.kind as to_kind,
+                    e.projects as projects,
+                    e.relationType as rel_type
+                LIMIT 5000
+                """
+        else:
+            # Определить, является ли start ID или ключом
+            if start.isdigit():
+                # start - это ID узла
+                start_id = int(start)
+                if project:
+                    query = f"""
+                    MATCH (start:canonical_node)
+                    WHERE id(start) = {start_id}
+                    MATCH path = (start)-[e:project_relation*1..{depth}]->(target)
+                    WITH relationships(path) as edges_list, nodes(path) as nodes_list
+                    UNWIND range(0, size(edges_list)-1) as i
+                    WITH edges_list[i] as e, nodes_list[i] as from_node, nodes_list[i+1] as to_node
+                    WHERE '{project}' IN e.projects
+                    RETURN 
+                        id(e) as edge_id,
+                        id(from_node) as from_id,
+                        id(to_node) as to_id,
+                        from_node.name as from_name,
+                        to_node.name as to_name,
+                        from_node.arango_key as from_key,
+                        to_node.arango_key as to_key,
+                        from_node.kind as from_kind,
+                        to_node.kind as to_kind,
+                        e.projects as projects,
+                        e.relationType as rel_type
+                    LIMIT 5000
+                    """
+                else:
+                    query = f"""
+                    MATCH (start:canonical_node)
+                    WHERE id(start) = {start_id}
+                    MATCH path = (start)-[e:project_relation*1..{depth}]->(target)
+                    WITH relationships(path) as edges_list, nodes(path) as nodes_list
+                    UNWIND range(0, size(edges_list)-1) as i
+                    WITH edges_list[i] as e, nodes_list[i] as from_node, nodes_list[i+1] as to_node
+                    RETURN 
+                        id(e) as edge_id,
+                        id(from_node) as from_id,
+                        id(to_node) as to_id,
+                        from_node.name as from_name,
+                        to_node.name as to_name,
+                        from_node.arango_key as from_key,
+                        to_node.arango_key as to_key,
+                        from_node.kind as from_kind,
+                        to_node.kind as to_kind,
+                        e.projects as projects,
+                        e.relationType as rel_type
+                    LIMIT 5000
+                    """
+            else:
+                # start - это ключ узла
+                start_key = start.split('/')[-1] if '/' in start else start
+                if project:
+                    query = f"""
+                    MATCH (start:canonical_node {{arango_key: '{start_key}'}})
+                    MATCH path = (start)-[e:project_relation*1..{depth}]->(target)
+                    WITH relationships(path) as edges_list, nodes(path) as nodes_list
+                    UNWIND range(0, size(edges_list)-1) as i
+                    WITH edges_list[i] as e, nodes_list[i] as from_node, nodes_list[i+1] as to_node
+                    WHERE '{project}' IN e.projects
+                    RETURN 
+                        id(e) as edge_id,
+                        id(from_node) as from_id,
+                        id(to_node) as to_id,
+                        from_node.name as from_name,
+                        to_node.name as to_name,
+                        from_node.arango_key as from_key,
+                        to_node.arango_key as to_key,
+                        from_node.kind as from_kind,
+                        to_node.kind as to_kind,
+                        e.projects as projects,
+                        e.relationType as rel_type
+                    LIMIT 5000
+                    """
+                else:
+                    query = f"""
+                    MATCH (start:canonical_node {{arango_key: '{start_key}'}})
+                    MATCH path = (start)-[e:project_relation*1..{depth}]->(target)
+                    WITH relationships(path) as edges_list, nodes(path) as nodes_list
+                    UNWIND range(0, size(edges_list)-1) as i
+                    WITH edges_list[i] as e, nodes_list[i] as from_node, nodes_list[i+1] as to_node
+                    RETURN 
+                        id(e) as edge_id,
+                        id(from_node) as from_id,
+                        id(to_node) as to_id,
+                        from_node.name as from_name,
+                        to_node.name as to_name,
+                        from_node.arango_key as from_key,
+                        to_node.arango_key as to_key,
+                        from_node.kind as from_kind,
+                        to_node.kind as to_kind,
+                        e.projects as projects,
+                        e.relationType as rel_type
+                    LIMIT 5000
+                    """
         
-        # Cypher запрос для получения графа
-        query = """
-        MATCH (start:canonical_node {arango_key: $start_key})
-        MATCH path = (start)-[e:project_relation*1..%(depth)d]->(end)
-        WITH relationships(path) as edges_list, nodes(path) as nodes_list
-        UNWIND range(0, size(edges_list)-1) as i
-        WITH edges_list[i] as e, nodes_list[i] as from_node, nodes_list[i+1] as to_node
-        RETURN 
-            id(e) as edge_id,
-            id(from_node) as from_id,
-            id(to_node) as to_id,
-            from_node.name as from_name,
-            to_node.name as to_name,
-            from_node.arango_key as from_key,
-            to_node.arango_key as to_key,
-            from_node.kind as from_kind,
-            to_node.kind as to_kind,
-            e.projects as projects,
-            e.relationType as rel_type
-        LIMIT 5000
-        """ % {'depth': depth}
-        
-        results = execute_cypher(query, {'start_key': start_key})
+        results = execute_cypher(query)
         
         # Построение узлов и рёбер для vis-network
         nodes_map = {}
