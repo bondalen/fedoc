@@ -20,6 +20,52 @@ from arango import ArangoClient
 from arango.database import StandardDatabase
 
 
+def dict_to_cypher_map(d: Dict[str, Any]) -> str:
+    """
+    Конвертировать Python dict в Cypher map формат
+    
+    Python: {'name': 'Backend', 'count': 42, 'active': True}
+    Cypher: {name: 'Backend', count: 42, active: true}
+    
+    Args:
+        d: Python словарь
+    
+    Returns:
+        Строка в формате Cypher map
+    """
+    def format_value(v):
+        if v is None:
+            return 'null'
+        elif isinstance(v, bool):
+            return 'true' if v else 'false'
+        elif isinstance(v, (int, float)):
+            return str(v)
+        elif isinstance(v, str):
+            # Экранировать одинарные кавычки
+            escaped = v.replace("'", "\\'")
+            return f"'{escaped}'"
+        elif isinstance(v, list):
+            # Массив: [1, 2, 3] или ['a', 'b']
+            items = [format_value(item) for item in v]
+            return '[' + ', '.join(items) + ']'
+        elif isinstance(v, dict):
+            # Вложенный объект
+            return dict_to_cypher_map(v)
+        else:
+            # Fallback - конвертировать в строку
+            escaped = str(v).replace("'", "\\'")
+            return f"'{escaped}'"
+    
+    if not d:
+        return '{}'
+    
+    items = []
+    for k, v in d.items():
+        items.append(f"{k}: {format_value(v)}")
+    
+    return '{' + ', '.join(items) + '}'
+
+
 class ArangoToAGEMigrator:
     """Класс для миграции данных из ArangoDB в Apache AGE"""
     
@@ -108,16 +154,18 @@ class ArangoToAGEMigrator:
                 # Добавить оригинальный _key для обратной совместимости
                 properties['arango_key'] = arango_key
                 
-                # Создать вершину в AGE через Cypher с параметрами
+                # Конвертировать properties в Cypher map формат
+                props_cypher = dict_to_cypher_map(properties)
+                
+                # Создать вершину в AGE через Cypher
                 cypher_query = f"""
                 SELECT * FROM cypher('{self.graph_name}', $$
-                    CREATE (n:{vertex_label} $props)
+                    CREATE (n:{vertex_label} {props_cypher})
                     RETURN id(n) as vertex_id
-                $$, %s) as (vertex_id agtype)
+                $$) as (vertex_id agtype)
                 """
                 
-                # Передать properties как JSON параметр
-                cur.execute(cypher_query, [Json({'props': properties})])
+                cur.execute(cypher_query)
                 
                 result = cur.fetchone()
                 if result and result[0]:
@@ -225,20 +273,19 @@ class ArangoToAGEMigrator:
                         skipped += 1
                         continue
                 else:
-                    # Прямое создание через Cypher с параметрами
+                    # Прямое создание через Cypher
+                    props_cypher = dict_to_cypher_map(properties)
+                    
                     cypher_query = f"""
                     SELECT * FROM cypher('{self.graph_name}', $$
                         MATCH (a), (b)
-                        WHERE id(a) = $from_id AND id(b) = $to_id
-                        CREATE (a)-[e:{edge_label} $props]->(b)
+                        WHERE id(a) = {from_age} AND id(b) = {to_age}
+                        CREATE (a)-[e:{edge_label} {props_cypher}]->(b)
                         RETURN id(e) as edge_id
-                    $$, %s) as (edge_id agtype)
+                    $$) as (edge_id agtype)
                     """
                     
-                    cur.execute(
-                        cypher_query,
-                        [Json({'from_id': from_age, 'to_id': to_age, 'props': properties})]
-                    )
+                    cur.execute(cypher_query)
                 
                 migrated += 1
                 if migrated % 10 == 0:
