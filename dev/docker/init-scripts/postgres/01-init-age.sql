@@ -18,23 +18,15 @@ SELECT 'База данных fedoc уже существует'
 WHERE EXISTS (SELECT FROM pg_database WHERE datname = 'fedoc');
 
 -- Создать базу данных если не существует
--- (CREATE DATABASE не поддерживает IF NOT EXISTS до PostgreSQL 9.3+, но в 16.10 это работает)
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'fedoc') THEN
-        CREATE DATABASE fedoc
-            WITH 
-            OWNER = postgres
-            ENCODING = 'UTF8'
-            LC_COLLATE = 'C'
-            LC_CTYPE = 'C'
-            TEMPLATE = template0;
-        RAISE NOTICE 'База данных fedoc создана';
-    ELSE
-        RAISE NOTICE 'База данных fedoc уже существует';
-    END IF;
-END
-$$;
+-- Примечание: CREATE DATABASE нельзя выполнить в блоке DO $$ или функции
+-- Используем psql команду с игнорированием ошибки если БД уже существует
+
+SELECT 'CREATE DATABASE fedoc' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'fedoc') \gexec
+
+-- Альтернативный способ (будет ошибка если БД существует, но это OK):
+-- CREATE DATABASE IF NOT EXISTS поддерживается только в некоторых версиях PostgreSQL
+-- В PostgreSQL 16.10 можно использовать:
+-- CREATE DATABASE fedoc (выдаст ошибку если существует, но скрипт продолжит работу)
 
 \echo '✓ База данных fedoc готова'
 \echo ''
