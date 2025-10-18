@@ -61,8 +61,9 @@ class ArangoToAGEMigrator:
         self.pg_conn.autocommit = False
         print("✓ Подключено к PostgreSQL")
         
-        # Настроить search_path для AGE
+        # Загрузить расширение AGE и настроить search_path
         with self.pg_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
             cur.execute("SET search_path = ag_catalog, \"$user\", public;")
         
         # Маппинг ID ArangoDB → ID AGE
@@ -90,6 +91,10 @@ class ArangoToAGEMigrator:
         
         migrated = 0
         with self.pg_conn.cursor() as cur:
+            # Загрузить AGE для этой сессии
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            
             for doc in documents:
                 arango_id = doc['_id']
                 arango_key = doc['_key']
@@ -103,29 +108,29 @@ class ArangoToAGEMigrator:
                 # Добавить оригинальный _key для обратной совместимости
                 properties['arango_key'] = arango_key
                 
-                # Создать вершину в AGE через Cypher
+                # Создать вершину в AGE через Cypher с параметрами
                 cypher_query = f"""
                 SELECT * FROM cypher('{self.graph_name}', $$
-                    CREATE (n:{vertex_label} {{properties}})
+                    CREATE (n:{vertex_label} $props)
                     RETURN id(n) as vertex_id
-                $$) as (vertex_id agtype)
+                $$, %s) as (vertex_id agtype)
                 """
                 
-                # Передать properties как JSON
-                cur.execute(
-                    cypher_query.replace('{properties}', '%s'),
-                    [Json(properties)]
-                )
+                # Передать properties как JSON параметр
+                cur.execute(cypher_query, [Json({'props': properties})])
                 
                 result = cur.fetchone()
-                age_id = int(result[0].strip('"'))
-                
-                # Сохранить маппинг ID
-                self.id_mapping[arango_id] = age_id
-                
-                migrated += 1
-                if migrated % 10 == 0:
-                    print(f"   Прогресс: {migrated}/{len(documents)}")
+                if result and result[0]:
+                    age_id = int(str(result[0]).strip('"'))
+                    
+                    # Сохранить маппинг ID
+                    self.id_mapping[arango_id] = age_id
+                    
+                    migrated += 1
+                    if migrated % 10 == 0:
+                        print(f"   Прогресс: {migrated}/{len(documents)}")
+                else:
+                    print(f"⚠️  Не удалось создать вершину для {arango_key}")
         
         self.pg_conn.commit()
         print(f"✓ Мигрировано вершин: {migrated}")
@@ -162,6 +167,10 @@ class ArangoToAGEMigrator:
         skipped = 0
         
         with self.pg_conn.cursor() as cur:
+            # Загрузить AGE для этой сессии
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            
             for edge in edges:
                 from_arango = edge['_from']
                 to_arango = edge['_to']
@@ -216,19 +225,19 @@ class ArangoToAGEMigrator:
                         skipped += 1
                         continue
                 else:
-                    # Прямое создание через Cypher
+                    # Прямое создание через Cypher с параметрами
                     cypher_query = f"""
                     SELECT * FROM cypher('{self.graph_name}', $$
                         MATCH (a), (b)
-                        WHERE id(a) = {from_age} AND id(b) = {to_age}
-                        CREATE (a)-[e:{edge_label} {{properties}}]->(b)
-                        RETURN id(e)
-                    $$) as (edge_id agtype)
+                        WHERE id(a) = $from_id AND id(b) = $to_id
+                        CREATE (a)-[e:{edge_label} $props]->(b)
+                        RETURN id(e) as edge_id
+                    $$, %s) as (edge_id agtype)
                     """
                     
                     cur.execute(
-                        cypher_query.replace('{properties}', '%s'),
-                        [Json(properties)]
+                        cypher_query,
+                        [Json({'from_id': from_age, 'to_id': to_age, 'props': properties})]
                     )
                 
                 migrated += 1
@@ -249,6 +258,10 @@ class ArangoToAGEMigrator:
         stats = {}
         
         with self.pg_conn.cursor() as cur:
+            # Загрузить AGE
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            
             # Подсчёт вершин
             cur.execute(f"""
                 SELECT * FROM cypher('{self.graph_name}', $$
@@ -256,7 +269,8 @@ class ArangoToAGEMigrator:
                     RETURN count(n) as cnt
                 $$) as (cnt agtype)
             """)
-            stats['vertices'] = int(cur.fetchone()[0].strip('"'))
+            result = cur.fetchone()
+            stats['vertices'] = int(str(result[0]).strip('"'))
             
             # Подсчёт рёбер
             cur.execute(f"""
@@ -265,7 +279,8 @@ class ArangoToAGEMigrator:
                     RETURN count(e) as cnt
                 $$) as (cnt agtype)
             """)
-            stats['edges'] = int(cur.fetchone()[0].strip('"'))
+            result = cur.fetchone()
+            stats['edges'] = int(str(result[0]).strip('"'))
         
         print(f"   Вершин в AGE: {stats['vertices']}")
         print(f"   Рёбер в AGE: {stats['edges']}")
