@@ -26,7 +26,12 @@ WORKDIR /tmp
 RUN git clone --branch PG16/v1.6.0-rc0 --depth 1 https://github.com/apache/age.git && \
     cd age && \
     make && \
-    make install
+    make install || { \
+        echo "Warning: make install failed, trying manual install..."; \
+        cp age.so /usr/local/lib/postgresql/; \
+        cp age.control /usr/local/share/postgresql/extension/; \
+        cp age--*.sql /usr/local/share/postgresql/extension/; \
+    }
 
 # Удалить зависимости сборки для уменьшения размера образа
 RUN apk del .build-deps && \
