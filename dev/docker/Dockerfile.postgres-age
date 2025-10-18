@@ -17,7 +17,8 @@ RUN apk add --no-cache --virtual .build-deps \
     postgresql-dev \
     flex \
     bison \
-    git
+    git \
+    perl
 
 # Клонировать и собрать Apache AGE
 # Используем PG16/v1.6.0-rc0 (стабильной версии 1.6.0 для PG16 пока нет)
