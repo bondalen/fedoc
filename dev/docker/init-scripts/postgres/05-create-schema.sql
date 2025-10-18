@@ -11,62 +11,14 @@
 
 SET search_path = ag_catalog, "$user", public;
 
--- ============================================================================
--- Создание меток для вершин
--- ============================================================================
-
-\echo '10. Создание меток вершин...'
-
--- В Apache AGE метки создаются автоматически при первом использовании
--- Но мы можем создать их явно для документирования структуры
-
--- Метка для канонических узлов (концепции и технологии)
-SELECT * FROM cypher('common_project_graph', $$
-    CREATE VLABEL canonical_node
-$$) as (result agtype);
-
-\echo '✓ Метка canonical_node создана'
-
--- Метка для проектов
-SELECT * FROM cypher('common_project_graph', $$
-    CREATE VLABEL project  
-$$) as (result agtype);
-
-\echo '✓ Метка project создана'
+\echo '10. Схема графа готова к использованию'
 \echo ''
 
--- ============================================================================
--- Создание метки для рёбер
--- ============================================================================
-
-\echo '11. Создание метки рёбер...'
-
--- Метка для связей между узлами
-SELECT * FROM cypher('common_project_graph', $$
-    CREATE ELABEL project_relation
-$$) as (result agtype);
-
-\echo '✓ Метка project_relation создана'
-\echo ''
-
--- ============================================================================
--- Создание индексов для оптимизации запросов
--- ============================================================================
-
-\echo '12. Создание индексов...'
-
--- AGE хранит вершины и рёбра в специальных таблицах
--- Формат: {graph_name}.{label_name}
-
--- Индекс на свойство name для быстрого поиска
--- CREATE INDEX idx_canonical_node_name 
---     ON common_project_graph.canonical_node USING btree ((properties->>'name'));
-
--- Примечание: В AGE 1.6.0 индексы на свойства создаются через стандартный PostgreSQL синтаксис
--- но требуют доступа к внутренним таблицам AGE
-
-\echo '✓ Индексы будут созданы после миграции данных'
-\echo ''
+-- Примечание: В Apache AGE метки (labels) создаются автоматически
+-- при первом использовании в Cypher запросах.
+-- Например:
+--   CREATE (n:canonical_node {name: 'test'})
+-- автоматически создаст метку "canonical_node" если её нет
 
 \echo '================================================'
 \echo 'Схема графа создана успешно!'
@@ -74,9 +26,13 @@ $$) as (result agtype);
 \echo ''
 \echo 'Структура:'
 \echo '  Граф: common_project_graph'
-\echo '  Вершины: canonical_node, project'
-\echo '  Рёбра: project_relation'
+\echo '  Метки создаются автоматически при использовании'
+\echo ''
+\echo 'Пример создания вершины:'
+\echo '  SELECT * FROM cypher(''common_project_graph'', $q$'
+\echo '    CREATE (n:canonical_node {name: ''Backend'', kind: ''concept''})'
+\echo '    RETURN n'
+\echo '  $q$) as (n agtype);'
 \echo ''
 \echo 'Готово к миграции данных из ArangoDB!'
 \echo ''
-
