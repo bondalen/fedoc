@@ -55,14 +55,18 @@ services:
       start_period: 40s
 
   # ===========================================================================
-  # PostgreSQL - универсальная реляционная БД
-  # Назначение: Общая БД для различных проектов
+  # PostgreSQL + Apache AGE - реляционная БД с поддержкой графов
+  # Назначение: Общая БД для различных проектов + граф для fedoc
   # Потребление: ~200-400 MB RAM
   # Порт: 5432 (только localhost)
   # Режим: Запуск по требованию (./db-manager.sh start-postgres)
+  # Расширения: Apache AGE 1.6.0 для графовых запросов
   # ===========================================================================
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres-age
+    image: fedoc/postgres-age:16-1.6.0
     container_name: fedoc-postgres
     hostname: fedoc-postgres
     restart: "no"  # Запуск по требованию
