@@ -11,6 +11,7 @@
 
 \c fedoc
 
+LOAD 'age';
 SET search_path = ag_catalog, "$user", public;
 
 -- ============================================================================
@@ -27,55 +28,59 @@ CREATE OR REPLACE FUNCTION check_edge_uniqueness(
     exclude_edge_id BIGINT DEFAULT NULL
 ) RETURNS TABLE(is_unique BOOLEAN, error_message TEXT, existing_edge_id BIGINT) AS $$
 DECLARE
-    query TEXT;
-    result_row RECORD;
+    result_count INTEGER;
+    edge_data RECORD;
 BEGIN
-    -- Построить Cypher запрос для поиска дублирующих рёбер
+    -- Выполнить Cypher запрос для поиска дублирующих рёбер
     -- Проверяем оба направления: (from)-[]->(to) и (to)-[]->(from)
-    query := format(
-        'SELECT * FROM cypher(%L, $$ 
-            MATCH (a)-[e]->(b)
-            WHERE (id(a) = %s AND id(b) = %s)
-               OR (id(a) = %s AND id(b) = %s)
-        ',
-        graph_name,
-        from_vertex_id,
-        to_vertex_id,
-        to_vertex_id,
-        from_vertex_id
-    );
     
-    -- Добавить фильтр для исключения текущего ребра (при обновлении)
-    IF exclude_edge_id IS NOT NULL THEN
-        query := query || format(' AND id(e) <> %s', exclude_edge_id);
+    IF exclude_edge_id IS NULL THEN
+        -- Без исключения (для создания нового ребра)
+        SELECT * INTO edge_data FROM cypher(graph_name, $$
+            MATCH (a)-[e]->(b)
+            WHERE (id(a) = $from_id AND id(b) = $to_id)
+               OR (id(a) = $to_id AND id(b) = $from_id)
+            RETURN id(e) as edge_id, id(a) as from_id, id(b) as to_id
+            LIMIT 1
+        $$, 
+        jsonb_build_object('from_id', from_vertex_id, 'to_id', to_vertex_id)
+        ) as (edge_id agtype, from_id agtype, to_id agtype);
+    ELSE
+        -- С исключением (для обновления существующего ребра)
+        SELECT * INTO edge_data FROM cypher(graph_name, $$
+            MATCH (a)-[e]->(b)
+            WHERE ((id(a) = $from_id AND id(b) = $to_id)
+                OR (id(a) = $to_id AND id(b) = $from_id))
+              AND id(e) <> $exclude_id
+            RETURN id(e) as edge_id, id(a) as from_id, id(b) as to_id
+            LIMIT 1
+        $$,
+        jsonb_build_object(
+            'from_id', from_vertex_id, 
+            'to_id', to_vertex_id,
+            'exclude_id', exclude_edge_id
+        )
+        ) as (edge_id agtype, from_id agtype, to_id agtype);
     END IF;
     
-    query := query || ' RETURN id(e) as edge_id, id(a) as from_id, id(b) as to_id LIMIT 1
-        $$) as (edge_id agtype, from_id agtype, to_id agtype)';
-    
-    -- Выполнить запрос
-    EXECUTE query INTO result_row;
-    
     -- Если найден дубликат
-    IF result_row.edge_id IS NOT NULL THEN
+    IF edge_data.edge_id IS NOT NULL THEN
         -- Определить направление дубликата
-        IF result_row.from_id::text::bigint = from_vertex_id THEN
-            error_message := format(
-                'Связь между вершинами %s и %s уже существует (прямая связь, ID: %s)',
-                from_vertex_id,
-                to_vertex_id,
-                result_row.edge_id::text::bigint
-            );
+        IF (edge_data.from_id)::text::bigint = from_vertex_id THEN
+            RETURN QUERY SELECT 
+                FALSE,
+                format('Связь между вершинами %s и %s уже существует (прямая связь, ID: %s)',
+                    from_vertex_id, to_vertex_id, (edge_data.edge_id)::text::bigint
+                ),
+                (edge_data.edge_id)::text::bigint;
         ELSE
-            error_message := format(
-                'Связь между вершинами %s и %s уже существует (обратная связь, ID: %s)',
-                from_vertex_id,
-                to_vertex_id,
-                result_row.edge_id::text::bigint
-            );
+            RETURN QUERY SELECT 
+                FALSE,
+                format('Связь между вершинами %s и %s уже существует (обратная связь, ID: %s)',
+                    from_vertex_id, to_vertex_id, (edge_data.edge_id)::text::bigint
+                ),
+                (edge_data.edge_id)::text::bigint;
         END IF;
-        
-        RETURN QUERY SELECT FALSE, error_message, result_row.edge_id::text::bigint;
     ELSE
         -- Связь уникальна
         RETURN QUERY SELECT TRUE, NULL::TEXT, NULL::BIGINT;
@@ -102,8 +107,7 @@ CREATE OR REPLACE FUNCTION create_edge_safe(
 ) RETURNS TABLE(success BOOLEAN, edge_id BIGINT, error_message TEXT) AS $$
 DECLARE
     uniqueness_check RECORD;
-    query TEXT;
-    result_row RECORD;
+    result_data RECORD;
 BEGIN
     -- Шаг 1: Проверить уникальность
     SELECT * INTO uniqueness_check 
@@ -116,29 +120,22 @@ BEGIN
     END IF;
     
     -- Шаг 2: Создать ребро через Cypher
-    query := format(
-        'SELECT * FROM cypher(%L, $$
-            MATCH (a), (b)
-            WHERE id(a) = %s AND id(b) = %s
-            CREATE (a)-[e:%s %s]->(b)
-            RETURN id(e) as edge_id
-        $$) as (edge_id agtype)',
-        graph_name,
-        from_vertex_id,
-        to_vertex_id,
-        edge_label,
-        properties::text
-    );
-    
-    EXECUTE query INTO result_row;
-    
-    -- Вернуть успех
-    RETURN QUERY SELECT TRUE, result_row.edge_id::text::bigint, NULL::TEXT;
-    
-EXCEPTION
-    WHEN OTHERS THEN
-        -- Обработка ошибок
-        RETURN QUERY SELECT FALSE, NULL::BIGINT, SQLERRM;
+    -- Используем ag_catalog.create_complete_graph или прямой Cypher
+    BEGIN
+        SELECT * INTO result_data FROM cypher(graph_name, 
+            format('MATCH (a), (b) WHERE id(a) = %s AND id(b) = %s CREATE (a)-[e:%s %s]->(b) RETURN id(e)',
+                from_vertex_id, to_vertex_id, edge_label, properties::text
+            )
+        ) as (edge_id agtype);
+        
+        -- Вернуть успех
+        RETURN QUERY SELECT TRUE, (result_data.edge_id)::text::bigint, NULL::TEXT;
+        
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- Обработка ошибок
+            RETURN QUERY SELECT FALSE, NULL::BIGINT, SQLERRM;
+    END;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -154,75 +151,34 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION update_edge_safe(
     graph_name TEXT,
     edge_id BIGINT,
-    new_from_vertex_id BIGINT DEFAULT NULL,
-    new_to_vertex_id BIGINT DEFAULT NULL,
     new_properties JSONB DEFAULT NULL
 ) RETURNS TABLE(success BOOLEAN, error_message TEXT) AS $$
 DECLARE
-    current_from BIGINT;
-    current_to BIGINT;
-    final_from BIGINT;
-    final_to BIGINT;
-    uniqueness_check RECORD;
-    query TEXT;
+    result_data RECORD;
 BEGIN
-    -- Шаг 1: Получить текущие значения from/to
-    query := format(
-        'SELECT * FROM cypher(%L, $$
-            MATCH (a)-[e]->(b)
-            WHERE id(e) = %s
-            RETURN id(a) as from_id, id(b) as to_id
-        $$) as (from_id agtype, to_id agtype)',
-        graph_name,
-        edge_id
-    );
-    
-    EXECUTE query INTO current_from, current_to;
-    
-    IF current_from IS NULL THEN
-        RETURN QUERY SELECT FALSE, format('Ребро с ID %s не найдено', edge_id);
-        RETURN;
-    END IF;
-    
-    -- Определить финальные значения
-    final_from := COALESCE(new_from_vertex_id, current_from);
-    final_to := COALESCE(new_to_vertex_id, current_to);
-    
-    -- Шаг 2: Проверить уникальность (если узлы изменились)
-    IF (final_from <> current_from OR final_to <> current_to) THEN
-        SELECT * INTO uniqueness_check 
-        FROM check_edge_uniqueness(graph_name, final_from, final_to, edge_id);
-        
-        IF NOT uniqueness_check.is_unique THEN
-            RETURN QUERY SELECT FALSE, uniqueness_check.error_message;
-            RETURN;
-        END IF;
-    END IF;
-    
-    -- Шаг 3: Обновить ребро
-    -- Примечание: В AGE нельзя напрямую изменить узлы ребра
-    -- Нужно удалить старое и создать новое, либо обновить только properties
+    -- Обновить свойства ребра
     IF new_properties IS NOT NULL THEN
-        query := format(
-            'SELECT * FROM cypher(%L, $$
-                MATCH ()-[e]->()
-                WHERE id(e) = %s
-                SET e = %s
-                RETURN id(e)
-            $$) as (edge_id agtype)',
-            graph_name,
-            edge_id,
-            new_properties::text
-        );
-        
-        EXECUTE query;
+        BEGIN
+            SELECT * INTO result_data FROM cypher(graph_name,
+                format('MATCH ()-[e]->() WHERE id(e) = %s SET e = %s RETURN id(e)',
+                    edge_id, new_properties::text
+                )
+            ) as (edge_id agtype);
+            
+            IF result_data.edge_id IS NULL THEN
+                RETURN QUERY SELECT FALSE, format('Ребро с ID %s не найдено', edge_id);
+                RETURN;
+            END IF;
+            
+            RETURN QUERY SELECT TRUE, NULL::TEXT;
+            
+        EXCEPTION
+            WHEN OTHERS THEN
+                RETURN QUERY SELECT FALSE, SQLERRM;
+        END;
+    ELSE
+        RETURN QUERY SELECT TRUE, NULL::TEXT;
     END IF;
-    
-    RETURN QUERY SELECT TRUE, NULL::TEXT;
-    
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN QUERY SELECT FALSE, SQLERRM;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -240,26 +196,26 @@ CREATE OR REPLACE FUNCTION delete_edge_safe(
     edge_id BIGINT
 ) RETURNS TABLE(success BOOLEAN, error_message TEXT) AS $$
 DECLARE
-    query TEXT;
+    result_data RECORD;
 BEGIN
-    query := format(
-        'SELECT * FROM cypher(%L, $$
-            MATCH ()-[e]->()
-            WHERE id(e) = %s
-            DELETE e
-            RETURN id(e)
-        $$) as (edge_id agtype)',
-        graph_name,
-        edge_id
-    );
-    
-    EXECUTE query;
-    
-    RETURN QUERY SELECT TRUE, NULL::TEXT;
-    
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN QUERY SELECT FALSE, SQLERRM;
+    BEGIN
+        SELECT * INTO result_data FROM cypher(graph_name,
+            format('MATCH ()-[e]->() WHERE id(e) = %s DELETE e RETURN id(e)',
+                edge_id
+            )
+        ) as (edge_id agtype);
+        
+        IF result_data.edge_id IS NULL THEN
+            RETURN QUERY SELECT FALSE, format('Ребро с ID %s не найдено', edge_id);
+            RETURN;
+        END IF;
+        
+        RETURN QUERY SELECT TRUE, NULL::TEXT;
+        
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN QUERY SELECT FALSE, SQLERRM;
+    END;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -276,4 +232,3 @@ $$ LANGUAGE plpgsql;
 \echo '  3. update_edge_safe() - обновление с валидацией'
 \echo '  4. delete_edge_safe() - удаление'
 \echo ''
-
