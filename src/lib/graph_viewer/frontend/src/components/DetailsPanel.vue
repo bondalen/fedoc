@@ -6,7 +6,7 @@
   >
     <!-- Заголовок -->
     <div id="detailsHeader">
-      <h3>🔍 Детали объекта</h3>
+      <h3>🔍 Детали объекта{{ getObjectKey() }}</h3>
       <button @click="onClose" aria-label="Закрыть">✕</button>
     </div>
     
@@ -35,6 +35,50 @@ import ObjectTree from './ObjectTree.vue'
 const store = useGraphStore()
 const panelWidth = ref(420)
 const isResizing = ref(false)
+
+/**
+ * Получить ключ объекта для отображения в заголовке
+ */
+const getObjectKey = () => {
+  if (!store.selectedObject) return ''
+  
+  const obj = store.selectedObject
+  
+  // Для узлов
+  if (obj.properties && obj.properties.arango_key) {
+    return `: ${obj.properties.arango_key}`
+  }
+  if (obj.arango_key) {
+    return `: ${obj.arango_key}`
+  }
+  if (obj._key) {
+    return `: ${obj._key}`
+  }
+  
+  // Для рёбер - показываем связь между узлами
+  if (obj.start_id && obj.end_id) {
+    const fromKey = getNodeKeyById(obj.start_id)
+    const toKey = getNodeKeyById(obj.end_id)
+    return `: ${fromKey} → ${toKey}`
+  }
+  
+  return ''
+}
+
+/**
+ * Получить ключ узла по его ID
+ */
+const getNodeKeyById = (nodeId) => {
+  // Ищем в загруженных узлах
+  const node = store.nodes.find(n => n.id === nodeId || n._id === nodeId)
+  if (node) {
+    if (node._key) return node._key
+    if (node.properties && node.properties.arango_key) return node.properties.arango_key
+    if (node.arango_key) return node.arango_key
+    if (node.name) return node.name
+  }
+  return `#${nodeId}`
+}
 
 /**
  * Закрыть панель деталей

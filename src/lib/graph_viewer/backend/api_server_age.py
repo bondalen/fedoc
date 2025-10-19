@@ -47,13 +47,14 @@ _selection_lock = threading.Lock()  # Блокировка для thread-safe д
 
 # ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 
-def execute_cypher(query: str, params: dict = None):
+def execute_cypher(query: str, params: dict = None, return_type: str = 'auto'):
     """
     Выполнить Cypher запрос к Apache AGE
     
     Args:
         query: Cypher запрос (без оберток cypher())
         params: Параметры запроса
+        return_type: Тип возвращаемых данных ('auto', 'node', 'edge', 'graph', 'list')
     
     Returns:
         list: Список результатов
@@ -72,12 +73,25 @@ def execute_cypher(query: str, params: dict = None):
                 else:
                     query = query.replace(f'${key}', str(value))
         
-        # Определить количество возвращаемых колонок по запросу
-        if "edge_id" in query and "from_id" in query:
+        # Определить количество возвращаемых колонок
+        if return_type == 'auto':
+            # Автоопределение по запросу
+            if "edge_id" in query and "from_id" in query:
+                return_type = 'graph'
+            elif "RETURN n" in query or "RETURN r" in query:
+                return_type = 'node'
+            else:
+                return_type = 'list'
+        
+        # Выбрать определение колонок
+        if return_type == 'graph':
             # Запрос для графа - много колонок
             full_query = f"SELECT * FROM cypher('{graph_name}', $${query}$$) as (edge_id agtype, from_id agtype, to_id agtype, from_name agtype, to_name agtype, from_key agtype, to_key agtype, from_kind agtype, to_kind agtype, projects agtype, rel_type agtype)"
+        elif return_type == 'node' or return_type == 'edge':
+            # Запрос возвращает целый узел/ребро
+            full_query = f"SELECT * FROM cypher('{graph_name}', $${query}$$) as (result agtype)"
         else:
-            # Запрос для узлов - 3 колонки
+            # Запрос для списка узлов - 3 колонки
             full_query = f"SELECT * FROM cypher('{graph_name}', $${query}$$) as (id agtype, key agtype, name agtype)"
         
         cur.execute(full_query)
@@ -100,6 +114,10 @@ def agtype_to_python(agtype_value):
     
     # Агтип возвращается как строка, парсим её
     s = str(agtype_value)
+    
+    # Убрать суффиксы ::vertex, ::edge, ::path если есть
+    if '::' in s:
+        s = s.split('::')[0]
     
     # Убрать кавычки если это строка
     if s.startswith('"') and s.endswith('"'):
@@ -376,7 +394,7 @@ def get_graph():
 
 @app.route('/api/object_details', methods=['GET'])
 def get_object_details():
-    """Получить детали объекта"""
+    """Получить детали объекта (узел или ребро)"""
     try:
         doc_id = request.args.get('id', '')
         
@@ -385,25 +403,35 @@ def get_object_details():
         
         # ID может быть числом (AGE id) или строкой (arango_key)
         try:
-            node_id = int(doc_id)
-            # Поиск по ID
-            query = "MATCH (n) WHERE id(n) = $node_id RETURN n"
-            params = {'node_id': node_id}
+            obj_id = int(doc_id)
+            # Поиск по ID - сначала узел, потом ребро
+            query = "MATCH (n) WHERE id(n) = $obj_id RETURN n"
+            params = {'obj_id': obj_id}
+            results = execute_cypher(query, params)
+            
+            if not results or not results[0][0]:
+                # Попробовать найти ребро
+                query = "MATCH ()-[r]->() WHERE id(r) = $obj_id RETURN r"
+                results = execute_cypher(query, params, return_type='edge')
         except ValueError:
             # Поиск по arango_key
             key = doc_id.split('/')[-1] if '/' in doc_id else doc_id
             query = "MATCH (n {arango_key: $key}) RETURN n"
             params = {'key': key}
-        
-        results = execute_cypher(query, params)
+            results = execute_cypher(query, params)
+            
+            if not results or not results[0][0]:
+                # Попробовать найти ребро по arango_key
+                query = "MATCH ()-[r {arango_key: $key}]->() RETURN r"
+                results = execute_cypher(query, params, return_type='edge')
         
         if not results or not results[0][0]:
             return jsonify({'error': f'Document "{doc_id}" not found'}), 404
         
         # Конвертировать agtype в dict
-        node_data = agtype_to_python(results[0][0])
+        obj_data = agtype_to_python(results[0][0])
         
-        return jsonify(node_data)
+        return jsonify(obj_data)
     except Exception as e:
         log(f"Error in get_object_details: {e}")
         return jsonify({'error': str(e)}), 500
@@ -511,21 +539,23 @@ def get_subgraph():
                 return jsonify({'error': f'Node {node_id} not found'}), 404
             nid = agtype_to_python(results[0][0])
         
-        # Cypher запрос для подграфа
-        if direction == 'outbound':
-            query = f"""
-            MATCH (start)-[e:project_relation*1..{max_depth}]->(end)
-            WHERE id(start) = $node_id
-            RETURN id(end) as node_id, id(e) as edge_id
-            """
-        else:  # inbound
-            query = f"""
-            MATCH (start)<-[e:project_relation*1..{max_depth}]-(end)
-            WHERE id(start) = $node_id
-            RETURN id(end) as node_id, id(e) as edge_id
-            """
+        # Упрощенное решение - ищем связанные узлы в уже загруженных данных
+        # Apache AGE имеет серьезные ограничения с синтаксисом Cypher
         
-        results = execute_cypher(query, {'node_id': nid})
+        # Получаем все рёбра из базы
+        try:
+            if direction == 'outbound':
+                # Ищем исходящие рёбра
+                query = "MATCH (start)-[e:project_relation]->(end) WHERE id(start) = $node_id RETURN id(end), id(e)"
+            else:  # inbound
+                # Ищем входящие рёбра
+                query = "MATCH (start)<-[e:project_relation]-(end) WHERE id(start) = $node_id RETURN id(end), id(e)"
+            
+            results = execute_cypher(query, {'node_id': nid})
+        except Exception as e:
+            # Если Cypher не работает, возвращаем пустой результат
+            log(f"Cypher query failed: {e}")
+            results = []
         
         # Извлечение уникальных ID
         node_ids = set()
@@ -776,7 +806,9 @@ def main():
         user=args.db_user,
         password=args.db_password
     )
-    log("✓ Connected to PostgreSQL")
+    # Включаем autocommit чтобы избежать блокировки транзакций
+    db_conn.autocommit = True
+    log("✓ Connected to PostgreSQL (autocommit mode)")
     
     # Инициализация валидатора рёбер
     edge_validator = create_edge_validator(db_conn)

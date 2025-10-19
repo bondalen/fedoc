@@ -10,13 +10,13 @@
       <!-- Узлы -->
       <div
         v-for="node in store.selectedNodesList"
-        :key="node._id"
+        :key="node._id || node.id"
         class="selection-chip node-chip"
         :class="getNodeClass(node)"
         :title="getNodeTooltip(node)"
       >
         <span class="chip-icon">📦</span>
-        <span class="chip-label">{{ node.name || node._key || node._id }}</span>
+        <span class="chip-label">{{ getNodeLabel(node) }}</span>
       </div>
       
       <!-- Рёбра -->
@@ -71,14 +71,104 @@ const getNodeTooltip = (node) => {
 }
 
 /**
+ * Получить метку для узла
+ */
+const getNodeLabel = (node) => {
+  // Приоритет: arango_key > name > _key > id
+  if (node.properties && node.properties.arango_key) {
+    return node.properties.arango_key
+  }
+  if (node.arango_key) {
+    return node.arango_key
+  }
+  if (node.name) {
+    return node.name
+  }
+  if (node._key) {
+    return node._key
+  }
+  return node._id || node.id || '?'
+}
+
+/**
  * Получить метку для ребра
  */
 const getEdgeLabel = (edge) => {
-  // Попробовать получить названия узлов
-  const fromName = edge._from ? edge._from.split('/').pop() : '?'
-  const toName = edge._to ? edge._to.split('/').pop() : '?'
+  let fromName = '?'
+  let toName = '?'
+  
+  if (edge._from) {
+    // ArangoDB формат
+    fromName = edge._from.split('/').pop()
+  } else if (edge.start_id) {
+    // PostgreSQL+AGE формат - ищем arango_key узла
+    fromName = getNodeArangoKeyById(edge.start_id)
+  }
+  
+  if (edge._to) {
+    // ArangoDB формат
+    toName = edge._to.split('/').pop()
+  } else if (edge.end_id) {
+    // PostgreSQL+AGE формат - ищем arango_key узла
+    toName = getNodeArangoKeyById(edge.end_id)
+  }
   
   return `${fromName} → ${toName}`
+}
+
+/**
+ * Получить arango_key узла по его ID
+ */
+const getNodeArangoKeyById = (nodeId) => {
+  // Ищем в разных источниках данных
+  let node = null
+  
+  // 1. В nodes (список доступных узлов) - здесь есть _key
+  node = store.nodes.find(n => n.id === nodeId || n._id === nodeId)
+  console.log(`Looking in nodes for nodeId: ${nodeId}, found:`, node)
+  
+  // 2. Если не найден, ищем в allNodesData
+  if (!node) {
+    node = store.allNodesData.find(n => n.id === nodeId || n._id === nodeId)
+    console.log(`Looking in allNodesData for nodeId: ${nodeId}, found:`, node)
+  }
+  
+  // 3. Если не найден, ищем в nodesDataSet
+  if (!node && store.nodesDataSet) {
+    const nodeData = store.nodesDataSet.get(nodeId)
+    if (nodeData) {
+      node = nodeData
+      console.log(`Looking in nodesDataSet for nodeId: ${nodeId}, found:`, node)
+    }
+  }
+  
+  if (node) {
+    // Проверяем разные возможные структуры данных - ПРИОРИТЕТ: _key (arango_key)
+    if (node._key) {
+      console.log(`Found _key:`, node._key)
+      return node._key
+    }
+    if (node.properties && node.properties.arango_key) {
+      console.log(`Found arango_key in properties:`, node.properties.arango_key)
+      return node.properties.arango_key
+    }
+    if (node.arango_key) {
+      console.log(`Found arango_key:`, node.arango_key)
+      return node.arango_key
+    }
+    if (node.name) {
+      console.log(`Found name:`, node.name)
+      return node.name
+    }
+    if (node.label) {
+      console.log(`Found label:`, node.label)
+      return node.label
+    }
+  }
+  
+  // Если не найден, возвращаем ID
+  console.log(`Node not found in any source, returning ID: #${nodeId}`)
+  return `#${nodeId}`
 }
 
 /**
@@ -87,13 +177,34 @@ const getEdgeLabel = (edge) => {
 const getEdgeTooltip = (edge) => {
   const parts = []
   
-  if (edge._id) parts.push(`ID: ${edge._id}`)
-  if (edge._from) parts.push(`От: ${edge._from}`)
-  if (edge._to) parts.push(`К: ${edge._to}`)
-  if (edge.projects && edge.projects.length > 0) {
-    parts.push(`Проекты: ${edge.projects.join(', ')}`)
+  // Поддержка как ArangoDB, так и PostgreSQL+AGE форматов
+  if (edge._id || edge.id) {
+    parts.push(`ID: ${edge._id || edge.id}`)
   }
-  if (edge.relationType) parts.push(`Тип связи: ${edge.relationType}`)
+  
+  if (edge._from) {
+    parts.push(`От: ${edge._from}`)
+  } else if (edge.start_id) {
+    parts.push(`От: #${edge.start_id}`)
+  }
+  
+  if (edge._to) {
+    parts.push(`К: ${edge._to}`)
+  } else if (edge.end_id) {
+    parts.push(`К: #${edge.end_id}`)
+  }
+  
+  // Проекты могут быть в properties
+  const projects = edge.projects || (edge.properties && edge.properties.projects)
+  if (projects && projects.length > 0) {
+    parts.push(`Проекты: ${projects.join(', ')}`)
+  }
+  
+  // Тип связи может быть в properties
+  const relationType = edge.relationType || (edge.properties && edge.properties.relationType)
+  if (relationType) {
+    parts.push(`Тип связи: ${relationType}`)
+  }
   
   return parts.join('\n')
 }
