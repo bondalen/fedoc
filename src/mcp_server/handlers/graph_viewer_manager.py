@@ -99,19 +99,26 @@ def open_graph_viewer(
             "components": {}
         }
         
-        # 1. Проверяем/создаем SSH туннель
-        log("\n🔌 Проверка SSH туннеля...")
-        tunnel_ok = tunnel_mgr.ensure_tunnel()
+        # 1. Проверяем/создаем все SSH туннели
+        log("\n🔌 Проверка SSH туннелей...")
+        tunnel_ok = tunnel_mgr.ensure_all_tunnels()
         if not tunnel_ok:
             return {
                 "status": "error",
-                "message": "Не удалось создать SSH туннель к ArangoDB",
+                "message": "Не удалось создать SSH туннели",
                 "details": f"Проверьте SSH доступ к серверу {config.get('remote_server.ssh_alias')}"
             }
         
-        tunnel_status = tunnel_mgr.get_status()
-        results["components"]["ssh_tunnel"] = f"active on port {tunnel_status['local_port']}"
-        log(f"   ✓ SSH туннель активен (PID: {tunnel_status.get('pid', 'N/A')})")
+        # Получаем статус всех туннелей
+        tunnels_status = tunnel_mgr.get_status()
+        results["components"]["ssh_tunnels"] = tunnels_status
+        
+        # Логируем статус каждого туннеля
+        for name, tunnel in tunnels_status.items():
+            if tunnel['status'] == 'connected':
+                log(f"   ✓ {tunnel['name']} туннель активен (порт {tunnel['local_port']}, PID: {tunnel.get('pid', 'N/A')})")
+            else:
+                log(f"   ⚠️ {tunnel['name']} туннель не активен")
         
         # 2. Запускаем API сервер
         log("\n🚀 Проверка API сервера...")
@@ -147,11 +154,25 @@ def open_graph_viewer(
             results["url"] = url
             results["message"] = f"Система визуализации графа запущена для проекта {project}"
         
-        # 5. Открываем браузер
+        # 5. Открываем браузер с учетом WSL и разных ОС
         browser_setting = config.get('options.auto_open_browser', True)
         if auto_open_browser and browser_setting:
             log(f"\n🌐 Открываю браузер: {url}")
-            webbrowser.open(url)
+            
+            # Проверяем специальную команду для браузера (например, WSL)
+            browser_cmd = config.get('environment.browser_command')
+            if browser_cmd:
+                # WSL или специальная команда для открытия браузера
+                import subprocess
+                try:
+                    subprocess.run(f'{browser_cmd} {url}', shell=True, check=False)
+                except Exception as e:
+                    log(f"⚠️ Ошибка открытия браузера через команду: {e}")
+                    log(f"   Откройте вручную: {url}")
+            else:
+                # Обычная система - используем webbrowser
+                webbrowser.open(url)
+            
             results["browser_opened"] = True
         else:
             results["browser_opened"] = False
@@ -195,26 +216,24 @@ def graph_viewer_status() -> Dict[str, any]:
         process_mgr = ProcessManager(config=config)
         
         # Получаем статусы
-        tunnel_status = tunnel_mgr.get_status()
+        tunnels_status = tunnel_mgr.get_status()
         process_status = process_mgr.get_status()
+        
+        # Проверяем статус туннелей
+        all_tunnels_ok = all(t.get('status') == 'connected' for t in tunnels_status.values()) if tunnels_status else True
         
         # Формируем результат
         result = {
             "overall_status": "running" if (
-                tunnel_status["status"] == "connected" and
+                all_tunnels_ok and
                 process_status["overall_status"] == "running"
             ) else "stopped" if (
-                tunnel_status["status"] == "disconnected" and
+                not all_tunnels_ok and
                 process_status["overall_status"] == "stopped"
             ) else "partial",
             "machine": config.machine_name,
             "components": {
-                "ssh_tunnel": {
-                    "status": tunnel_status["status"],
-                    "port": tunnel_status["local_port"],
-                    "remote": tunnel_status["remote_host"],
-                    "pid": tunnel_status.get("pid")
-                },
+                "ssh_tunnels": tunnels_status,
                 "api_server": {
                     "status": process_status["api_server"]["status"],
                     "port": process_status["api_server"]["port"],
@@ -228,7 +247,7 @@ def graph_viewer_status() -> Dict[str, any]:
             },
             "url": f"http://localhost:{config.get('ports.vite_server', 5173)}",
             "ready": (
-                tunnel_status["status"] == "connected" and
+                all_tunnels_ok and
                 process_status["overall_status"] == "running"
             )
         }
@@ -238,8 +257,17 @@ def graph_viewer_status() -> Dict[str, any]:
         log(f"\n{status_icon} Общий статус: {result['overall_status']}")
         log(f"🖥️  Машина: {result['machine']}")
         log("\n🔧 Компоненты:")
-        for name, comp in result["components"].items():
-            comp_icon = "✅" if comp["status"] in ["connected", "running"] else "❌"
+        
+        # Выводим туннели
+        for name, tunnel in tunnels_status.items():
+            tunnel_icon = "✅" if tunnel.get("status") == "connected" else "❌"
+            pid_info = f" (PID: {tunnel.get('pid')})" if tunnel.get("pid") else ""
+            log(f"   {tunnel_icon} {name}_tunnel: {tunnel.get('status', 'unknown')}{pid_info}")
+        
+        # Выводим процессы
+        for name in ["api_server", "vite_server"]:
+            comp = result["components"][name]
+            comp_icon = "✅" if comp["status"] == "running" else "❌"
             pid_info = f" (PID: {comp['pid']})" if comp.get("pid") else ""
             log(f"   {comp_icon} {name}: {comp['status']}{pid_info}")
         

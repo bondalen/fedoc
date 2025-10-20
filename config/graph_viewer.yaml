@@ -1,22 +1,38 @@
 # Конфигурация Graph Viewer для fedoc
 # Документация: docs/graph-viewer-setup.md
-version: "1.0"
+version: "2.0"
 
-# Удаленный сервер с ArangoDB (общий для всех машин)
+# Удаленный сервер (общий для всех машин)
 remote_server:
   host: "176.108.244.252"
   user: "user1"
   ssh_alias: "fedoc-server"
-  description: "Production сервер с ArangoDB"
+  description: "Production сервер с PostgreSQL + Apache AGE"
 
 # Порты (общие для всех, можно переопределить в профиле машины)
 ports:
-  ssh_tunnel: 8529      # Локальный порт SSH туннеля
-  api_server: 8899      # REST API для графов
-  vite_server: 5173     # Vue.js dev сервер
+  # SSH туннели
+  postgres_tunnel: 15432    # Локальный порт для PostgreSQL туннеля
+  arango_tunnel: 8529       # Локальный порт для ArangoDB туннеля (legacy)
+  
+  # Сервисы
+  api_server: 15000         # REST API для графов (исправлено с 8899)
+  vite_server: 5173         # Vue.js dev сервер
 
-# ArangoDB настройки
+# PostgreSQL настройки (основная БД)
+postgres:
+  enabled: true
+  port: 5432                # Порт на удаленном сервере
+  host: "localhost"         # Через SSH туннель
+  database: "fedoc"
+  user: "postgres"
+  password_env: "POSTGRES_PASSWORD"  # Переменная окружения
+  default_password: "fedoc_test_2025"  # Пароль по умолчанию
+
+# ArangoDB настройки (legacy, только для миграции)
 arango:
+  enabled: false            # Отключено после миграции на PostgreSQL
+  port: 8529
   host: "http://localhost:8529"  # Через SSH туннель
   database: "fedoc"
   user: "root"

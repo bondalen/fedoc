@@ -1,59 +1,42 @@
-# Профиль машины: alex-User-PC
-# WSL2 окружение Александра
+# Профиль машины: alex-User-PC (Windows WSL2)
+# Рабочая машина с WSL2
 machine:
   hostname: "User-PC"
   username: "alex"
-  os: "linux"
-  distribution: "WSL2"
-  kernel: "5.15.167.4-microsoft-standard-WSL2"
-  description: "WSL2 окружение для разработки fedoc"
-  added: "2025-10-16"
-  environment: "wsl2"
+  os: "WSL2"
+  distribution: "Ubuntu 24.04"
+  description: "Windows с WSL2 Ubuntu"
+  added: "2025-10-20"
 
-# SSH настройки (Linux пути в WSL)
+# SSH настройки
 ssh:
   key_path: "~/.ssh/id_ed25519"
   config_path: "~/.ssh/config"
-  known_hosts: "~/.ssh/known_hosts"
 
-# Пути к инструментам (проверены в WSL)
+# Пути к инструментам
 tools:
   python: "/usr/bin/python3"
   node: "/usr/bin/node"
   npm: "/usr/bin/npm"
-  pip: "/usr/bin/pip3"
 
-# Пути проекта (абсолютные Linux пути в WSL)
+# Пути проекта (абсолютные)
 project:
   root: "/home/alex/fedoc"
   venv: "/home/alex/fedoc/venv"
-  venv_python: "/home/alex/fedoc/venv/bin/python"
-  venv_pip: "/home/alex/fedoc/venv/bin/pip"
 
-# Особенности WSL окружения
+# Особенности окружения
 environment:
   shell: "/bin/bash"
-  display: null  # WSL не имеет X server по умолчанию
-  wsl: true
-  windows_host: true  # Доступ к Windows хосту
+  # В WSL нужно открывать браузер через cmd.exe
+  browser_command: "cd /mnt/c && cmd.exe /c start"
   
-# Опции для WSL
+# Опции для этой машины
 options:
-  auto_open_browser: false  # WSL не может открыть браузер напрямую
-  verbose_logging: true    # Включить для отладки WSL
-  use_windows_browser: true # Попробовать открыть через Windows
-  wsl_display_fix: true     # Исправления для WSL
+  auto_open_browser: true
+  verbose_logging: false
 
-# WSL специфичные настройки
-wsl:
-  version: "2"
-  distro: "Ubuntu"  # Предполагаем Ubuntu в WSL
-  windows_path: "/mnt/c"  # Доступ к Windows дискам
-  network_mode: "NAT"     # WSL2 использует NAT
-
-# Примечания для WSL
-# - Браузер нужно открывать вручную в Windows
-# - SSH работает как в обычном Linux
-# - Порты доступны из Windows как localhost
-# - Пути Linux-стиль, но доступ к Windows через /mnt/
-
+# Примечания
+# - Браузер открывается через cmd.exe из Windows
+# - SSH туннели работают нормально
+# - npm зависимости установлены
+# - PostgreSQL доступен через SSH туннель на порту 15432

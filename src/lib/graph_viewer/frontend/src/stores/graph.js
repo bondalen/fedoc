@@ -602,8 +602,8 @@ export const useGraphStore = defineStore('graph', () => {
    */
   const initWebSocket = () => {
     try {
-      // Подключение к WebSocket серверу
-      socket = io('http://localhost:8899', {
+      // Подключение к WebSocket серверу через Vite proxy
+      socket = io({
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionDelay: 1000,

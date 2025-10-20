@@ -18,6 +18,7 @@ import time
 import threading
 import os
 from pathlib import Path
+from typing import Optional
 
 # Добавить путь к модулям для импорта
 sys.path.insert(0, str(Path(__file__).parent))
@@ -165,6 +166,90 @@ def agtype_to_python(agtype_value):
         return json.loads(s)
     except:
         return s
+
+
+def convert_node_key_to_age_id(node_identifier: str) -> Optional[int]:
+    """
+    Конвертировать arango-style ключ в AGE vertex ID
+    
+    Args:
+        node_identifier: ID или ключ узла:
+            - "canonical_nodes/c:backend" (arango-style ID)
+            - "c:backend" (arango key)
+            - "844424930131969" (уже AGE ID)
+    
+    Returns:
+        int: AGE vertex ID или None если не найден
+    
+    Raises:
+        ValueError: Если узел не найден
+    """
+    # Попробовать распарсить как число (уже AGE ID)
+    try:
+        return int(node_identifier)
+    except ValueError:
+        pass
+    
+    # Извлечь ключ из arango-style ID
+    key = node_identifier.split('/')[-1] if '/' in node_identifier else node_identifier
+    
+    # Запрос к PostgreSQL для получения AGE ID по ключу
+    with db_conn.cursor() as cur:
+        cur.execute("LOAD 'age';")
+        cur.execute("SET search_path = ag_catalog, public;")
+        
+        # Используем параметризованный запрос через FORMAT для безопасности
+        query = f"""
+            SELECT * FROM cypher('common_project_graph', $$
+                MATCH (n:canonical_node {{arango_key: '{key}'}})
+                RETURN id(n)
+            $$) AS (node_id agtype);
+        """
+        
+        try:
+            cur.execute(query)
+            result = cur.fetchone()
+            
+            if result and result[0]:
+                age_id = agtype_to_python(result[0])
+                return int(age_id)
+            else:
+                raise ValueError(f"Узел с ключом '{key}' не найден в графе")
+                
+        except Exception as e:
+            raise ValueError(f"Ошибка поиска узла '{key}': {e}")
+
+
+def convert_edge_key_to_age_id(edge_identifier: str) -> Optional[int]:
+    """
+    Конвертировать arango-style ключ ребра в AGE edge ID
+    
+    Args:
+        edge_identifier: ID или ключ ребра:
+            - "project_relations/12345" (arango-style ID)
+            - "12345" (arango key)
+            - "1125899906842625" (уже AGE ID)
+    
+    Returns:
+        int: AGE edge ID или None если не найден
+    
+    Raises:
+        ValueError: Если ребро не найдено
+    """
+    # Попробовать распарсить как число (уже AGE ID)
+    try:
+        return int(edge_identifier)
+    except ValueError:
+        pass
+    
+    # Извлечь ключ из arango-style ID
+    key = edge_identifier.split('/')[-1] if '/' in edge_identifier else edge_identifier
+    
+    # Для рёбер пока просто пробуем как число
+    try:
+        return int(key)
+    except ValueError:
+        raise ValueError(f"Не удалось конвертировать ID ребра: {edge_identifier}")
 
 
 # ========== REST API ENDPOINTS ==========
@@ -525,14 +610,12 @@ def create_edge():
         if not from_id or not to_id:
             return jsonify({'success': False, 'error': 'Отсутствуют _from или _to'}), 400
         
-        # TODO: Преобразовать arango-style IDs в AGE IDs
-        # Пока используем простое преобразование
+        # Преобразовать arango-style IDs/ключи в AGE IDs
         try:
-            from_vertex_id = int(from_id)
-            to_vertex_id = int(to_id)
-        except:
-            # Это arango keys, нужно получить AGE IDs
-            return jsonify({'success': False, 'error': 'Conversion from arango_key to AGE ID not implemented yet'}), 501
+            from_vertex_id = convert_node_key_to_age_id(from_id)
+            to_vertex_id = convert_node_key_to_age_id(to_id)
+        except ValueError as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
         
         # Подготовить свойства
         properties = {k: v for k, v in data.items() if not k.startswith('_')}
@@ -622,13 +705,13 @@ def check_edge_uniqueness():
                 'error': 'Отсутствуют обязательные поля _from и _to'
             }), 400
         
-        # TODO: Преобразовать arango IDs в AGE IDs
+        # Преобразовать arango IDs/ключи в AGE IDs
         try:
-            from_vertex_id = int(from_id)
-            to_vertex_id = int(to_id)
-            exclude_id = int(exclude_edge_id) if exclude_edge_id else None
-        except:
-            return jsonify({'success': False, 'error': 'ID conversion not implemented'}), 501
+            from_vertex_id = convert_node_key_to_age_id(from_id)
+            to_vertex_id = convert_node_key_to_age_id(to_id)
+            exclude_id = convert_edge_key_to_age_id(exclude_edge_id) if exclude_edge_id else None
+        except ValueError as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
         
         is_unique, error_msg = edge_validator.check_edge_uniqueness(
             from_vertex_id,

@@ -12,12 +12,12 @@ from typing import Optional, List, Dict, Any
 class EdgeManagerHandler:
     """Handler для управления рёбрами графа через API"""
     
-    def __init__(self, api_url: str = "http://localhost:8899"):
+    def __init__(self, api_url: str = "http://localhost:15000"):
         """
         Инициализация handler'а
         
         Args:
-            api_url: URL API сервера Graph Viewer
+            api_url: URL API сервера Graph Viewer (default: 15000 для PostgreSQL)
         """
         self.api_url = api_url.rstrip('/')
     
@@ -267,12 +267,12 @@ class EdgeManagerHandler:
             }
 
 
-def create_edge_manager_handler(api_url: str = "http://localhost:8899") -> EdgeManagerHandler:
+def create_edge_manager_handler(api_url: str = "http://localhost:15000") -> EdgeManagerHandler:
     """
     Создать экземпляр Edge Manager Handler
     
     Args:
-        api_url: URL API сервера
+        api_url: URL API сервера (default: 15000 для PostgreSQL)
     
     Returns:
         EdgeManagerHandler: Экземпляр handler'а

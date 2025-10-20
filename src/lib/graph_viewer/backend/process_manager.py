@@ -54,8 +54,8 @@ class ProcessManager:
             
             # Получить пароль из конфигурации или использовать дефолтный
             # Для PostgreSQL используется fedoc_test_2025
-            self.arango_password = config.get_password() or "fedoc_test_2025"
-            self.api_port = config.get('ports.api_server', 8899)
+            self.arango_password = config.get('postgres.default_password', 'fedoc_test_2025')
+            self.api_port = config.get('ports.api_server', 15000)
             self.vite_port = config.get('ports.vite_server', 5173)
         else:
             # Старый способ - через параметры
@@ -69,7 +69,7 @@ class ProcessManager:
             self.project_root = self.graph_viewer_root.parent.parent.parent
             self.venv_python = self.project_root / "venv" / "bin" / "python"
             self.arango_password = arango_password or "fedoc_test_2025"
-            self.api_port = 8899
+            self.api_port = 15000
             self.vite_port = 5173
         
     def _find_process(self, pattern: str) -> Optional[int]:
@@ -111,7 +111,8 @@ class ProcessManager:
         Returns:
             PID процесса или None
         """
-        return self._find_process(r"python.*api_server\.py")
+        # Ищем api_server_age.py (новый PostgreSQL версия)
+        return self._find_process(r"python.*api_server_age\.py")
     
     def check_vite_server(self) -> Optional[int]:
         """
@@ -140,17 +141,36 @@ class ProcessManager:
             api_script = self.backend_dir / "api_server_age.py"
             log_file = Path("/tmp/graph_viewer_api.log")
             
+            # Получаем параметры из конфигурации или используем дефолтные
+            if self.config:
+                db_host = self.config.get('postgres.host', 'localhost')
+                db_port = str(self.config.get('ports.postgres_tunnel', 15432))
+                db_name = self.config.get('postgres.database', 'fedoc')
+                db_user = self.config.get('postgres.user', 'postgres')
+                db_password = self.arango_password
+            else:
+                db_host = 'localhost'
+                db_port = '15432'
+                db_name = 'fedoc'
+                db_user = 'postgres'
+                db_password = self.arango_password
+            
+            # Отладочное логирование команды
+            cmd = [
+                str(self.venv_python),
+                str(api_script),
+                "--port", str(self.api_port),
+                "--db-host", db_host,
+                "--db-port", db_port,
+                "--db-name", db_name,
+                "--db-user", db_user,
+                "--db-password", db_password
+            ]
+            log(f"   Команда запуска API: {' '.join(cmd[:8])}...")  # Не показываем пароль
+            
             with open(log_file, "w") as f:
                 subprocess.Popen(
-                    [
-                        str(self.venv_python),
-                        str(api_script),
-                        "--db-host", "localhost",
-                        "--db-port", "15432",  # Используем альтернативный порт для SSH туннеля
-                        "--db-name", "fedoc",
-                        "--db-user", "postgres",
-                        "--db-password", self.arango_password  # Пароль для PostgreSQL на сервере
-                    ],
+                    cmd,
                     stdout=f,
                     stderr=subprocess.STDOUT,
                     cwd=self.backend_dir,
@@ -200,12 +220,17 @@ class ProcessManager:
             # Запускаем Vite в фоне
             log_file = Path("/tmp/graph_viewer_vite.log")
             
+            # Подготавливаем environment с портом API сервера
+            env = os.environ.copy()
+            env['VITE_API_PORT'] = str(self.api_port)
+            
             with open(log_file, "w") as f:
                 subprocess.Popen(
                     ["npm", "run", "dev"],
                     stdout=f,
                     stderr=subprocess.STDOUT,
                     cwd=self.frontend_dir,
+                    env=env,  # Передаем environment с VITE_API_PORT
                     start_new_session=True
                 )
             

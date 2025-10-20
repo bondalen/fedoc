@@ -460,10 +460,20 @@ class FedocMCPServer:
                 text = f"{status_icon} Статус: {result['overall_status']}\n\n"
                 text += f"🖥️  Машина: {result.get('machine', 'N/A')}\n\n"
                 text += "🔧 Компоненты:\n"
+                
+                # Обрабатываем компоненты
                 for name, comp in result.get("components", {}).items():
-                    comp_icon = "✅" if comp["status"] in ["connected", "running"] else "❌"
-                    pid = f" (PID: {comp['pid']})" if comp.get("pid") else ""
-                    text += f"   {comp_icon} {name}: {comp['status']}{pid}\n"
+                    if name == "ssh_tunnels":
+                        # SSH туннели - это словарь туннелей
+                        for tunnel_name, tunnel in comp.items():
+                            tunnel_icon = "✅" if tunnel.get("status") == "connected" else "❌"
+                            pid = f" (PID: {tunnel.get('pid')})" if tunnel.get("pid") else ""
+                            text += f"   {tunnel_icon} {tunnel_name}_tunnel: {tunnel.get('status')}{pid}\n"
+                    else:
+                        # Обычные компоненты (api_server, vite_server)
+                        comp_icon = "✅" if comp.get("status") in ["connected", "running"] else "❌"
+                        pid = f" (PID: {comp.get('pid')})" if comp.get("pid") else ""
+                        text += f"   {comp_icon} {name}: {comp.get('status')}{pid}\n"
                 
                 if result.get("ready"):
                     text += f"\n🌐 URL: {result['url']}"

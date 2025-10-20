@@ -7,6 +7,42 @@
 from typing import Dict, Any, Optional, Tuple
 import psycopg2
 from psycopg2.extras import Json
+import json
+
+
+def format_properties_for_cypher(properties: Dict[str, Any]) -> str:
+    """
+    Форматировать свойства в Cypher синтаксис
+    
+    Args:
+        properties: Словарь свойств
+    
+    Returns:
+        str: Строка в Cypher формате, например: {relationType: "uses", projects: ["fepro"]}
+    """
+    if not properties:
+        return "{}"
+    
+    parts = []
+    for key, value in properties.items():
+        if isinstance(value, str):
+            # Строки в двойных кавычках
+            parts.append(f'{key}: "{value}"')
+        elif isinstance(value, list):
+            # Массивы
+            if value and isinstance(value[0], str):
+                array_str = '[' + ', '.join(f'"{v}"' for v in value) + ']'
+            else:
+                array_str = json.dumps(value)
+            parts.append(f'{key}: {array_str}')
+        elif isinstance(value, (int, float, bool)):
+            # Числа и boolean
+            parts.append(f'{key}: {json.dumps(value)}')
+        else:
+            # Другие типы через JSON
+            parts.append(f'{key}: {json.dumps(value)}')
+    
+    return '{' + ', '.join(parts) + '}'
 
 
 class EdgeValidatorAGE:
@@ -48,43 +84,32 @@ class EdgeValidatorAGE:
             cur.execute("SET search_path = ag_catalog, public;")
             
             # Построить Cypher запрос для поиска дубликатов
+            # Используем FORMAT() вместо параметров (Apache AGE 1.6.0 не поддерживает параметры)
             if exclude_edge_id is None:
                 # Без исключения (для создания нового ребра)
-                query = """
-                SELECT * FROM cypher(%s, $$
+                query = f"""
+                SELECT * FROM cypher('{self.graph_name}', $$
                     MATCH (a)-[e]->(b)
-                    WHERE (id(a) = $from_id AND id(b) = $to_id)
-                       OR (id(a) = $to_id AND id(b) = $from_id)
+                    WHERE (id(a) = {from_vertex_id} AND id(b) = {to_vertex_id})
+                       OR (id(a) = {to_vertex_id} AND id(b) = {from_vertex_id})
                     RETURN id(e) as edge_id, id(a) as from_id, id(b) as to_id
                     LIMIT 1
-                $$, %s) as (edge_id agtype, from_id agtype, to_id agtype)
+                $$) as (edge_id agtype, from_id agtype, to_id agtype)
                 """
-                params = (
-                    self.graph_name,
-                    Json({'from_id': from_vertex_id, 'to_id': to_vertex_id})
-                )
             else:
                 # С исключением (для обновления)
-                query = """
-                SELECT * FROM cypher(%s, $$
+                query = f"""
+                SELECT * FROM cypher('{self.graph_name}', $$
                     MATCH (a)-[e]->(b)
-                    WHERE ((id(a) = $from_id AND id(b) = $to_id)
-                        OR (id(a) = $to_id AND id(b) = $from_id))
-                      AND id(e) <> $exclude_id
+                    WHERE ((id(a) = {from_vertex_id} AND id(b) = {to_vertex_id})
+                        OR (id(a) = {to_vertex_id} AND id(b) = {from_vertex_id}))
+                      AND id(e) <> {exclude_edge_id}
                     RETURN id(e) as edge_id, id(a) as from_id, id(b) as to_id
                     LIMIT 1
-                $$, %s) as (edge_id agtype, from_id agtype, to_id agtype)
+                $$) as (edge_id agtype, from_id agtype, to_id agtype)
                 """
-                params = (
-                    self.graph_name,
-                    Json({
-                        'from_id': from_vertex_id,
-                        'to_id': to_vertex_id,
-                        'exclude_id': exclude_edge_id
-                    })
-                )
             
-            cur.execute(query, params)
+            cur.execute(query)
             result = cur.fetchone()
             
             if result and result[0]:
@@ -138,36 +163,24 @@ class EdgeValidatorAGE:
             raise ValueError(error_msg)
         
         # Создать ребро через Cypher
+        # Используем FORMAT() вместо параметров (Apache AGE 1.6.0 ограничение)
         with self.conn.cursor() as cur:
             cur.execute("LOAD 'age';")
             cur.execute("SET search_path = ag_catalog, public;")
             
-            # Конвертировать свойства в agtype format
-            props_json = Json(properties)
+            # Конвертировать свойства в Cypher формат
+            props_str = format_properties_for_cypher(properties)
             
-            query = """
-            SELECT * FROM cypher(%s, $$
+            query = f"""
+            SELECT * FROM cypher('{self.graph_name}', $$
                 MATCH (a), (b)
-                WHERE id(a) = $from_id AND id(b) = $to_id
-                CREATE (a)-[e:%s $props]->(b)
+                WHERE id(a) = {from_vertex_id} AND id(b) = {to_vertex_id}
+                CREATE (a)-[e:{self.edge_label} {props_str}]->(b)
                 RETURN id(e) as edge_id
-            $$, %s) as (edge_id agtype)
-            """ % (
-                '%s',  # graph_name
-                self.edge_label,  # label
-                '%s'   # params
-            )
+            $$) as (edge_id agtype)
+            """
             
-            params = (
-                self.graph_name,
-                Json({
-                    'from_id': from_vertex_id,
-                    'to_id': to_vertex_id,
-                    'props': properties
-                })
-            )
-            
-            cur.execute(query, params)
+            cur.execute(query)
             result = cur.fetchone()
             
             if result and result[0]:
@@ -207,24 +220,19 @@ class EdgeValidatorAGE:
             cur.execute("SET search_path = ag_catalog, public;")
             
             # Обновить свойства ребра
-            query = """
-            SELECT * FROM cypher(%s, $$
+            # Используем FORMAT() вместо параметров (Apache AGE 1.6.0 ограничение)
+            props_str = format_properties_for_cypher(new_properties)
+            
+            query = f"""
+            SELECT * FROM cypher('{self.graph_name}', $$
                 MATCH ()-[e]->()
-                WHERE id(e) = $edge_id
-                SET e = $props
+                WHERE id(e) = {edge_id}
+                SET e = {props_str}
                 RETURN id(e) as edge_id
-            $$, %s) as (edge_id agtype)
+            $$) as (edge_id agtype)
             """
             
-            params = (
-                self.graph_name,
-                Json({
-                    'edge_id': edge_id,
-                    'props': new_properties
-                })
-            )
-            
-            cur.execute(query, params)
+            cur.execute(query)
             result = cur.fetchone()
             
             if result and result[0]:
@@ -250,21 +258,17 @@ class EdgeValidatorAGE:
             cur.execute("LOAD 'age';")
             cur.execute("SET search_path = ag_catalog, public;")
             
-            query = """
-            SELECT * FROM cypher(%s, $$
+            # Используем FORMAT() вместо параметров (Apache AGE 1.6.0 ограничение)
+            query = f"""
+            SELECT * FROM cypher('{self.graph_name}', $$
                 MATCH ()-[e]->()
-                WHERE id(e) = $edge_id
+                WHERE id(e) = {edge_id}
                 DELETE e
                 RETURN id(e) as edge_id
-            $$, %s) as (edge_id agtype)
+            $$) as (edge_id agtype)
             """
             
-            params = (
-                self.graph_name,
-                Json({'edge_id': edge_id})
-            )
-            
-            cur.execute(query, params)
+            cur.execute(query)
             result = cur.fetchone()
             
             if result and result[0]:
