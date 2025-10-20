@@ -25,20 +25,26 @@
 
 ## 🏗️ Архитектура
 
-- **База данных:** ArangoDB Community Edition (Multi-Model)
+- **База данных:** PostgreSQL 16 + Apache AGE (Graph Database)
 - **Язык:** Python 3.10+
 - **Интеграция:** MCP Server для Cursor AI
 - **Развертывание:** Docker Compose
 - **Лицензия:** Apache 2.0
 
+> **⚠️ Миграция:** С 2025-10-18 проект перешел с ArangoDB на PostgreSQL + Apache AGE.
+> Подробности в [docs/decisions/MIGRATION_COMPLETE.md](docs-preliminary/chats/chat-2025-10-18-migration-to-postgresql-age-success.md).
+> Legacy-доступ к ArangoDB: [docs/ARANGO_LEGACY_READONLY_ACCESS.md](docs/ARANGO_LEGACY_READONLY_ACCESS.md)
+
 ### Технологический стек
 
 | Компонент | Технология | Назначение |
 |-----------|------------|------------|
-| База данных | ArangoDB | Document + Graph + Key-Value |
+| База данных (граф) | PostgreSQL + Apache AGE | Graph Database (Cypher queries) |
+| База данных (документы) | PostgreSQL (JSONB) | Document storage |
 | Скрипты | Python 3.10+ | Миграция, извлечение, запросы |
-| Драйвер БД | python-arango | Работа с ArangoDB |
+| Драйвер БД | psycopg2 | Работа с PostgreSQL |
 | Cursor интеграция | MCP Server | Прямой доступ из IDE |
+| Веб-интерфейс | Vue.js + Vite + vis-network | Визуализация графа |
 | Контейнеризация | Docker Compose | Изоляция и переносимость |
 
 ---
@@ -81,11 +87,15 @@ fedoc/
 - **Документация:** [MCP README](src/mcp_server/README.md), [ADR-002](docs/project/decisions/002-mcp-integration.md)
 
 ### Graph Viewer
-Библиотека для визуализации графов проектов из ArangoDB.
+Веб-приложение для визуализации графов проектов из PostgreSQL + Apache AGE.
 
 - **Расположение:** `src/lib/graph_viewer/`
-- **Использование:** через MCP или CLI (`dev/tools/view-graph.sh`)
-- **Документация:** [Graph Viewer README](src/lib/graph_viewer/README.md), [ADR-003](docs/project/decisions/003-graph-viewer-arch.md)
+- **Технологии:** Vue.js 3, Vite, vis-network, Flask, SocketIO
+- **Использование:** через MCP (`open_graph_viewer`) или CLI (`dev/tools/view-graph.sh`)
+- **Документация:** 
+  - [Graph Viewer Quickstart](docs-preliminary/visualizations/GRAPH_VIEWER_QUICKSTART.md)
+  - [Context Menu Quickstart](docs-preliminary/visualizations/CONTEXT_MENU_QUICKSTART.md)
+  - [MCP Integration](docs/decisions/GRAPH_VIEWER_MCP_INTEGRATION.md)
 
 ---
 
@@ -94,9 +104,11 @@ fedoc/
 ### Проектная документация
 - [Архитектура проекта](docs/project/project-docs.json) - структурированное описание
 - [Архитектурные решения (ADR)](docs/project/decisions/) - важные технические решения
-  - [001: Выбор ArangoDB](docs/project/decisions/001-arangodb-choice.md)
+  - [001: Выбор ArangoDB](docs/project/decisions/001-arangodb-choice.md) (legacy)
   - [002: Интеграция через MCP](docs/project/decisions/002-mcp-integration.md)
   - [003: Архитектура Graph Viewer](docs/project/decisions/003-graph-viewer-arch.md)
+- [Миграция на PostgreSQL + AGE](docs-preliminary/chats/chat-2025-10-18-migration-to-postgresql-age-success.md)
+- [ArangoDB Legacy доступ](docs/ARANGO_LEGACY_READONLY_ACCESS.md) (read-only)
 
 ### Инструкции
 - [Установка и использование](docs-preliminary/INSTALLATION.md) - полное руководство
@@ -166,8 +178,8 @@ chmod +x deploy-to-server.sh
 ```
 
 **Развертываются (все БД по требованию):**
-- 🗄️ ArangoDB 3.11 (Multi-Model БД для fedoc) - ~600 MB RAM
-- 🗄️ PostgreSQL 16 (универсальная реляционная БД) - ~400 MB RAM
+- 🗄️ PostgreSQL 16 + Apache AGE (Graph БД для fedoc) - ~500 MB RAM
+- 🗄️ ArangoDB 3.11 (legacy, read-only) - ~600 MB RAM
 - 🗄️ MS SQL Server 2022 (для FEMSQ и др.) - ~1.8 GB RAM
 
 **Запуск по требованию:** максимальная гибкость и экономия ресурсов!

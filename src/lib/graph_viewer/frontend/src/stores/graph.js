@@ -170,11 +170,19 @@ export const useGraphStore = defineStore('graph', () => {
       nodes.value = data
       
       // Установить первый узел по умолчанию, если не выбран
-      if (nodes.value.length > 0 && !startNode.value) {
-        startNode.value = nodes.value[0]._id
+      const needsAutoLoad = nodes.value.length > 0 && !startNode.value
+      if (needsAutoLoad) {
+        // Передаём в API arango_key вместо AGE ID
+        startNode.value = nodes.value[0]._key
       }
       
       console.log(`Загружено узлов: ${nodes.value.length}`)
+      
+      // Автоматически загрузить граф после установки стартового узла
+      if (needsAutoLoad) {
+        console.log('Автозагрузка графа для узла:', startNode.value)
+        await loadGraph()
+      }
     } catch (err) {
       console.error('Ошибка загрузки узлов:', err)
       setError(`Не удалось загрузить список узлов: ${err.message}`)
@@ -202,7 +210,7 @@ export const useGraphStore = defineStore('graph', () => {
       error.value = null
       
       const params = new URLSearchParams({
-        start: startNode.value,
+        start: startNode.value,  // теперь это arango_key (например, c:backend)
         depth: depth.value
       })
       
@@ -327,16 +335,26 @@ export const useGraphStore = defineStore('graph', () => {
     }
     
     try {
-      const url = `${API_BASE}/object_details?id=${encodeURIComponent(docId)}`
-      const response = await fetch(url)
+      // Поддержка документных коллекций в PostgreSQL
+      // Ожидаемые форматы: 'projects/<key>' или 'rules/<key>'
+      let url
+      if (typeof docId === 'string' && docId.includes('/')) {
+        const [collection, key] = docId.split('/', 2)
+        if ((collection === 'projects' || collection === 'rules') && key) {
+          url = `${API_BASE}/object_details?collection=${encodeURIComponent(collection)}&key=${encodeURIComponent(key)}`
+        }
+      }
+      // Fallback: старый режим через id=
+      if (!url) {
+        url = `${API_BASE}/object_details?id=${encodeURIComponent(docId)}`
+      }
       
+      const response = await fetch(url)
       if (!response.ok) {
         throw new Error(`Ошибка сервера: ${response.status}`)
       }
-      
       const data = await response.json()
       
-      // API возвращает объект напрямую
       // Сохранить в кэш
       documentCache.value.set(docId, data)
       loadedDocs.value.add(docId)
@@ -647,15 +665,39 @@ export const useGraphStore = defineStore('graph', () => {
       console.warn('WebSocket not connected, cannot send selection')
       return
     }
-    
-    // Получить детали выбранных объектов
+
+    // Берём текущую выборку из store (без прямых вызовов vis-network)
+    const nodeIds = (selectedNodesList.value || []).map(n => (n && typeof n === 'object' ? (n.id ?? n) : n))
+    const edgeIds = (selectedEdgesList.value || []).map(e => (e && typeof e === 'object' ? (e.id ?? e) : e))
+
+    const nodesPayload = nodeIds.map((nid) => {
+      let meta = {}
+      try { meta = nodesDataSet.value ? (nodesDataSet.value.get(nid) || {}) : {} } catch {}
+      return {
+        id: meta.id || nid,
+        key: meta._key || meta.key || null,
+        label: meta.label || meta.name || null,
+      }
+    })
+
+    const edgesPayload = edgeIds.map((eid) => {
+      let meta = {}
+      try { meta = edgesDataSet.value ? (edgesDataSet.value.get(eid) || {}) : {} } catch {}
+      return {
+        id: meta.id || eid,
+        from: meta.from || null,
+        to: meta.to || null,
+        label: meta.label || null,
+      }
+    })
+
     const selectionData = {
-      nodes: selectedNodesList.value,
-      edges: selectedEdgesList.value,
-      timestamp: Date.now()
+      nodes: nodesPayload,
+      edges: edgesPayload,
+      timestamp: Date.now(),
     }
-    
-    console.log(`Sending selection: ${selectedNodesList.value.length} nodes, ${selectedEdgesList.value.length} edges`)
+
+    console.log(`Sending selection: ${nodesPayload.length} nodes, ${edgesPayload.length} edges`)
     socket.emit('selection_response', selectionData)
   }
   
@@ -1083,7 +1125,7 @@ export const useGraphStore = defineStore('graph', () => {
   
   // ========== RETURN ==========
   
-  return {
+  const api = {
     // State
     nodes,
     startNode,
@@ -1155,5 +1197,14 @@ export const useGraphStore = defineStore('graph', () => {
     visibleNodesCount,
     visibleEdgesCount
   }
+
+  // Экспорт для внешнего вызова (MCP) – безопасно
+  if (typeof window !== 'undefined') {
+    window.$graphStore = {
+      sendSelectionToServer: api.sendSelectionToServer
+    }
+  }
+
+  return api
 })
 

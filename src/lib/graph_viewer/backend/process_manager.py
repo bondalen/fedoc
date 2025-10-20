@@ -52,7 +52,9 @@ class ProcessManager:
                 # Используем системный python из tools или который запустил скрипт
                 self.venv_python = Path(config.get('tools.python', sys.executable))
             
-            self.arango_password = config.get_password() or "fedoc_dev_2025"
+            # Получить пароль из конфигурации или использовать дефолтный
+            # Для PostgreSQL используется fedoc_test_2025
+            self.arango_password = config.get_password() or "fedoc_test_2025"
             self.api_port = config.get('ports.api_server', 8899)
             self.vite_port = config.get('ports.vite_server', 5173)
         else:
@@ -66,7 +68,7 @@ class ProcessManager:
             self.frontend_dir = self.graph_viewer_root / "frontend"
             self.project_root = self.graph_viewer_root.parent.parent.parent
             self.venv_python = self.project_root / "venv" / "bin" / "python"
-            self.arango_password = arango_password or "fedoc_dev_2025"
+            self.arango_password = arango_password or "fedoc_test_2025"
             self.api_port = 8899
             self.vite_port = 5173
         
@@ -144,10 +146,10 @@ class ProcessManager:
                         str(self.venv_python),
                         str(api_script),
                         "--db-host", "localhost",
-                        "--db-port", "5432",
+                        "--db-port", "15432",  # Используем альтернативный порт для SSH туннеля
                         "--db-name", "fedoc",
                         "--db-user", "postgres",
-                        "--db-password", self.arango_password  # Используем тот же пароль для PostgreSQL
+                        "--db-password", self.arango_password  # Пароль для PostgreSQL на сервере
                     ],
                     stdout=f,
                     stderr=subprocess.STDOUT,

@@ -99,6 +99,43 @@ def execute_cypher(query: str, params: dict = None, return_type: str = 'auto'):
         return cur.fetchall()
 
 
+def execute_sql_function(function_name: str, *args):
+    """
+    Выполнить PostgreSQL функцию
+    
+    Args:
+        function_name: Имя функции в формате 'schema.function_name'
+        *args: Аргументы функции
+    
+    Returns:
+        list: Список результатов
+    """
+    with db_conn.cursor() as cur:
+        # Загрузить AGE и установить search_path
+        cur.execute("LOAD 'age';")
+        cur.execute("SET search_path = ag_catalog, public;")
+        
+        # Сформировать список параметров
+        params_list = []
+        for arg in args:
+            if arg is None:
+                params_list.append('NULL')
+            elif isinstance(arg, str):
+                # Экранировать одинарные кавычки
+                escaped = arg.replace("'", "''")
+                params_list.append(f"'{escaped}'")
+            elif isinstance(arg, (int, float)):
+                params_list.append(str(arg))
+            else:
+                params_list.append(str(arg))
+        
+        params_str = ', '.join(params_list)
+        query = f"SELECT * FROM {function_name}({params_str})"
+        
+        cur.execute(query)
+        return cur.fetchall()
+
+
 def agtype_to_python(agtype_value):
     """
     Конвертировать agtype в Python объект
@@ -134,31 +171,12 @@ def agtype_to_python(agtype_value):
 
 @app.route('/api/nodes', methods=['GET'])
 def get_nodes():
-    """Вернуть список узлов"""
+    """Вернуть список узлов используя PostgreSQL функции"""
     try:
         project = request.args.get('project', '')
         
-        if project:
-            # Получить узлы, связанные с проектом
-            query = f"""
-            MATCH (a)-[e:project_relation]->(b)
-            WHERE '{project}' IN e.projects
-            WITH DISTINCT a as node
-            RETURN id(node) as id, node.arango_key as key, node.name as name
-            UNION
-            MATCH (a)-[e:project_relation]->(b)
-            WHERE '{project}' IN e.projects
-            WITH DISTINCT b as node
-            RETURN id(node) as id, node.arango_key as key, node.name as name
-            """
-            results = execute_cypher(query)
-        else:
-            # Все узлы
-            query = """
-            MATCH (n:canonical_node)
-            RETURN id(n) as id, n.arango_key as key, n.name as name
-            """
-            results = execute_cypher(query)
+        # Используем новую PostgreSQL функцию
+        results = execute_sql_function('ag_catalog.get_all_nodes_for_viewer', project if project else None)
         
         # Конвертировать результаты
         nodes = []
@@ -177,148 +195,22 @@ def get_nodes():
 
 @app.route('/api/graph', methods=['GET'])
 def get_graph():
-    """Построить граф"""
+    """Построить граф используя PostgreSQL функции"""
     try:
         start = request.args.get('start', '')
         depth = int(request.args.get('depth', '5'))
         project = request.args.get('project', '') or None
         theme = request.args.get('theme', 'dark')
         
-        # Если start не указан, вернуть все узлы и ребра проекта
+        # Используем новые PostgreSQL функции вместо прямых Cypher запросов
         if not start:
-            if project:
-                query = f"""
-                MATCH (n)-[e:project_relation]->(m)
-                WHERE '{project}' IN e.projects
-                RETURN 
-                    id(e) as edge_id,
-                    id(n) as from_id,
-                    id(m) as to_id,
-                    n.name as from_name,
-                    m.name as to_name,
-                    n.arango_key as from_key,
-                    m.arango_key as to_key,
-                    n.kind as from_kind,
-                    m.kind as to_kind,
-                    e.projects as projects,
-                    e.relationType as rel_type
-                LIMIT 5000
-                """
-            else:
-                query = """
-                MATCH (n)-[e:project_relation]->(m)
-                RETURN 
-                    id(e) as edge_id,
-                    id(n) as from_id,
-                    id(m) as to_id,
-                    n.name as from_name,
-                    m.name as to_name,
-                    n.arango_key as from_key,
-                    m.arango_key as to_key,
-                    n.kind as from_kind,
-                    m.kind as to_kind,
-                    e.projects as projects,
-                    e.relationType as rel_type
-                LIMIT 5000
-                """
+            # Вернуть все узлы и ребра проекта
+            results = execute_sql_function('ag_catalog.get_all_graph_for_viewer', project)
         else:
-            # Определить, является ли start ID или ключом
-            if start.isdigit():
-                # start - это ID узла
-                start_id = int(start)
-                if project:
-                    query = f"""
-                    MATCH (start:canonical_node)
-                    WHERE id(start) = {start_id}
-                    MATCH path = (start)-[e:project_relation*1..{depth}]->(target)
-                    WITH relationships(path) as edges_list, nodes(path) as nodes_list
-                    UNWIND range(0, size(edges_list)-1) as i
-                    WITH edges_list[i] as e, nodes_list[i] as from_node, nodes_list[i+1] as to_node
-                    WHERE '{project}' IN e.projects
-                    RETURN 
-                        id(e) as edge_id,
-                        id(from_node) as from_id,
-                        id(to_node) as to_id,
-                        from_node.name as from_name,
-                        to_node.name as to_name,
-                        from_node.arango_key as from_key,
-                        to_node.arango_key as to_key,
-                        from_node.kind as from_kind,
-                        to_node.kind as to_kind,
-                        e.projects as projects,
-                        e.relationType as rel_type
-                    LIMIT 5000
-                    """
-                else:
-                    query = f"""
-                    MATCH (start:canonical_node)
-                    WHERE id(start) = {start_id}
-                    MATCH path = (start)-[e:project_relation*1..{depth}]->(target)
-                    WITH relationships(path) as edges_list, nodes(path) as nodes_list
-                    UNWIND range(0, size(edges_list)-1) as i
-                    WITH edges_list[i] as e, nodes_list[i] as from_node, nodes_list[i+1] as to_node
-                    RETURN 
-                        id(e) as edge_id,
-                        id(from_node) as from_id,
-                        id(to_node) as to_id,
-                        from_node.name as from_name,
-                        to_node.name as to_name,
-                        from_node.arango_key as from_key,
-                        to_node.arango_key as to_key,
-                        from_node.kind as from_kind,
-                        to_node.kind as to_kind,
-                        e.projects as projects,
-                        e.relationType as rel_type
-                    LIMIT 5000
-                    """
-            else:
-                # start - это ключ узла
-                start_key = start.split('/')[-1] if '/' in start else start
-                if project:
-                    query = f"""
-                    MATCH (start:canonical_node {{arango_key: '{start_key}'}})
-                    MATCH path = (start)-[e:project_relation*1..{depth}]->(target)
-                    WITH relationships(path) as edges_list, nodes(path) as nodes_list
-                    UNWIND range(0, size(edges_list)-1) as i
-                    WITH edges_list[i] as e, nodes_list[i] as from_node, nodes_list[i+1] as to_node
-                    WHERE '{project}' IN e.projects
-                    RETURN 
-                        id(e) as edge_id,
-                        id(from_node) as from_id,
-                        id(to_node) as to_id,
-                        from_node.name as from_name,
-                        to_node.name as to_name,
-                        from_node.arango_key as from_key,
-                        to_node.arango_key as to_key,
-                        from_node.kind as from_kind,
-                        to_node.kind as to_kind,
-                        e.projects as projects,
-                        e.relationType as rel_type
-                    LIMIT 5000
-                    """
-                else:
-                    query = f"""
-                    MATCH (start:canonical_node {{arango_key: '{start_key}'}})
-                    MATCH path = (start)-[e:project_relation*1..{depth}]->(target)
-                    WITH relationships(path) as edges_list, nodes(path) as nodes_list
-                    UNWIND range(0, size(edges_list)-1) as i
-                    WITH edges_list[i] as e, nodes_list[i] as from_node, nodes_list[i+1] as to_node
-                    RETURN 
-                        id(e) as edge_id,
-                        id(from_node) as from_id,
-                        id(to_node) as to_id,
-                        from_node.name as from_name,
-                        to_node.name as to_name,
-                        from_node.arango_key as from_key,
-                        to_node.arango_key as to_key,
-                        from_node.kind as from_kind,
-                        to_node.kind as to_kind,
-                        e.projects as projects,
-                        e.relationType as rel_type
-                    LIMIT 5000
-                    """
-        
-        results = execute_cypher(query)
+            # Извлечь ключ узла из start
+            start_key = start.split('/')[-1] if '/' in start else start
+            # Получить граф от указанного узла
+            results = execute_sql_function('ag_catalog.get_graph_for_viewer', start_key, depth, project)
         
         # Построение узлов и рёбер для vis-network
         nodes_map = {}
@@ -346,6 +238,7 @@ def get_graph():
                 nodes_map[from_id] = {
                     'id': from_id,
                     'label': from_name,
+                    '_key': from_key,
                     'shape': 'box' if from_kind == 'concept' else 'ellipse',
                     'color': {
                         'background': '#263238' if theme == 'dark' else '#E3F2FD'
@@ -358,6 +251,7 @@ def get_graph():
                 nodes_map[to_id] = {
                     'id': to_id,
                     'label': to_name,
+                    '_key': to_key,
                     'shape': 'box' if to_kind == 'concept' else 'ellipse',
                     'color': {
                         'background': '#263238' if theme == 'dark' else '#E3F2FD'
@@ -394,43 +288,52 @@ def get_graph():
 
 @app.route('/api/object_details', methods=['GET'])
 def get_object_details():
-    """Получить детали объекта (узел или ребро)"""
+    """Получить детали объекта.
+    Поддерживает:
+      - Графовые объекты AGE по id/ключу (по умолчанию)
+      - Документные коллекции из PostgreSQL: collection=projects|rules & key=...
+    """
     try:
+        collection = request.args.get('collection')
+        key = request.args.get('key')
+        if collection and key:
+            with db_conn.cursor(cursor_factory=RealDictCursor) as cur:
+                if collection == 'projects':
+                    cur.execute("SELECT key, name, description, data, created_at, updated_at FROM public.projects WHERE key=%s", (key,))
+                elif collection == 'rules':
+                    cur.execute("SELECT key, title, description, data, created_at, updated_at FROM public.rules WHERE key=%s", (key,))
+                else:
+                    return jsonify({'error': f'Unsupported collection: {collection}'}), 400
+                row = cur.fetchone()
+                if not row:
+                    return jsonify({'error': f'{collection}/{key} not found'}), 404
+                return jsonify(row)
+        
+        # Графовый режим (обратная совместимость)
         doc_id = request.args.get('id', '')
-        
         if not doc_id:
-            return jsonify({'error': 'Missing "id" parameter'}), 400
+            return jsonify({'error': 'Missing "id" or (collection,key)'}), 400
         
-        # ID может быть числом (AGE id) или строкой (arango_key)
         try:
             obj_id = int(doc_id)
-            # Поиск по ID - сначала узел, потом ребро
             query = "MATCH (n) WHERE id(n) = $obj_id RETURN n"
             params = {'obj_id': obj_id}
             results = execute_cypher(query, params)
-            
             if not results or not results[0][0]:
-                # Попробовать найти ребро
                 query = "MATCH ()-[r]->() WHERE id(r) = $obj_id RETURN r"
                 results = execute_cypher(query, params, return_type='edge')
         except ValueError:
-            # Поиск по arango_key
-            key = doc_id.split('/')[-1] if '/' in doc_id else doc_id
+            k = doc_id.split('/')[-1] if '/' in doc_id else doc_id
             query = "MATCH (n {arango_key: $key}) RETURN n"
-            params = {'key': key}
+            params = {'key': k}
             results = execute_cypher(query, params)
-            
             if not results or not results[0][0]:
-                # Попробовать найти ребро по arango_key
                 query = "MATCH ()-[r {arango_key: $key}]->() RETURN r"
                 results = execute_cypher(query, params, return_type='edge')
         
         if not results or not results[0][0]:
-            return jsonify({'error': f'Document "{doc_id}" not found'}), 404
-        
-        # Конвертировать agtype в dict
+            return jsonify({'error': f'Object "{doc_id}" not found'}), 404
         obj_data = agtype_to_python(results[0][0])
-        
         return jsonify(obj_data)
     except Exception as e:
         log(f"Error in get_object_details: {e}")
@@ -439,57 +342,82 @@ def get_object_details():
 
 @app.route('/api/expand_node', methods=['GET'])
 def expand_node():
-    """Получить соседние узлы (родители или потомки) для выбранного узла"""
+    """Получить соседние узлы используя PostgreSQL функцию"""
     try:
         node_id = request.args.get('node_id', '')
-        direction = request.args.get('direction', 'outbound')
+        direction = request.args.get('direction', 'outbound')  # Пока не используется, функция возвращает both
         project = request.args.get('project', '')
         theme = request.args.get('theme', 'dark')
+        depth = int(request.args.get('depth', '1'))  # По умолчанию 1 уровень
         
         if not node_id:
             return jsonify({'error': 'Missing "node_id" parameter'}), 400
         
-        # Преобразовать node_id
-        try:
-            nid = int(node_id)
-        except:
-            key = node_id.split('/')[-1] if '/' in node_id else node_id
-            # Получить ID по ключу
-            results = execute_cypher("MATCH (n {arango_key: $key}) RETURN id(n)", {'key': key})
-            if not results:
-                return jsonify({'error': f'Node {node_id} not found'}), 404
-            nid = agtype_to_python(results[0][0])
+        # Получить arango_key по node_id
+        node_key = None
+        if node_id.isdigit():
+            # Это числовой ID, нужно получить arango_key из базы
+            with db_conn.cursor() as cur:
+                cur.execute("LOAD 'age';")
+                cur.execute("SET search_path = ag_catalog, public;")
+                cur.execute(f"""
+                    SELECT * FROM cypher('{graph_name}', $$
+                        MATCH (n) WHERE id(n) = {node_id}
+                        RETURN n.arango_key
+                    $$) as (key agtype);
+                """)
+                result = cur.fetchone()
+                if result:
+                    node_key = agtype_to_python(result[0])
+        else:
+            # Это уже ключ (например, 'canonical_nodes/c:project')
+            node_key = node_id.split('/')[-1] if '/' in node_id else node_id
         
-        # Cypher запрос в зависимости от направления
-        if direction == 'outbound':
-            query = """
-            MATCH (start)-[e:project_relation]->(end)
-            WHERE id(start) = $node_id
-            RETURN end as node, e as edge
-            """
-        else:  # inbound
-            query = """
-            MATCH (start)<-[e:project_relation]-(end)
-            WHERE id(start) = $node_id
-            RETURN end as node, e as edge
-            """
+        if not node_key:
+            return jsonify({'error': f'Node not found: {node_id}'}), 404
         
-        results = execute_cypher(query, {'node_id': nid})
+        # Используем новую PostgreSQL функцию
+        results = execute_sql_function(
+            'ag_catalog.expand_node_for_viewer',
+            node_key,
+            depth,
+            project if project else None
+        )
         
         # Форматирование для vis-network
         nodes = []
         edges = []
+        processed_nodes = set()
+        processed_edges = set()
         
         for row in results:
-            node = agtype_to_python(row[0])
-            edge = agtype_to_python(row[1])
+            node_id_val = agtype_to_python(row[0])
+            node_key_val = agtype_to_python(row[1])
+            node_name = agtype_to_python(row[2])
+            node_kind = agtype_to_python(row[3])
+            edge_id = agtype_to_python(row[4])
+            from_id = agtype_to_python(row[5])
+            to_id = agtype_to_python(row[6])
+            edge_projects_str = agtype_to_python(row[7])
+            direction = agtype_to_python(row[8])
             
-            if node:
-                node_kind = node.get('properties', {}).get('kind', 'unknown')
-                
+            # Парсинг projects - agtype_to_python уже преобразует в Python объект
+            if edge_projects_str and isinstance(edge_projects_str, list):
+                edge_projects = edge_projects_str
+            elif edge_projects_str and isinstance(edge_projects_str, str):
+                try:
+                    edge_projects = json.loads(edge_projects_str)
+                except:
+                    edge_projects = []
+            else:
+                edge_projects = []
+            
+            # Добавить узел (избегать дубликатов)
+            if node_id_val and node_id_val not in processed_nodes:
+                processed_nodes.add(node_id_val)
                 nodes.append({
-                    'id': node.get('id'),
-                    'label': node.get('properties', {}).get('name', ''),
+                    'id': node_id_val,
+                    'label': node_name or node_key_val,
                     'shape': 'box' if node_kind == 'concept' else 'ellipse',
                     'color': {
                         'background': '#263238' if theme == 'dark' else '#E3F2FD'
@@ -498,17 +426,20 @@ def expand_node():
                     }
                 })
             
-            if edge:
-                edge_props = edge.get('properties', {})
+            # Добавить ребро (избегать дубликатов)
+            if edge_id and edge_id not in processed_edges:
+                processed_edges.add(edge_id)
                 edges.append({
-                    'id': edge.get('id'),
-                    'from': edge.get('start_id'),
-                    'to': edge.get('end_id'),
-                    'label': ', '.join(edge_props.get('projects', [])) if edge_props.get('projects') else 'альтернатива',
+                    'id': edge_id,
+                    'from': from_id,
+                    'to': to_id,
+                    'label': ', '.join(edge_projects) if edge_projects else 'альтернатива',
                     'color': {
-                        'color': '#64B5F6' if edge_props.get('projects') else '#9E9E9E'
+                        'color': '#64B5F6' if edge_projects else '#9E9E9E'
                     }
                 })
+        
+        log(f"expand_node: {node_key} (depth={depth}) -> {len(nodes)} nodes, {len(edges)} edges")
         
         return jsonify({'nodes': nodes, 'edges': edges})
     except Exception as e:

@@ -398,11 +398,22 @@ def get_selected_nodes() -> Dict[str, any]:
         if nodes:
             result_lines.append(f"📦 Узлы ({len(nodes)}):")
             for i, node in enumerate(nodes, 1):
-                node_id = node.get('_id', 'N/A')
-                node_name = node.get('name', node.get('_key', 'Без названия'))
-                node_kind = node.get('kind', 'unknown')
+                node_id = node.get('id', node.get('_id', 'N/A'))
+                node_name = node.get('label', node.get('name', node.get('key', 'Без названия')))
+                node_key = node.get('key', node.get('_key', ''))
                 
-                result_lines.append(f"{i}. {node_id}")
+                # Определяем тип узла по префиксу ключа
+                node_kind = node.get('kind', node.get('type', 'unknown'))
+                if node_kind == 'unknown' and node_key:
+                    if node_key.startswith('c:'):
+                        node_kind = 'категория'
+                    elif node_key.startswith('t:'):
+                        node_kind = 'технология'
+                    elif node_key.startswith('v:'):
+                        node_kind = 'версия'
+                result_lines.append(f"{i}. ID: {node_id}")
+                if node_key:
+                    result_lines.append(f"   Ключ: {node_key}")
                 result_lines.append(f"   Название: {node_name}")
                 result_lines.append(f"   Тип: {node_kind}")
                 
@@ -417,9 +428,9 @@ def get_selected_nodes() -> Dict[str, any]:
         if edges:
             result_lines.append(f"🔗 Рёбра ({len(edges)}):")
             for i, edge in enumerate(edges, 1):
-                edge_id = edge.get('_id', 'N/A')
-                edge_from = edge.get('_from', '?')
-                edge_to = edge.get('_to', '?')
+                edge_id = edge.get('id', edge.get('_id', 'N/A'))
+                edge_from = edge.get('from', edge.get('_from', '?'))
+                edge_to = edge.get('to', edge.get('_to', '?'))
                 projects = edge.get('projects', [])
                 
                 result_lines.append(f"{i}. {edge_id}")

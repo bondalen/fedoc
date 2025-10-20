@@ -13,7 +13,7 @@
         <option 
           v-for="node in store.nodes" 
           :key="node._id" 
-          :value="node._id"
+          :value="node._key"
         >
           {{ node._key }} - {{ node.name || 'Без имени' }}
         </option>
