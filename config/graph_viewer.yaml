@@ -6,7 +6,7 @@ version: "1.0"
 remote_server:
   host: "176.108.244.252"
   user: "user1"
-  ssh_alias: "vuege-server"
+  ssh_alias: "fedoc-server"
   description: "Production сервер с ArangoDB"
 
 # Порты (общие для всех, можно переопределить в профиле машины)
