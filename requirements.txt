@@ -1,7 +1,8 @@
 # Общие зависимости проекта fedoc
 
-# ArangoDB
-python-arango>=7.5.0
+# Базы данных
+python-arango>=7.5.0  # ArangoDB (текущая)
+psycopg2-binary>=2.9.9  # PostgreSQL + Apache AGE (миграция)
 
 # Визуализация графов
 pyvis>=0.3.2

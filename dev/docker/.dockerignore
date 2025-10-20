@@ -1,0 +1,19 @@
+# Игнорировать директории с данными БД при сборке образов
+*-data/
+postgres-data/
+arango-data/
+mssql-data/
+backups/
+
+# Игнорировать логи
+*.log
+logs/
+
+# Игнорировать временные файлы
+tmp/
+*.tmp
+
+# Игнорировать git
+.git/
+.gitignore
+

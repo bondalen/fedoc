@@ -134,8 +134,8 @@ class ProcessManager:
             return True
         
         try:
-            # Запускаем API сервер в фоне
-            api_script = self.backend_dir / "api_server.py"
+            # Запускаем API сервер в фоне (PostgreSQL + AGE версия)
+            api_script = self.backend_dir / "api_server_age.py"
             log_file = Path("/tmp/graph_viewer_api.log")
             
             with open(log_file, "w") as f:
@@ -143,7 +143,11 @@ class ProcessManager:
                     [
                         str(self.venv_python),
                         str(api_script),
-                        "--db-password", self.arango_password
+                        "--db-host", "localhost",
+                        "--db-port", "5432",
+                        "--db-name", "fedoc",
+                        "--db-user", "postgres",
+                        "--db-password", self.arango_password  # Используем тот же пароль для PostgreSQL
                     ],
                     stdout=f,
                     stderr=subprocess.STDOUT,

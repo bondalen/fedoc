@@ -1,0 +1,48 @@
+# Dockerfile для PostgreSQL 16 + Apache AGE 1.6.0
+# Основан на официальном образе PostgreSQL
+
+FROM postgres:16-alpine
+
+# Метаданные
+LABEL maintainer="fedoc team"
+LABEL description="PostgreSQL 16 with Apache AGE extension for graph database support"
+LABEL version="16.10-age1.6.0"
+
+# Установить зависимости для сборки AGE
+RUN apk add --no-cache --virtual .build-deps \
+    gcc \
+    g++ \
+    make \
+    musl-dev \
+    postgresql-dev \
+    flex \
+    bison \
+    git \
+    perl
+
+# Клонировать и собрать Apache AGE
+# Используем PG16/v1.6.0-rc0 (стабильной версии 1.6.0 для PG16 пока нет)
+WORKDIR /tmp
+RUN git clone --branch PG16/v1.6.0-rc0 --depth 1 https://github.com/apache/age.git && \
+    cd age && \
+    make && \
+    make install || { \
+        echo "Warning: make install failed, trying manual install..."; \
+        cp age.so /usr/local/lib/postgresql/; \
+        cp age.control /usr/local/share/postgresql/extension/; \
+        cp age--*.sql /usr/local/share/postgresql/extension/; \
+    }
+
+# Удалить зависимости сборки для уменьшения размера образа
+RUN apk del .build-deps && \
+    rm -rf /tmp/age
+
+# Вернуться в рабочую директорию по умолчанию
+WORKDIR /
+
+# PostgreSQL слушает на порту 5432
+EXPOSE 5432
+
+# Использовать стандартную точку входа PostgreSQL
+# Скрипты в /docker-entrypoint-initdb.d/ выполнятся автоматически
+

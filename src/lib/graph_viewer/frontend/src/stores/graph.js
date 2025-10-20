@@ -939,16 +939,51 @@ export const useGraphStore = defineStore('graph', () => {
         throw new Error(data.error)
       }
       
-      const nodeIds = [nodeId, ...(data.node_ids || [])]
-      const edgeIds = data.edge_ids || []
+      // Рекурсивная клиентская логика для поиска всех связанных узлов
+      const nodeIds = [nodeId]
+      const edgeIds = []
+      const processedNodes = new Set([nodeId])
+      
+      // Рекурсивная функция для поиска всех дочерних узлов
+      const findChildrenRecursively = (currentNodeId) => {
+        if (allEdgesData.value) {
+          for (const edge of allEdgesData.value) {
+            // Проверяем, является ли узел началом ребра (исходящие связи)
+            const edgeStartId = edge.from || edge.start_id
+            if (edgeStartId == currentNodeId) {
+              const childNodeId = edge.to || edge.end_id
+              if (childNodeId && !processedNodes.has(childNodeId)) {
+                nodeIds.push(childNodeId)
+                processedNodes.add(childNodeId)
+                // Рекурсивно ищем детей этого узла
+                findChildrenRecursively(childNodeId)
+              }
+              if (edge.id || edge._id) {
+                edgeIds.push(edge.id || edge._id)
+              }
+            }
+          }
+        }
+      }
+      
+      // Запускаем рекурсивный поиск
+      findChildrenRecursively(nodeId)
       
       // Добавить в скрытые
       nodeIds.forEach(id => hiddenNodes.value.add(id))
       edgeIds.forEach(id => hiddenEdges.value.add(id))
       
-      // Удалить из визуализации
-      nodesDataSet.value.remove(nodeIds)
-      edgesDataSet.value.remove(edgeIds)
+      // Удалить из визуализации - преобразуем в числа
+      const numericNodeIds = nodeIds.map(id => parseInt(id))
+      const numericEdgeIds = edgeIds.map(id => parseInt(id))
+      
+      nodesDataSet.value.remove(numericNodeIds)
+      edgesDataSet.value.remove(numericEdgeIds)
+      
+      // Принудительно обновить визуализацию
+      if (network.value) {
+        network.value.redraw()
+      }
       
       console.log(`Hidden ${nodeId} with children: ${nodeIds.length} nodes, ${edgeIds.length} edges`)
       
@@ -990,16 +1025,51 @@ export const useGraphStore = defineStore('graph', () => {
         throw new Error(data.error)
       }
       
-      const nodeIds = [nodeId, ...(data.node_ids || [])]
-      const edgeIds = data.edge_ids || []
+      // Рекурсивная клиентская логика для поиска всех связанных узлов
+      const nodeIds = [nodeId]
+      const edgeIds = []
+      const processedNodes = new Set([nodeId])
+      
+      // Рекурсивная функция для поиска всех родительских узлов
+      const findParentsRecursively = (currentNodeId) => {
+        if (allEdgesData.value) {
+          for (const edge of allEdgesData.value) {
+            // Проверяем, является ли узел концом ребра (входящие связи)
+            const edgeEndId = edge.to || edge.end_id
+            if (edgeEndId == currentNodeId) {
+              const parentNodeId = edge.from || edge.start_id
+              if (parentNodeId && !processedNodes.has(parentNodeId)) {
+                nodeIds.push(parentNodeId)
+                processedNodes.add(parentNodeId)
+                // Рекурсивно ищем родителей этого узла
+                findParentsRecursively(parentNodeId)
+              }
+              if (edge.id || edge._id) {
+                edgeIds.push(edge.id || edge._id)
+              }
+            }
+          }
+        }
+      }
+      
+      // Запускаем рекурсивный поиск
+      findParentsRecursively(nodeId)
       
       // Добавить в скрытые
       nodeIds.forEach(id => hiddenNodes.value.add(id))
       edgeIds.forEach(id => hiddenEdges.value.add(id))
       
-      // Удалить из визуализации
-      nodesDataSet.value.remove(nodeIds)
-      edgesDataSet.value.remove(edgeIds)
+      // Удалить из визуализации - преобразуем в числа
+      const numericNodeIds = nodeIds.map(id => parseInt(id))
+      const numericEdgeIds = edgeIds.map(id => parseInt(id))
+      
+      nodesDataSet.value.remove(numericNodeIds)
+      edgesDataSet.value.remove(numericEdgeIds)
+      
+      // Принудительно обновить визуализацию
+      if (network.value) {
+        network.value.redraw()
+      }
       
       console.log(`Hidden ${nodeId} with parents: ${nodeIds.length} nodes, ${edgeIds.length} edges`)
       

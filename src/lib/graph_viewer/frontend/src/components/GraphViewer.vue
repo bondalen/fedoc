@@ -61,7 +61,7 @@ const contextMenu = reactive({
  */
 const handleShowContextMenu = ({ nodeId, position }) => {
   contextMenu.visible = true
-  contextMenu.nodeId = nodeId
+  contextMenu.nodeId = String(nodeId)  // Преобразуем в строку
   contextMenu.position = position
   
   console.log(`Show context menu for node: ${nodeId}`)

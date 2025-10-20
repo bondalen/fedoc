@@ -1,0 +1,11 @@
+# Зависимости для скрипта миграции ArangoDB → PostgreSQL + AGE
+
+# ArangoDB Python driver
+python-arango>=7.6.0
+
+# PostgreSQL Python driver
+psycopg2-binary>=2.9.9
+
+# Для работы с JSON
+# (входит в стандартную библиотеку Python)
+
