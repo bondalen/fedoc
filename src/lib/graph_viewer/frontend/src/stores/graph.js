@@ -1095,9 +1095,21 @@ export const useGraphStore = defineStore('graph', () => {
       return
     }
 
-    // Получить выбранные узлы и рёбра из vis-network
-    const selectedNodes = network.value ? network.value.getSelectedNodes() : []
-    const selectedEdges = network.value ? network.value.getSelectedEdges() : []
+    // Получить выбранные узлы и рёбра напрямую из store
+    // Это более надёжный подход, чем использование vis-network API
+    console.log('Getting selection from store (reliable method)')
+    console.log('selectedNodesList.value:', selectedNodesList.value)
+    console.log('selectedEdgesList.value:', selectedEdgesList.value)
+    
+    // Используем данные из store, которые обновляются при выделении
+    const selectedNodes = (selectedNodesList.value || []).map(n => (n && typeof n === 'object' ? (n.id ?? n) : n))
+    const selectedEdges = (selectedEdgesList.value || []).map(e => (e && typeof e === 'object' ? (e.id ?? e) : e))
+    
+    console.log(`Found: ${selectedNodes.length} nodes, ${selectedEdges.length} edges`)
+    console.log('selectedNodes:', selectedNodes)
+    console.log('selectedEdges:', selectedEdges)
+    console.log('selectedNodesList.value:', selectedNodesList.value)
+    console.log('selectedEdgesList.value:', selectedEdgesList.value)
 
     // Подготовить данные узлов
     const nodesPayload = selectedNodes.map((nid) => {

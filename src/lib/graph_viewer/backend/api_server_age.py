@@ -164,8 +164,21 @@ def agtype_to_python(agtype_value):
     
     # Попробовать распарсить как JSON
     try:
-        return json.loads(s)
-    except:
+        parsed = json.loads(s)
+        # Если это объект с полем _id, извлечь его
+        if isinstance(parsed, dict) and '_id' in parsed:
+            return parsed['_id']
+        return parsed
+    except json.JSONDecodeError:
+        # Если не JSON, попробовать как число
+        try:
+            return int(s)
+        except ValueError:
+            try:
+                return float(s)
+            except ValueError:
+                return s
+    except Exception:
         return s
 
 
@@ -315,11 +328,7 @@ def get_graph():
             projects = agtype_to_python(row[9])
             rel_type = agtype_to_python(row[10])
             
-            # Фильтрация по проекту
-            if project and (not projects or project not in projects):
-                continue
-            
-            # Добавить узлы
+            # Добавить узлы (всегда, независимо от фильтрации проекта)
             if from_id not in nodes_map:
                 nodes_map[from_id] = {
                     'id': from_id,
@@ -346,12 +355,20 @@ def get_graph():
                     }
                 }
             
-            # Добавить ребро
+            # Добавить ребро с проверкой правильного направления
+            # Фильтрация по проекту для рёбер
+            if project and (not projects or project not in projects):
+                continue
+            
             if edge_id not in edges_map:
+                # Использовать данные как есть (PostgreSQL функция исправлена)
+                actual_from = from_id
+                actual_to = to_id
+                
                 edges_map[edge_id] = {
                     'id': edge_id,
-                    'from': from_id,
-                    'to': to_id,
+                    'from': actual_from,
+                    'to': actual_to,
                     'label': ', '.join(projects) if projects else 'альтернатива',
                     'color': {
                         'color': '#64B5F6' if projects else '#9E9E9E'

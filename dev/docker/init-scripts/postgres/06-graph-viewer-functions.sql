@@ -131,7 +131,7 @@ BEGIN
     sql := FORMAT('
         SELECT *
         FROM cypher(''common_project_graph'', $$
-            MATCH (n:canonical_node)-[e:project_relation]-(m:canonical_node)
+            MATCH (n:canonical_node)-[e:project_relation]->(m:canonical_node)
             %s
             RETURN 
                 id(e)::text as edge_id,

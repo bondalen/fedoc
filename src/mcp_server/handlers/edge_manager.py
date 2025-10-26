@@ -62,10 +62,12 @@ class EdgeManagerHandler:
             result = response.json()
             
             if response.status_code == 200:
+                edge_data = result.get('edge', {})
+                edge_id = edge_data.get('edge_id') or edge_data.get('_id', 'неизвестно')
                 return {
                     'success': True,
-                    'edge': result.get('edge', {}),
-                    'message': f"✅ Связь создана: {result['edge']['_id']}"
+                    'edge': edge_data,
+                    'message': f"✅ Связь создана: {edge_id}"
                 }
             else:
                 return {

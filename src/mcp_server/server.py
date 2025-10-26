@@ -762,13 +762,15 @@ class FedocMCPServer:
             if result['success']:
                 from_label = from_node.split('/')[-1]
                 to_label = to_node.split('/')[-1]
+                edge_data = result.get('edge', {})
+                edge_id = edge_data.get('edge_id') or edge_data.get('_id', 'неизвестно')
                 text = f"✅ Связь создана!\n\n"
                 text += f"📊 Детали:\n"
                 text += f"   От: {from_label}\n"
                 text += f"   К: {to_label}\n"
                 text += f"   Тип: {relation_type}\n"
                 text += f"   Проекты: {', '.join(projects) if projects else 'нет'}\n"
-                text += f"   ID: {result['edge']['_id']}"
+                text += f"   ID: {edge_id}"
             else:
                 text = f"❌ Ошибка создания связи\n\n"
                 text += f"Причина: {result['error']}"
