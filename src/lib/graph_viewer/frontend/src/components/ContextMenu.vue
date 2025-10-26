@@ -5,44 +5,57 @@
     :style="{ top: position.y + 'px', left: position.x + 'px' }"
     @click.stop
   >
-    <div class="menu-section">
-      <div class="menu-header">📊 Показать</div>
-      <div class="menu-item" @click="handleExpandChildren">
-        <span class="menu-icon">⬇️</span>
-        <span class="menu-label">Нижестоящие (1 уровень)</span>
+    <!-- Меню для узлов -->
+    <template v-if="nodeId">
+      <div class="menu-section">
+        <div class="menu-header">📊 Показать</div>
+        <div class="menu-item" @click="handleExpandChildren">
+          <span class="menu-icon">⬇️</span>
+          <span class="menu-label">Нижестоящие (1 уровень)</span>
+        </div>
+        <div class="menu-item" @click="handleExpandParents">
+          <span class="menu-icon">⬆️</span>
+          <span class="menu-label">Вышестоящие (1 уровень)</span>
+        </div>
       </div>
-      <div class="menu-item" @click="handleExpandParents">
-        <span class="menu-icon">⬆️</span>
-        <span class="menu-label">Вышестоящие (1 уровень)</span>
+      
+      <div class="menu-divider"></div>
+      
+      <div class="menu-section">
+        <div class="menu-header">👁️‍🗨️ Скрыть</div>
+        <div class="menu-item" @click="handleHideWithChildren">
+          <span class="menu-icon">⬇️</span>
+          <span class="menu-label">С нижестоящими (рекурсия)</span>
+        </div>
+        <div class="menu-item" @click="handleHideWithParents">
+          <span class="menu-icon">⬆️</span>
+          <span class="menu-label">С вышестоящими (рекурсия)</span>
+        </div>
       </div>
-    </div>
+      
+      <div class="menu-divider"></div>
+      
+      <div class="menu-section">
+        <div class="menu-item" @click="handleShowDetails">
+          <span class="menu-icon">🔍</span>
+          <span class="menu-label">Показать детали</span>
+        </div>
+        <div class="menu-item" @click="handleFocusNode">
+          <span class="menu-icon">🎯</span>
+          <span class="menu-label">Центрировать</span>
+        </div>
+      </div>
+    </template>
     
-    <div class="menu-divider"></div>
-    
-    <div class="menu-section">
-      <div class="menu-header">👁️‍🗨️ Скрыть</div>
-      <div class="menu-item" @click="handleHideWithChildren">
-        <span class="menu-icon">⬇️</span>
-        <span class="menu-label">С нижестоящими (рекурсия)</span>
+    <!-- Меню для рёбер -->
+    <template v-else-if="edgeId">
+      <div class="menu-section">
+        <div class="menu-item" @click="handleShowEdgeDetails">
+          <span class="menu-icon">🔍</span>
+          <span class="menu-label">Показать детали</span>
+        </div>
       </div>
-      <div class="menu-item" @click="handleHideWithParents">
-        <span class="menu-icon">⬆️</span>
-        <span class="menu-label">С вышестоящими (рекурсия)</span>
-      </div>
-    </div>
-    
-    <div class="menu-divider"></div>
-    
-    <div class="menu-section">
-      <div class="menu-item" @click="handleShowDetails">
-        <span class="menu-icon">🔍</span>
-        <span class="menu-label">Показать детали</span>
-      </div>
-      <div class="menu-item" @click="handleFocusNode">
-        <span class="menu-icon">🎯</span>
-        <span class="menu-label">Центрировать</span>
-      </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -55,6 +68,10 @@ const store = useGraphStore()
 // Props
 const props = defineProps({
   nodeId: {
+    type: String,
+    default: ''
+  },
+  edgeId: {
     type: String,
     default: ''
   },
@@ -112,12 +129,22 @@ const handleHideWithParents = async () => {
 }
 
 /**
- * Обработчик: Показать детали
+ * Обработчик: Показать детали узла
  */
 const handleShowDetails = async () => {
   if (!props.nodeId) return
   
   await store.selectNode(props.nodeId)
+  emit('close')
+}
+
+/**
+ * Обработчик: Показать детали ребра
+ */
+const handleShowEdgeDetails = async () => {
+  if (!props.edgeId) return
+  
+  await store.selectEdge(props.edgeId)
   emit('close')
 }
 

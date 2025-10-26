@@ -19,6 +19,7 @@
     <ContextMenu 
       :visible="contextMenu.visible"
       :node-id="contextMenu.nodeId"
+      :edge-id="contextMenu.edgeId"
       :position="contextMenu.position"
       @close="handleCloseContextMenu"
     />
@@ -53,18 +54,24 @@ const themeClass = computed(() => {
 const contextMenu = reactive({
   visible: false,
   nodeId: '',
+  edgeId: '',
   position: { x: 0, y: 0 }
 })
 
 /**
  * Показать контекстное меню
  */
-const handleShowContextMenu = ({ nodeId, position }) => {
+const handleShowContextMenu = ({ nodeId, edgeId, position }) => {
   contextMenu.visible = true
-  contextMenu.nodeId = String(nodeId)  // Преобразуем в строку
+  contextMenu.nodeId = nodeId ? String(nodeId) : ''
+  contextMenu.edgeId = edgeId ? String(edgeId) : ''
   contextMenu.position = position
   
-  console.log(`Show context menu for node: ${nodeId}`)
+  if (nodeId) {
+    console.log(`Show context menu for node: ${nodeId}`)
+  } else if (edgeId) {
+    console.log(`Show context menu for edge: ${edgeId}`)
+  }
 }
 
 /**
@@ -73,6 +80,7 @@ const handleShowContextMenu = ({ nodeId, position }) => {
 const handleCloseContextMenu = () => {
   contextMenu.visible = false
   contextMenu.nodeId = ''
+  contextMenu.edgeId = ''
   
   console.log('Context menu closed')
 }
