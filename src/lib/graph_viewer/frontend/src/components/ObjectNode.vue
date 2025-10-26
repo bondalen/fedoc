@@ -241,6 +241,11 @@ const guessedDocRef = computed(() => {
   if (typeof props.value !== 'string') return null
   if (isDocumentRef(props.value)) return props.value
   
+  // Не угадывать ссылки для элементов массивов проектов - это может привести к путанице
+  if (props.parentKey === 'projects') {
+    return null
+  }
+  
   // Угадать коллекцию по контексту
   return guessCollectionRef(props.value, props.parentKey)
 })
