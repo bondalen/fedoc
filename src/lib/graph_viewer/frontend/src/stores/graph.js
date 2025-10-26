@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import io from 'socket.io-client'
-import { applyNodesVisualization, applyEdgesVisualization } from '@/utils/visualization'
 
 const API_BASE = '/api'
 
@@ -231,18 +230,14 @@ export const useGraphStore = defineStore('graph', () => {
       // Очистка текущего графа
       nodesDataSet.value.clear()
       edgesDataSet.value.clear()
-      
-      // Применение оформления
-      const visualNodes = applyNodesVisualization(data.nodes || [], theme.value)
-      const visualEdges = applyEdgesVisualization(data.edges || [], theme.value)
-      
+
       // Добавление новых данных в визуализацию
-      if (visualNodes.length > 0) {
-        nodesDataSet.value.add(visualNodes)
+      if (data.nodes && data.nodes.length > 0) {
+        nodesDataSet.value.add(data.nodes)
       }
 
-      if (visualEdges.length > 0) {
-        edgesDataSet.value.add(visualEdges)
+      if (data.edges && data.edges.length > 0) {
+        edgesDataSet.value.add(data.edges)
       }
       
       // Применить тему после загрузки
@@ -260,25 +255,111 @@ export const useGraphStore = defineStore('graph', () => {
    * Применение темы к графу
    */
   const applyTheme = () => {
+    if (!network.value) return
+
+    const isDark = theme.value === 'dark'
+    
+    // Основные цвета
+    const labelColor = isDark ? '#e0e0e0' : '#333'
+    const edgeColor = isDark ? '#B0BEC5' : '#37474F'
+    const strokeColor = isDark ? '#000' : '#fff'
+    const strokeWidth = isDark ? 2 : 4
+    
+    // Цвета для интерактивных состояний (универсальные для обеих тем)
+    const highlightColor = '#D2691E'                          // 🔥 оранжевый для выделения
+    const hoverColor = '#9c27b0'                              // 💜 фиолетовый для hover
+    
+    // Обновление настроек сети
+    network.value.setOptions({
+      nodes: {
+        font: { 
+          color: labelColor,
+          size: 12,
+          bold: {
+            color: isDark ? '#ffffff' : '#000000'
+          }
+        },
+        color: {
+          background: isDark ? '#2d3748' : '#ffffff',        // белый для light
+          border: isDark ? '#4a5568' : '#e0e0e0',            // светлее для light
+          highlight: {
+            background: isDark ? '#2d3748' : '#f8f9fa',      // фон не меняется
+            border: highlightColor                            // 🔥 оранжевый
+          },
+          hover: {
+            background: isDark ? '#2d3748' : '#f8f9fa',      // фон не меняется
+            border: hoverColor                                // 💜 фиолетовый
+          }
+        },
+        shadow: {
+          enabled: isDark,
+          color: 'rgba(0,0,0,0.3)',
+          size: 5,
+          x: 2,
+          y: 2
+        }
+      },
+      edges: {
+        width: isDark ? 2 : 2.5,                             // толще для light
+        font: { 
+          color: labelColor,
+          strokeColor: strokeColor,
+          strokeWidth: strokeWidth,                          // используем переменную
+          size: 12
+          // bold удален - vis-network не принимает boolean для этого параметра
+        },
+        color: { 
+          color: edgeColor,
+          highlight: highlightColor,                         // 🔥 оранжевый
+          hover: hoverColor                                  // 💜 фиолетовый
+        }
+      }
+    })
+    
+    // 🎯 ПРИНУДИТЕЛЬНОЕ ИЗМЕНЕНИЕ ФОНА через CSS и DOM
+    const canvas = document.querySelector('#graph canvas')
+    if (canvas) {
+      canvas.style.backgroundColor = isDark ? '#1e1e1e' : '#ffffff'
+    }
+    
+    // Принудительно обновить все узлы с новыми цветами
+    if (nodesDataSet.value && nodesDataSet.value.length > 0) {
+      const allNodes = nodesDataSet.value.get()
+      const updatedNodes = allNodes.map(node => ({
+        ...node,
+        color: {
+          background: isDark ? '#2d3748' : '#ffffff',        // белый для light
+          border: isDark ? '#4a5568' : '#e0e0e0',             // светлее для light
+          highlight: {
+            background: isDark ? '#2d3748' : '#ffffff',
+            border: highlightColor
+          },
+          hover: {
+            background: isDark ? '#2d3748' : '#ffffff',
+            border: hoverColor
+          }
+        }
+      }))
+      nodesDataSet.value.update(updatedNodes)
+    }
+    
+    // Принудительно обновить все рёбра с новыми цветами
+    if (edgesDataSet.value && edgesDataSet.value.length > 0) {
+      const allEdges = edgesDataSet.value.get()
+      const updatedEdges = allEdges.map(edge => ({
+        ...edge,
+        color: {
+          color: edgeColor,
+          highlight: highlightColor,
+          hover: hoverColor
+        }
+      }))
+      edgesDataSet.value.update(updatedEdges)
+    }
+    
+    // Принудительно перерисовать сеть
     if (network.value) {
-      network.value.setOptions({
-        nodes: {
-          color: {
-            background: theme.value === 'dark' ? '#333' : '#eee',
-            border: theme.value === 'dark' ? '#666' : '#ccc',
-          },
-          font: {
-            color: theme.value === 'dark' ? '#eee' : '#333',
-          },
-        },
-        edges: {
-          color: {
-            color: theme.value === 'dark' ? '#848484' : '#999',
-            highlight: theme.value === 'dark' ? '#848484' : '#999',
-            hover: theme.value === 'dark' ? '#848484' : '#999',
-          },
-        },
-      })
+      network.value.redraw()
     }
   }
   
@@ -530,9 +611,7 @@ export const useGraphStore = defineStore('graph', () => {
       for (const node of newNodes) {
         const existsInDataSet = nodesDataSet.value.get(node.id)
         if (!existsInDataSet) {
-          // Применить оформление к новому узлу
-          const visualNode = applyNodesVisualization([node], theme.value)[0]
-          nodesDataSet.value.add(visualNode)
+          nodesDataSet.value.add(node)
           addedNodesCount++
         }
       }
@@ -541,9 +620,7 @@ export const useGraphStore = defineStore('graph', () => {
       for (const edge of newEdges) {
         const existsInDataSet = edgesDataSet.value.get(edge.id)
         if (!existsInDataSet) {
-          // Применить оформление к новому ребру
-          const visualEdge = applyEdgesVisualization([edge], theme.value)[0]
-          edgesDataSet.value.add(visualEdge)
+          edgesDataSet.value.add(edge)
           addedEdgesCount++
         }
       }
@@ -601,8 +678,7 @@ export const useGraphStore = defineStore('graph', () => {
       for (const node of newNodes) {
         const existsInDataSet = nodesDataSet.value.get(node.id)
         if (!existsInDataSet) {
-          const visualNode = applyNodesVisualization([node], theme.value)[0]
-          nodesDataSet.value.add(visualNode)
+          nodesDataSet.value.add(node)
           addedNodesCount++
         }
       }
@@ -610,8 +686,7 @@ export const useGraphStore = defineStore('graph', () => {
       for (const edge of newEdges) {
         const existsInDataSet = edgesDataSet.value.get(edge.id)
         if (!existsInDataSet) {
-          const visualEdge = applyEdgesVisualization([edge], theme.value)[0]
-          edgesDataSet.value.add(visualEdge)
+          edgesDataSet.value.add(edge)
           addedEdgesCount++
         }
       }
@@ -885,21 +960,17 @@ export const useGraphStore = defineStore('graph', () => {
       edgesDataSet.value.clear()
     }
 
-    // Применить оформление к восстановленным данным
-    const visualNodes = applyNodesVisualization(state.nodes || [], theme.value)
-    const visualEdges = applyEdgesVisualization(state.edges || [], theme.value)
-
     // Добавить узлы в визуализацию
-    if (visualNodes.length > 0) {
-      nodesDataSet.value.add(visualNodes)
+    if (state.nodes && state.nodes.length > 0) {
+      nodesDataSet.value.add(state.nodes)
     }
 
     // Добавить рёбра в визуализацию
-    if (visualEdges.length > 0) {
-      edgesDataSet.value.add(visualEdges)
+    if (state.edges && state.edges.length > 0) {
+      edgesDataSet.value.add(state.edges)
     }
 
-    console.log(`Восстановлено: ${visualNodes.length} узлов, ${visualEdges.length} рёбер`)
+    console.log(`Восстановлено: ${state.nodes?.length || 0} узлов, ${state.edges?.length || 0} рёбер`)
   }
 
   /**
