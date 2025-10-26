@@ -1130,6 +1130,8 @@ export const useGraphStore = defineStore('graph', () => {
     edgesDataSet,
     isLoading,
     error,
+    selectedObject,
+    showDetails,
     selectedNodesList,
     selectedEdgesList,
     viewHistory,

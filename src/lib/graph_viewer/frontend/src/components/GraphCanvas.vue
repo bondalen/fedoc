@@ -122,14 +122,8 @@ const initNetwork = () => {
     await store.updateSelectedNodes(selectedNodes)
     await store.updateSelectedEdges(selectedEdges)
     
-    // Показать панель деталей для первого выбранного объекта (старое поведение)
-    if (selectedNodes.length > 0) {
-      const firstNodeId = selectedNodes[0]
-      await store.selectNode(firstNodeId)
-    } else if (selectedEdges.length > 0) {
-      const firstEdgeId = selectedEdges[0]
-      await store.selectEdge(firstEdgeId)
-    }
+    // Убрано автоматическое отображение деталей при выборе
+    // Детали теперь показываются только через контекстное меню
   })
   
   // Обработка клика на пустом месте (снятие выделения)
