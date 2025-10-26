@@ -7,76 +7,76 @@ const API_BASE = '/api'
 
 export const useGraphStore = defineStore('graph', () => {
   // ========== STATE ==========
-  
+
   // Список доступных узлов для выбора
   const nodes = ref([])
-  
+
   // Параметры графа
   const startNode = ref('')
   const depth = ref(5)
   const project = ref('')
   const theme = ref('dark')
-  
+
   // Vis-network объекты
   const network = ref(null)
   const nodesDataSet = ref(null)
   const edgesDataSet = ref(null)
-  
+
   // Панель деталей
   const selectedObject = ref(null)
   const showDetails = ref(false)
-  
+
   // Панель полного текста
   const fullText = ref('')
   const showFullText = ref(false)
-  
+
   // Кэш загруженных документов
   const loadedDocs = ref(new Set())
   const documentCache = ref(new Map())
-  
+
   // Выборка для отправки в Cursor AI
   const selectedNodesList = ref([])
   const selectedEdgesList = ref([])
-  
+
   // WebSocket соединение
   let socket = null
   const isSocketConnected = ref(false)
-  
+
   // НОВАЯ АРХИТЕКТУРА: История состояний (только 10 состояний)
   const viewHistory = ref([])           // Массив состояний
   const currentHistoryIndex = ref(-1)   // Текущий индекс в истории
   const maxHistorySize = 10            // Максимум состояний в истории
   const isRestoringFromHistory = ref(false) // Флаг для предотвращения сохранения при восстановлении
-  
+
   // Статус загрузки
   const isLoading = ref(false)
   const error = ref(null)
-  
+
   // Таймер для автоочистки ошибок
   let errorTimeout = null
-  
+
   // ========== COMPUTED ==========
-  
+
   const nodeCount = computed(() => {
     return nodesDataSet.value ? nodesDataSet.value.length : 0
   })
-  
+
   const edgeCount = computed(() => {
     return edgesDataSet.value ? edgesDataSet.value.length : 0
   })
-  
+
   const selectionCount = computed(() => {
     return selectedNodesList.value.length + selectedEdgesList.value.length
   })
-  
+
   const selectedNodesCount = computed(() => {
     return selectedNodesList.value.length
   })
-  
+
   const selectedEdgesCount = computed(() => {
     return selectedEdgesList.value.length
   })
-  
+
   const canUndo = computed(() => currentHistoryIndex.value > 0)
   const canRedo = computed(() => currentHistoryIndex.value < viewHistory.value.length - 1)
 
@@ -100,9 +100,9 @@ export const useGraphStore = defineStore('graph', () => {
     },
     { flush: 'post' }
   )
-  
+
   // ========== ACTIONS ==========
-  
+
   /**
    * Установка ссылок на vis-network объекты
    */
@@ -111,7 +111,7 @@ export const useGraphStore = defineStore('graph', () => {
     nodesDataSet.value = nodesDS
     edgesDataSet.value = edgesDS
   }
-  
+
   /**
    * Установка ошибки
    */
@@ -124,7 +124,7 @@ export const useGraphStore = defineStore('graph', () => {
       clearError()
     }, 5000)
   }
-  
+
   /**
    * Очистка ошибки
    */
@@ -135,7 +135,7 @@ export const useGraphStore = defineStore('graph', () => {
     }
     error.value = null
   }
-  
+
   /**
    * Валидация ответа от API
    */
@@ -143,16 +143,16 @@ export const useGraphStore = defineStore('graph', () => {
     if (!data || typeof data !== 'object') {
       throw new Error('Неверный формат ответа от сервера')
     }
-    
+
     for (const field of requiredFields) {
       if (!(field in data)) {
         throw new Error(`Отсутствует обязательное поле: ${field}`)
       }
     }
-    
+
     return true
   }
-  
+
   /**
    * Загрузка списка доступных узлов
    */
@@ -160,29 +160,29 @@ export const useGraphStore = defineStore('graph', () => {
     try {
       isLoading.value = true
       clearError()
-      
+
       const params = new URLSearchParams()
       if (project.value) {
         params.append('project', project.value)
       }
-      
+
       const url = `${API_BASE}/nodes${params.toString() ? '?' + params.toString() : ''}`
       const response = await fetch(url)
-      
+
       if (!response.ok) {
         throw new Error(`Ошибка сервера: ${response.status}`)
       }
-      
+
       const data = await response.json()
-      
+
       if (!Array.isArray(data)) {
         throw new Error('Неверный формат данных: ожидается массив узлов')
       }
-      
+
       nodes.value = data
-      
+
       console.log(`Загружено узлов: ${nodes.value.length}`)
-      
+
       if (startNode.value) {
         console.log('Автозагрузка графа для узла:', startNode.value)
         await loadGraph()
@@ -194,7 +194,7 @@ export const useGraphStore = defineStore('graph', () => {
       isLoading.value = false
     }
   }
-  
+
   /**
    * Загрузка и отображение графа
    */
@@ -203,39 +203,39 @@ export const useGraphStore = defineStore('graph', () => {
       error.value = 'Граф не инициализирован'
       return
     }
-    
+
     try {
       isLoading.value = true
       error.value = null
-      
+
       const params = new URLSearchParams()
 
       if (startNode.value) {
         params.append('start', startNode.value)
         params.append('depth', depth.value)
       }
-      
+
       if (project.value) {
         params.append('project', project.value)
       }
-      
+
       const url = `${API_BASE}/graph?${params.toString()}`
       const response = await fetch(url)
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       const data = await response.json()
-      
+
       // Очистка текущего графа
       nodesDataSet.value.clear()
       edgesDataSet.value.clear()
-      
+
       // Применение оформления
       const visualNodes = applyNodesVisualization(data.nodes || [], theme.value)
       const visualEdges = applyEdgesVisualization(data.edges || [], theme.value)
-      
+
       // Добавление новых данных в визуализацию
       if (visualNodes.length > 0) {
         nodesDataSet.value.add(visualNodes)
@@ -244,10 +244,10 @@ export const useGraphStore = defineStore('graph', () => {
       if (visualEdges.length > 0) {
         edgesDataSet.value.add(visualEdges)
       }
-      
+
       // Применить тему после загрузки
       applyTheme()
-      
+
     } catch (err) {
       console.error('Ошибка загрузки графа:', err)
       setError(`Не удалось загрузить граф: ${err.message}`)
@@ -255,7 +255,7 @@ export const useGraphStore = defineStore('graph', () => {
       isLoading.value = false
     }
   }
-  
+
   /**
    * Применение темы к графу
    */
@@ -281,7 +281,7 @@ export const useGraphStore = defineStore('graph', () => {
       })
     }
   }
-  
+
   /**
    * Обновление выбранных узлов
    */
@@ -292,16 +292,16 @@ export const useGraphStore = defineStore('graph', () => {
       for (const nodeId of nodeIds) {
         try {
           const url = `${API_BASE}/object_details?id=${encodeURIComponent(nodeId)}`
-      const response = await fetch(url)
-      
+          const response = await fetch(url)
+
           if (response.ok) {
-      const data = await response.json()
+            const data = await response.json()
             selectedNodesList.value.push(data)
           } else {
             console.warn(`Failed to load details for node ${nodeId}`)
             selectedNodesList.value.push({ _id: nodeId, projects: [] })
           }
-    } catch (err) {
+        } catch (err) {
           console.error(`Error loading node ${nodeId}:`, err)
           selectedNodesList.value.push({ _id: nodeId, projects: [] })
         }
@@ -310,7 +310,7 @@ export const useGraphStore = defineStore('graph', () => {
       console.error('Error updating selected nodes:', err)
     }
   }
-  
+
   /**
    * Обновление выборки рёбер
    */
@@ -321,8 +321,8 @@ export const useGraphStore = defineStore('graph', () => {
       for (const edgeId of edgeIds) {
         try {
           const url = `${API_BASE}/object_details?id=${encodeURIComponent(edgeId)}`
-      const response = await fetch(url)
-      
+          const response = await fetch(url)
+
           if (response.ok) {
             const data = await response.json()
             selectedEdgesList.value.push(data)
@@ -330,7 +330,7 @@ export const useGraphStore = defineStore('graph', () => {
             console.warn(`Failed to load details for edge ${edgeId}`)
             selectedEdgesList.value.push({ _id: edgeId, projects: [] })
           }
-    } catch (err) {
+        } catch (err) {
           console.error(`Error loading edge ${edgeId}:`, err)
           selectedEdgesList.value.push({ _id: edgeId, projects: [] })
         }
@@ -339,103 +339,13 @@ export const useGraphStore = defineStore('graph', () => {
       console.error('Error updating selected edges:', err)
     }
   }
-  
+
   /**
    * Очистка выборки
    */
   const clearSelection = () => {
     selectedNodesList.value = []
     selectedEdgesList.value = []
-  }
-
-  /**
-   * Подогнать граф к экрану
-   */
-  const fitGraph = () => {
-    if (!network.value) return
-    
-    try {
-      network.value.fit({
-        animation: {
-          duration: 500,
-          easingFunction: 'easeInOutQuad'
-        }
-      })
-    } catch (err) {
-      console.error('Error fitting graph:', err)
-    }
-  }
-  
-  /**
-   * Смена проекта
-   */
-  const changeProject = async () => {
-    await loadNodes()
-    await loadGraph()
-  }
-
-  /**
-   * Загрузка деталей документа
-   */
-  const loadDocumentDetails = async (docId) => {
-    // Проверить кэш
-    if (documentCache.value.has(docId)) {
-      console.log(`Документ загружен из кэша: ${docId}`)
-      return documentCache.value.get(docId)
-    }
-    
-    try {
-      // Поддержка документных коллекций в PostgreSQL
-      // Ожидаемые форматы: 'projects/<key>' или 'rules/<key>'
-      let url
-      if (typeof docId === 'string' && docId.includes('/')) {
-        const [collection, key] = docId.split('/', 2)
-        if ((collection === 'projects' || collection === 'rules') && key) {
-          url = `${API_BASE}/object_details?collection=${encodeURIComponent(collection)}&key=${encodeURIComponent(key)}`
-        } else {
-          throw new Error(`Неверный формат ID документа: ${docId}`)
-        }
-      } else {
-        // Fallback для простых ID
-        url = `${API_BASE}/object_details?id=${encodeURIComponent(docId)}`
-      }
-      
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      
-      const data = await response.json()
-      
-      // Кэшировать результат
-      documentCache.value.set(docId, data)
-      loadedDocs.value.add(docId)
-      
-      console.log(`Документ загружен: ${docId}`)
-      return data
-    } catch (err) {
-      console.error(`Ошибка загрузки документа ${docId}:`, err)
-      throw err
-    }
-  }
-  
-  /**
-   * Закрытие панели полного текста
-   */
-  const closeFullText = () => {
-    showFullText.value = false
-    fullText.value = ''
-  }
-  
-  /**
-   * Переключение видимости панели полного текста
-   */
-  const toggleFullText = () => {
-    if (showFullText.value) {
-      closeFullText()
-    } else if (fullText.value) {
-      showFullText.value = true
-    }
   }
 
   // ========== HISTORY MANAGEMENT ==========
@@ -449,9 +359,9 @@ export const useGraphStore = defineStore('graph', () => {
     // Дополнительная проверка: не сохраняем при восстановлении из истории
     if (isRestoringFromHistory.value) {
       console.log('Пропущено сохранение: восстановление из истории')
-        return
-      }
-      
+      return
+    }
+
     const currentState = {
       startNode: startNode.value,
       depth: depth.value,
@@ -586,116 +496,8 @@ export const useGraphStore = defineStore('graph', () => {
     }
   }
 
-  // ========== WEBSOCKET FUNCTIONALITY ==========
-  
-  /**
-   * Инициализация WebSocket соединения
-   */
-  const initWebSocket = () => {
-    try {
-      // Подключение к WebSocket серверу через Vite proxy
-      socket = io({
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: 5
-      })
-      
-      // Обработка успешного подключения
-      socket.on('connect', () => {
-        console.log('✓ WebSocket connected')
-        isSocketConnected.value = true
-      })
-      
-      // Обработка отключения
-      socket.on('disconnect', () => {
-        console.log('✗ WebSocket disconnected')
-        isSocketConnected.value = false
-      })
-      
-      // Обработка подтверждения соединения от сервера
-      socket.on('connection_established', (data) => {
-        console.log('✓ Connection established:', data)
-      })
-      
-      // Обработка запроса выборки от сервера (MCP команда)
-      socket.on('request_selection', () => {
-        console.log('→ Server requested selection, sending...')
-        sendSelectionToServer()
-      })
-      
-      // Обработка ошибок
-      socket.on('error', (error) => {
-        console.error('WebSocket error:', error)
-      })
-      
-      console.log('WebSocket initialization started')
-    } catch (err) {
-      console.error('Failed to initialize WebSocket:', err)
-      setError('Не удалось подключиться к WebSocket серверу')
-    }
-  }
-  
-  /**
-   * Закрытие WebSocket соединения
-   */
-  const closeWebSocket = () => {
-    if (socket) {
-      socket.disconnect()
-      socket = null
-      isSocketConnected.value = false
-      console.log('WebSocket connection closed')
-    }
-  }
-  
-  /**
-   * Отправка текущей выборки на сервер через WebSocket
-   */
-  const sendSelectionToServer = () => {
-    if (!socket || !isSocketConnected.value) {
-      console.warn('WebSocket not connected, cannot send selection')
-      return
-    }
-
-    // Получить выбранные узлы и рёбра из vis-network
-    const selectedNodes = network.value ? network.value.getSelectedNodes() : []
-    const selectedEdges = network.value ? network.value.getSelectedEdges() : []
-
-    // Подготовить данные узлов
-    const nodesPayload = selectedNodes.map((nid) => {
-      let meta = {}
-      try { meta = nodesDataSet.value ? (nodesDataSet.value.get(nid) || {}) : {} } catch {}
-      return {
-        id: meta.id || nid,
-        key: meta._key || meta.key || null,
-        label: meta.label || meta.name || null,
-      }
-    })
-
-    // Подготовить данные рёбер
-    const edgesPayload = selectedEdges.map((eid) => {
-      let meta = {}
-      try { meta = edgesDataSet.value ? (edgesDataSet.value.get(eid) || {}) : {} } catch {}
-      return {
-        id: meta.id || eid,
-        from: meta.from || null,
-        to: meta.to || null,
-        label: meta.label || null,
-      }
-    })
-
-    const selectionData = {
-      nodes: nodesPayload,
-      edges: edgesPayload,
-      timestamp: Date.now()
-    }
-
-    console.log(`Sending selection: ${nodesPayload.length} nodes, ${edgesPayload.length} edges`)
-    socket.emit('selection_response', selectionData)
-  }
-  
   // ========== RETURN ==========
-  
+
   const api = {
     // State
     nodes,
@@ -712,7 +514,7 @@ export const useGraphStore = defineStore('graph', () => {
     selectedEdgesList,
     viewHistory,
     currentHistoryIndex,
-    
+
     // Computed
     nodeCount,
     edgeCount,
@@ -721,7 +523,7 @@ export const useGraphStore = defineStore('graph', () => {
     selectedEdgesCount,
     canUndo,
     canRedo,
-    
+
     // Actions
     setNetwork,
     loadNodes,
@@ -730,21 +532,11 @@ export const useGraphStore = defineStore('graph', () => {
     updateSelectedNodes,
     updateSelectedEdges,
     clearSelection,
-    fitGraph,
-    changeProject,
-    loadDocumentDetails,
-    closeFullText,
-    toggleFullText,
-    
+
     // History management
     showAllGraph,
     undoView,
     redoView,
-    
-    // WebSocket actions
-    initWebSocket,
-    closeWebSocket,
-    sendSelectionToServer,
   }
 
   return api
