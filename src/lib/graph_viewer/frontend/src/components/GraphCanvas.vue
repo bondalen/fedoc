@@ -263,11 +263,36 @@ onMounted(() => {
   initNetwork()
   // Загрузить данные после инициализации
   store.loadNodes()
+  
+  // Добавить обработчик горячих клавиш
+  document.addEventListener('keydown', handleKeyDown)
 })
 
 onUnmounted(() => {
   cleanup()
+  // Удалить обработчик горячих клавиш
+  document.removeEventListener('keydown', handleKeyDown)
 })
+
+// Обработчик горячих клавиш
+const handleKeyDown = (e) => {
+  if (e.ctrlKey) {
+    switch(e.key) {
+      case 'a':
+        e.preventDefault()
+        store.showAllGraph()
+        break
+      case 'z':
+        e.preventDefault()
+        store.undoView()
+        break
+      case 'y':
+        e.preventDefault()
+        store.redoView()
+        break
+    }
+  }
+}
 </script>
 
 <style scoped>

@@ -1,0 +1,106 @@
+{
+  "default": {
+    "nodes": {
+      "dark": {
+        "color": "#2d3748",
+        "border": "#4a5568",
+        "shape": "box",
+        "font": {
+          "color": "#ffffff",
+          "size": 12
+        }
+      },
+      "light": {
+        "color": "#ffffff",
+        "border": "#e0e0e0",
+        "shape": "box",
+        "font": {
+          "color": "#000000",
+          "size": 12
+        }
+      }
+    },
+    "edges": {
+      "dark": {
+        "color": "#B0BEC5",
+        "width": 2,
+        "font": {
+          "color": "#e0e0e0",
+          "size": 12,
+          "strokeWidth": 2
+        }
+      },
+      "light": {
+        "color": "#37474F",
+        "width": 2.5,
+        "font": {
+          "color": "#000000",
+          "size": 12,
+          "strokeWidth": 4
+        }
+      }
+    }
+  },
+  "nodes": {
+    "category": {
+      "dark": {
+        "color": "#1976D2",
+        "border": "#0D47A1",
+        "shape": "box"
+      },
+      "light": {
+        "color": "#E3F2FD",
+        "border": "#1976D2",
+        "shape": "box"
+      }
+    },
+    "technology": {
+      "dark": {
+        "color": "#388E3C",
+        "border": "#1B5E20",
+        "shape": "circle"
+      },
+      "light": {
+        "color": "#E8F5E8",
+        "border": "#388E3C",
+        "shape": "circle"
+      }
+    },
+    "version": {
+      "dark": {
+        "color": "#7B1FA2",
+        "border": "#4A148C",
+        "shape": "diamond"
+      },
+      "light": {
+        "color": "#F3E5F5",
+        "border": "#7B1FA2",
+        "shape": "diamond"
+      }
+    }
+  },
+  "edges": {
+    "uses": {
+      "color": "#B0BEC5",
+      "dashes": false
+    },
+    "includes": {
+      "color": "#2E7D32",
+      "dashes": false
+    },
+    "related": {
+      "color": "#9B59B6",
+      "dashes": true
+    }
+  },
+  "states": {
+    "selected": {
+      "border": "#D2691E",
+      "width": 3
+    },
+    "hover": {
+      "border": "#9c27b0",
+      "width": 2
+    }
+  }
+}
