@@ -568,6 +568,14 @@ export const useGraphStore = defineStore('graph', () => {
     }
   }
 
+  /**
+   * Закрытие панели деталей
+   */
+  const closeDetails = () => {
+    showDetails.value = false
+    selectedObject.value = null
+  }
+
   // ========== EXPAND/HIDE OPERATIONS ==========
 
   /**
@@ -1162,6 +1170,7 @@ export const useGraphStore = defineStore('graph', () => {
     loadObjectDetails,
     selectNode,
     selectEdge,
+    closeDetails,
 
     // Expand/Hide actions
     expandNodeChildren,
