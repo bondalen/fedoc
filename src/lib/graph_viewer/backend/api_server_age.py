@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 # Импорт валидатора рёбер для AGE
 from edge_validator_age import create_edge_validator
+from project_enricher import enrich_object_properties
 
 # Перенаправление print в stderr для MCP протокола
 def log(message):
@@ -419,7 +420,11 @@ def get_object_details():
         if not results or not results[0][0]:
             return jsonify({'error': f'Object "{doc_id}" not found'}), 404
         obj_data = agtype_to_python(results[0][0])
-        return jsonify(obj_data)
+        
+        # Обогатить данные проектов структурированной информацией
+        enriched_data = enrich_object_properties(db_conn, obj_data)
+        
+        return jsonify(enriched_data)
     except Exception as e:
         log(f"Error in get_object_details: {e}")
         return jsonify({'error': str(e)}), 500
