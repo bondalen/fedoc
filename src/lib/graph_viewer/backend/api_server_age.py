@@ -422,7 +422,13 @@ def get_object_details():
         obj_data = agtype_to_python(results[0][0])
         
         # Обогатить данные проектов структурированной информацией
-        enriched_data = enrich_object_properties(db_conn, obj_data)
+        # Для рёбер передаём edge_id для использования нормализованной структуры
+        if 'start_id' in obj_data and 'end_id' in obj_data:
+            # Это ребро, используем нормализованную структуру
+            enriched_data = enrich_object_properties(db_conn, obj_data, edge_id=obj_data.get('id'))
+        else:
+            # Это узел, используем обычное обогащение
+            enriched_data = enrich_object_properties(db_conn, obj_data)
         
         return jsonify(enriched_data)
     except Exception as e:

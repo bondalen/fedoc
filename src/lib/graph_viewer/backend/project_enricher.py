@@ -67,20 +67,51 @@ def enrich_projects_data(db_conn, projects: List[str]) -> List[Dict[str, Any]]:
     return enriched_projects
 
 
-def enrich_edge_properties(db_conn, properties: Dict[str, Any]) -> Dict[str, Any]:
+def enrich_edge_properties(db_conn, properties: Dict[str, Any], edge_id: int = None) -> Dict[str, Any]:
     """
-    Обогатить свойства ребра, заменив простые массивы проектов на структурированные данные
+    Обогатить свойства ребра, используя нормализованную структуру проектов
     
     Args:
         db_conn: Соединение с PostgreSQL
         properties: Свойства ребра
+        edge_id: ID ребра для получения данных из нормализованной структуры
     
     Returns:
         Dict: Обогащённые свойства ребра
     """
     enriched_properties = properties.copy()
     
-    # Если есть поле projects с массивом строк
+    # Если есть ID ребра, использовать нормализованную структуру
+    if edge_id is not None:
+        try:
+            with db_conn.cursor() as cur:
+                # Получить проекты ребра с полной информацией
+                cur.execute("""
+                    SELECT project_info, role, weight, created_at, created_by, metadata
+                    FROM ag_catalog.get_edge_projects_enriched(%s)
+                """, (edge_id,))
+                
+                projects_data = cur.fetchall()
+                if projects_data:
+                    # Заменить поле projects на структурированные данные
+                    enriched_projects = []
+                    for row in projects_data:
+                        project_info = row[0]  # JSONB с информацией о проекте
+                        project_info['role'] = row[1]  # роль в связи
+                        project_info['weight'] = float(row[2])  # вес связи
+                        project_info['relation_created_at'] = row[3].isoformat() if row[3] else None
+                        project_info['relation_created_by'] = row[4]
+                        project_info['relation_metadata'] = row[5] if row[5] else {}
+                        
+                        enriched_projects.append(project_info)
+                    
+                    enriched_properties['projects'] = enriched_projects
+                    return enriched_properties
+        
+        except Exception as e:
+            print(f"Ошибка получения проектов для ребра {edge_id}: {e}", file=sys.stderr)
+    
+    # Fallback: если нет edge_id или произошла ошибка, использовать старый метод
     if 'projects' in enriched_properties and isinstance(enriched_properties['projects'], list):
         projects = enriched_properties['projects']
         if projects and isinstance(projects[0], str):
@@ -91,13 +122,14 @@ def enrich_edge_properties(db_conn, properties: Dict[str, Any]) -> Dict[str, Any
     return enriched_properties
 
 
-def enrich_object_properties(db_conn, obj_data: Dict[str, Any]) -> Dict[str, Any]:
+def enrich_object_properties(db_conn, obj_data: Dict[str, Any], edge_id: int = None) -> Dict[str, Any]:
     """
     Обогатить свойства объекта (узла или ребра) структурированными данными проектов
     
     Args:
         db_conn: Соединение с PostgreSQL
         obj_data: Данные объекта
+        edge_id: ID ребра для использования нормализованной структуры
     
     Returns:
         Dict: Обогащённые данные объекта
@@ -106,6 +138,6 @@ def enrich_object_properties(db_conn, obj_data: Dict[str, Any]) -> Dict[str, Any
     
     # Обработать properties если они есть
     if 'properties' in enriched_data and isinstance(enriched_data['properties'], dict):
-        enriched_data['properties'] = enrich_edge_properties(db_conn, enriched_data['properties'])
+        enriched_data['properties'] = enrich_edge_properties(db_conn, enriched_data['properties'], edge_id)
     
     return enriched_data

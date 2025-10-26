@@ -508,16 +508,24 @@ export const useGraphStore = defineStore('graph', () => {
     fullText.value = ''
   }
   
-  /**
-   * Переключение видимости панели полного текста
-   */
-  const toggleFullText = () => {
-    if (showFullText.value) {
-      closeFullText()
-    } else if (fullText.value) {
-      showFullText.value = true
-    }
-  }
+         /**
+          * Переключение видимости панели полного текста
+          */
+         const toggleFullText = () => {
+           if (showFullText.value) {
+             closeFullText()
+           } else if (fullText.value) {
+             showFullText.value = true
+           }
+         }
+
+         /**
+          * Открытие панели полного текста с заданным текстом
+          */
+         const openFullText = (text) => {
+           fullText.value = text
+           showFullText.value = true
+         }
 
   /**
    * Загрузка деталей объекта
@@ -1140,6 +1148,8 @@ export const useGraphStore = defineStore('graph', () => {
     error,
     selectedObject,
     showDetails,
+    fullText,
+    showFullText,
     selectedNodesList,
     selectedEdgesList,
     viewHistory,
@@ -1154,23 +1164,24 @@ export const useGraphStore = defineStore('graph', () => {
     canUndo,
     canRedo,
     
-    // Actions
-    setNetwork,
-    loadNodes,
-    loadGraph,
-    applyTheme,
-    updateSelectedNodes,
-    updateSelectedEdges,
-    clearSelection,
-    fitGraph,
-    changeProject,
-    loadDocumentDetails,
-    closeFullText,
-    toggleFullText,
-    loadObjectDetails,
-    selectNode,
-    selectEdge,
-    closeDetails,
+           // Actions
+           setNetwork,
+           loadNodes,
+           loadGraph,
+           applyTheme,
+           updateSelectedNodes,
+           updateSelectedEdges,
+           clearSelection,
+           fitGraph,
+           changeProject,
+           loadDocumentDetails,
+           closeFullText,
+           toggleFullText,
+           openFullText,
+           loadObjectDetails,
+           selectNode,
+           selectEdge,
+           closeDetails,
 
     // Expand/Hide actions
     expandNodeChildren,

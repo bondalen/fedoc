@@ -343,6 +343,7 @@ const onFocusNode = () => {
 }
 
 const onShowFullText = () => {
+  console.log('onShowFullText called', { name: props.name, value: props.value, isTruncated: isTruncatedString.value })
   const text = `${props.name}:\n\n${props.value}`
   
   // Если панель уже открыта с этим же текстом - закрываем
