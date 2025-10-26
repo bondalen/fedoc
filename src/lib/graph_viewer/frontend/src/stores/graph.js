@@ -438,6 +438,308 @@ export const useGraphStore = defineStore('graph', () => {
     }
   }
 
+  // ========== EXPAND/HIDE OPERATIONS ==========
+
+  /**
+   * Расширить узел - показать потомков (1 уровень вниз)
+   */
+  const expandNodeChildren = async (nodeId) => {
+    try {
+      isLoading.value = true
+
+      const params = new URLSearchParams({
+        node_id: nodeId,
+        direction: 'outbound',
+        theme: theme.value
+      })
+
+      if (project.value) {
+        params.append('project', project.value)
+      }
+
+      const url = `${API_BASE}/expand_node?${params.toString()}`
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      // Добавить новые узлы и рёбра
+      const newNodes = data.nodes || []
+      const newEdges = data.edges || []
+
+      let addedNodesCount = 0
+      let addedEdgesCount = 0
+
+      // Добавить узлы, которых еще нет
+      for (const node of newNodes) {
+        const existsInDataSet = nodesDataSet.value.get(node.id)
+        if (!existsInDataSet) {
+          // Применить оформление к новому узлу
+          const visualNode = applyNodesVisualization([node], theme.value)[0]
+          nodesDataSet.value.add(visualNode)
+          addedNodesCount++
+        }
+      }
+
+      // Добавить рёбра, которых еще нет
+      for (const edge of newEdges) {
+        const existsInDataSet = edgesDataSet.value.get(edge.id)
+        if (!existsInDataSet) {
+          // Применить оформление к новому ребру
+          const visualEdge = applyEdgesVisualization([edge], theme.value)[0]
+          edgesDataSet.value.add(visualEdge)
+          addedEdgesCount++
+        }
+      }
+
+      console.log(`Expanded ${nodeId} (children): +${addedNodesCount} nodes, +${addedEdgesCount} edges`)
+
+      if (addedNodesCount === 0 && addedEdgesCount === 0) {
+        setError('Нет нижестоящих вершин для отображения')
+      }
+
+    } catch (err) {
+      console.error('Error expanding node children:', err)
+      setError(`Не удалось отобразить нижестоящие вершины: ${err.message}`)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Расширить узел - показать предков (1 уровень вверх)
+   */
+  const expandNodeParents = async (nodeId) => {
+    try {
+      isLoading.value = true
+
+      const params = new URLSearchParams({
+        node_id: nodeId,
+        direction: 'inbound',
+        theme: theme.value
+      })
+
+      if (project.value) {
+        params.append('project', project.value)
+      }
+
+      const url = `${API_BASE}/expand_node?${params.toString()}`
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      const newNodes = data.nodes || []
+      const newEdges = data.edges || []
+
+      let addedNodesCount = 0
+      let addedEdgesCount = 0
+
+      for (const node of newNodes) {
+        const existsInDataSet = nodesDataSet.value.get(node.id)
+        if (!existsInDataSet) {
+          const visualNode = applyNodesVisualization([node], theme.value)[0]
+          nodesDataSet.value.add(visualNode)
+          addedNodesCount++
+        }
+      }
+
+      for (const edge of newEdges) {
+        const existsInDataSet = edgesDataSet.value.get(edge.id)
+        if (!existsInDataSet) {
+          const visualEdge = applyEdgesVisualization([edge], theme.value)[0]
+          edgesDataSet.value.add(visualEdge)
+          addedEdgesCount++
+        }
+      }
+
+      console.log(`Expanded ${nodeId} (parents): +${addedNodesCount} nodes, +${addedEdgesCount} edges`)
+
+      if (addedNodesCount === 0 && addedEdgesCount === 0) {
+        setError('Нет вышестоящих вершин для отображения')
+      }
+
+    } catch (err) {
+      console.error('Error expanding node parents:', err)
+      setError(`Не удалось отобразить вышестоящие вершины: ${err.message}`)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Скрыть узел с потомками (рекурсия)
+   */
+  const hideNodeWithChildren = async (nodeId) => {
+    try {
+      isLoading.value = true
+
+      const params = new URLSearchParams({
+        node_id: nodeId,
+        direction: 'outbound',
+        max_depth: 100
+      })
+
+      if (project.value) {
+        params.append('project', project.value)
+      }
+
+      const url = `${API_BASE}/subgraph?${params.toString()}`
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      // Рекурсивная клиентская логика для поиска всех связанных узлов
+      const nodeIds = [nodeId]
+      const edgeIds = []
+      const processedNodes = new Set([nodeId])
+
+      // Рекурсивная функция для поиска всех дочерних узлов
+      const findChildrenRecursively = (currentNodeId) => {
+        if (edgesDataSet.value) {
+          for (const edge of edgesDataSet.value.get()) {
+            // Проверяем, является ли узел началом ребра (исходящие связи)
+            const edgeStartId = edge.from || edge.start_id
+            if (edgeStartId == currentNodeId) {
+              const childNodeId = edge.to || edge.end_id
+              if (childNodeId && !processedNodes.has(childNodeId)) {
+                nodeIds.push(childNodeId)
+                processedNodes.add(childNodeId)
+                // Рекурсивно ищем детей этого узла
+                findChildrenRecursively(childNodeId)
+              }
+              if (edge.id || edge._id) {
+                edgeIds.push(edge.id || edge._id)
+              }
+            }
+          }
+        }
+      }
+
+      // Запускаем рекурсивный поиск
+      findChildrenRecursively(nodeId)
+
+      // Удалить из визуализации - преобразуем в числа
+      const numericNodeIds = nodeIds.map(id => parseInt(id))
+      const numericEdgeIds = edgeIds.map(id => parseInt(id))
+
+      nodesDataSet.value.remove(numericNodeIds)
+      edgesDataSet.value.remove(numericEdgeIds)
+
+      // Принудительно обновить визуализацию
+      if (network.value) {
+        network.value.redraw()
+      }
+
+      console.log(`Hidden ${nodeId} with children: ${nodeIds.length} nodes, ${edgeIds.length} edges`)
+
+    } catch (err) {
+      console.error('Error hiding node with children:', err)
+      setError(`Не удалось скрыть узел с нижестоящими: ${err.message}`)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Скрыть узел с предками (рекурсия)
+   */
+  const hideNodeWithParents = async (nodeId) => {
+    try {
+      isLoading.value = true
+
+      const params = new URLSearchParams({
+        node_id: nodeId,
+        direction: 'inbound',
+        max_depth: 100
+      })
+
+      if (project.value) {
+        params.append('project', project.value)
+      }
+
+      const url = `${API_BASE}/subgraph?${params.toString()}`
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      const nodeIds = [nodeId]
+      const edgeIds = []
+      const processedNodes = new Set([nodeId])
+
+      const findParentsRecursively = (currentNodeId) => {
+        if (edgesDataSet.value) {
+          for (const edge of edgesDataSet.value.get()) {
+            const edgeEndId = edge.to || edge.end_id
+            if (edgeEndId == currentNodeId) {
+              const parentNodeId = edge.from || edge.start_id
+              if (parentNodeId && !processedNodes.has(parentNodeId)) {
+                nodeIds.push(parentNodeId)
+                processedNodes.add(parentNodeId)
+                findParentsRecursively(parentNodeId)
+              }
+              if (edge.id || edge._id) {
+                edgeIds.push(edge.id || edge._id)
+              }
+            }
+          }
+        }
+      }
+
+      findParentsRecursively(nodeId)
+
+      // Удалить из визуализации - преобразуем в числа
+      const numericNodeIds = nodeIds.map(id => parseInt(id))
+      const numericEdgeIds = edgeIds.map(id => parseInt(id))
+
+      nodesDataSet.value.remove(numericNodeIds)
+      edgesDataSet.value.remove(numericEdgeIds)
+
+      // Принудительно обновить визуализацию
+      if (network.value) {
+        network.value.redraw()
+      }
+
+      console.log(`Hidden ${nodeId} with parents: ${nodeIds.length} nodes, ${edgeIds.length} edges`)
+
+    } catch (err) {
+      console.error('Error hiding node with parents:', err)
+      setError(`Не удалось скрыть узел с вышестоящими: ${err.message}`)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // ========== HISTORY MANAGEMENT ==========
 
   /**
@@ -735,6 +1037,12 @@ export const useGraphStore = defineStore('graph', () => {
     loadDocumentDetails,
     closeFullText,
     toggleFullText,
+
+    // Expand/Hide actions
+    expandNodeChildren,
+    expandNodeParents,
+    hideNodeWithChildren,
+    hideNodeWithParents,
     
     // History management
     showAllGraph,
