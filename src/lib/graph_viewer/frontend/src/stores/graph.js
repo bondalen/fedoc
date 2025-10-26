@@ -438,6 +438,55 @@ export const useGraphStore = defineStore('graph', () => {
     }
   }
 
+  /**
+   * Загрузка деталей объекта
+   */
+  const loadObjectDetails = async (objectId) => {
+    try {
+      const url = `${API_BASE}/object_details?id=${encodeURIComponent(objectId)}`
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      // API возвращает объект напрямую
+      selectedObject.value = data
+      
+    } catch (err) {
+      console.error('Ошибка загрузки деталей объекта:', err)
+      throw err
+    }
+  }
+
+  /**
+   * Обработка выбора узла на графе
+   */
+  const selectNode = async (nodeId) => {
+    try {
+      await loadObjectDetails(nodeId)
+      showDetails.value = true
+    } catch (err) {
+      console.error('Ошибка загрузки деталей узла:', err)
+      setError(`Не удалось загрузить детали узла: ${err.message}`)
+    }
+  }
+
+  /**
+   * Обработка выбора ребра на графе
+   */
+  const selectEdge = async (edgeId) => {
+    try {
+      await loadObjectDetails(edgeId)
+      showDetails.value = true
+    } catch (err) {
+      console.error('Ошибка загрузки деталей ребра:', err)
+      setError(`Не удалось загрузить детали ребра: ${err.message}`)
+    }
+  }
+
   // ========== EXPAND/HIDE OPERATIONS ==========
 
   /**
@@ -1037,6 +1086,9 @@ export const useGraphStore = defineStore('graph', () => {
     loadDocumentDetails,
     closeFullText,
     toggleFullText,
+    loadObjectDetails,
+    selectNode,
+    selectEdge,
 
     // Expand/Hide actions
     expandNodeChildren,
