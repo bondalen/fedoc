@@ -122,24 +122,32 @@ const getEdgeLabel = (edge) => {
 const getNodeArangoKeyById = (nodeId) => {
   // Ищем в разных источниках данных
   let node = null
-  
-  // 1. В nodes (список доступных узлов) - здесь есть _key
-  node = store.nodes.find(n => n.id === nodeId || n._id === nodeId)
-  console.log(`Looking in nodes for nodeId: ${nodeId}, found:`, node)
-  
-  // 2. Если не найден, ищем в allNodesData
-  if (!node) {
-    node = store.allNodesData.find(n => n.id === nodeId || n._id === nodeId)
-    console.log(`Looking in allNodesData for nodeId: ${nodeId}, found:`, node)
-  }
-  
-  // 3. Если не найден, ищем в nodesDataSet
-  if (!node && store.nodesDataSet) {
-    const nodeData = store.nodesDataSet.get(nodeId)
-    if (nodeData) {
-      node = nodeData
+  const idNum = Number(nodeId)
+  const idStr = String(nodeId)
+
+  // 1. В актуальном DataSet (vis-network)
+  if (store.nodesDataSet) {
+    const dsByNum = store.nodesDataSet.get(idNum)
+    const dsByStr = store.nodesDataSet.get(idStr)
+    node = dsByNum || dsByStr || null
+    if (node) {
       console.log(`Looking in nodesDataSet for nodeId: ${nodeId}, found:`, node)
     }
+  }
+
+  // 2. Если не найден, пробуем в текущем состоянии истории (кэш 10 состояний)
+  if (!node && store.viewHistory && typeof store.currentHistoryIndex === 'number') {
+    const state = store.viewHistory[store.currentHistoryIndex]
+    if (state && Array.isArray(state.nodes)) {
+      node = state.nodes.find(n => n.id == nodeId || n._id == nodeId) || null
+      console.log(`Looking in viewHistory state for nodeId: ${nodeId}, found:`, node)
+    }
+  }
+
+  // 3. В списке доступных узлов (может не содержать всех отображаемых)
+  if (!node && Array.isArray(store.nodes)) {
+    node = store.nodes.find(n => n.id == nodeId || n._id == nodeId) || null
+    console.log(`Looking in nodes for nodeId: ${nodeId}, found:`, node)
   }
   
   if (node) {

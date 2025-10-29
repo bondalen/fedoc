@@ -243,7 +243,7 @@ class FedocMCPServer:
         """Регистрация инструментов"""
         self.tools = {
             "open_graph_viewer": {
-                "name": "open_graph_viewer",
+                "name": "graph_viewer_open",
                 "description": "Открыть систему визуализации графа в браузере. Автоматически создает SSH туннель, запускает API и Vite серверы, открывает браузер.",
                 "inputSchema": {
                     "type": "object",
@@ -267,7 +267,7 @@ class FedocMCPServer:
                 "inputSchema": {"type": "object", "properties": {}, "required": []}
             },
             "stop_graph_viewer": {
-                "name": "stop_graph_viewer",
+                "name": "graph_viewer_stop",
                 "description": "Остановить систему визуализации графа",
                 "inputSchema": {
                     "type": "object",
@@ -286,32 +286,32 @@ class FedocMCPServer:
                 }
             },
             "check_imports": {
-                "name": "check_imports",
+                "name": "imports_check",
                 "description": "Проверить статус импортов и зависимостей",
                 "inputSchema": {"type": "object", "properties": {}, "required": []}
             },
             "check_stubs": {
-                "name": "check_stubs",
+                "name": "stubs_check",
                 "description": "Проверить статус умных заглушек",
                 "inputSchema": {"type": "object", "properties": {}, "required": []}
             },
             "test_arango": {
-                "name": "test_arango",
+                "name": "arango_test",
                 "description": "Протестировать ArangoDB подключение",
                 "inputSchema": {"type": "object", "properties": {}, "required": []}
             },
             "test_ssh": {
-                "name": "test_ssh",
+                "name": "ssh_test",
                 "description": "Протестировать SSH туннель",
                 "inputSchema": {"type": "object", "properties": {}, "required": []}
             },
-            "get_selected_nodes": {
-                "name": "get_selected_nodes",
+            "node_get_selected": {
+                "name": "node_get_selected",
                 "description": "Получить объекты, выбранные пользователем в Graph Viewer. Запрашивает у браузера текущую выборку узлов и рёбер через WebSocket.",
                 "inputSchema": {"type": "object", "properties": {}, "required": []}
             },
             "add_edge": {
-                "name": "add_edge",
+                "name": "edge_add",
                 "description": "Добавить новое ребро между узлами с автоматической проверкой уникальности. Предотвращает создание дублирующих связей в обоих направлениях (A→B и B→A).",
                 "inputSchema": {
                     "type": "object",
@@ -339,7 +339,7 @@ class FedocMCPServer:
                 }
             },
             "update_edge": {
-                "name": "update_edge",
+                "name": "edge_update",
                 "description": "Обновить существующее ребро с проверкой уникальности. Можно изменить узлы, тип связи или список проектов.",
                 "inputSchema": {
                     "type": "object",
@@ -370,7 +370,7 @@ class FedocMCPServer:
                 }
             },
             "delete_edge": {
-                "name": "delete_edge",
+                "name": "edge_delete",
                 "description": "Удалить ребро из графа.",
                 "inputSchema": {
                     "type": "object",
@@ -383,8 +383,76 @@ class FedocMCPServer:
                     "required": ["edge_id"]
                 }
             },
+            "delete_node": {
+                "name": "node_delete",
+                "description": "Удалить узел из графа (только если нет связанных рёбер).",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "node_id": {
+                            "type": "string",
+                            "description": "ID узла для удаления (например '844424930132008' или 'c:test-isolated')"
+                        }
+                    },
+                    "required": ["node_id"]
+                }
+            },
+            "create_node": {
+                "name": "node_create",
+                "description": "Создать новый узел в графе.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "node_key": {
+                            "type": "string",
+                            "description": "Уникальный ключ узла (например 'c:web-app', 't:react', 'v:react@18')"
+                        },
+                        "node_name": {
+                            "type": "string",
+                            "description": "Отображаемое имя узла"
+                        },
+                        "node_type": {
+                            "type": "string",
+                            "enum": ["concept", "technology", "version", "other"],
+                            "description": "Тип узла"
+                        },
+                        "properties": {
+                            "type": "object",
+                            "description": "Дополнительные свойства узла (опционально)"
+                        }
+                    },
+                    "required": ["node_key", "node_name", "node_type"]
+                }
+            },
+            "node_update": {
+                "name": "node_update",
+                "description": "Обновить существующий узел в графе. Можно изменить имя, тип и свойства. arango_key изменять нельзя.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "node_id": {
+                            "type": "string",
+                            "description": "ID узла для обновления (например '844424930132008' или 'c:web-app')"
+                        },
+                        "node_name": {
+                            "type": "string",
+                            "description": "Новое отображаемое имя узла (опционально)"
+                        },
+                        "node_type": {
+                            "type": "string",
+                            "enum": ["concept", "technology", "version", "other"],
+                            "description": "Новый тип узла (опционально)"
+                        },
+                        "properties": {
+                            "type": "object",
+                            "description": "Новые дополнительные свойства узла (опционально)"
+                        }
+                    },
+                    "required": ["node_id"]
+                }
+            },
             "check_edge_uniqueness": {
-                "name": "check_edge_uniqueness",
+                "name": "edge_check_uniqueness",
                 "description": "Проверить, является ли связь между узлами уникальной. Проверяет оба направления (A→B и B→A).",
                 "inputSchema": {
                     "type": "object",
@@ -411,18 +479,21 @@ class FedocMCPServer:
         """Регистрация обработчиков"""
         # Используем обработчики из handlers/graph_viewer_manager.py
         self.handlers = {
-            "open_graph_viewer": self._handle_open_graph_viewer_v2,
+            "graph_viewer_open": self._handle_open_graph_viewer_v2,
             "graph_viewer_status": self._handle_graph_viewer_status_v2,
-            "stop_graph_viewer": self._handle_stop_graph_viewer_v2,
-            "check_imports": self._handle_check_imports,
-            "check_stubs": self._handle_check_stubs,
-            "test_arango": self._handle_test_arango,
-            "test_ssh": self._handle_test_ssh,
-            "get_selected_nodes": self._handle_get_selected_nodes,
-            "add_edge": self._handle_add_edge,
-            "update_edge": self._handle_update_edge,
-            "delete_edge": self._handle_delete_edge,
-            "check_edge_uniqueness": self._handle_check_edge_uniqueness
+            "graph_viewer_stop": self._handle_stop_graph_viewer_v2,
+            "imports_check": self._handle_check_imports,
+            "stubs_check": self._handle_check_stubs,
+            "arango_test": self._handle_test_arango,
+            "ssh_test": self._handle_test_ssh,
+            "node_get_selected": self._handle_get_selected_nodes,
+            "edge_add": self._handle_add_edge,
+            "edge_update": self._handle_update_edge,
+            "edge_delete": self._handle_delete_edge,
+            "node_delete": self._handle_delete_node,
+            "node_create": self._handle_create_node,
+            "node_update": self._handle_update_node,
+            "edge_check_uniqueness": self._handle_check_edge_uniqueness
         }
     
     def _handle_open_graph_viewer_v2(self, arguments: dict) -> dict:
@@ -863,6 +934,137 @@ class FedocMCPServer:
                 }]
             }
     
+    def _handle_delete_node(self, arguments: dict) -> dict:
+        """Обработка команды удаления узла"""
+        try:
+            node_id = arguments.get("node_id")
+            
+            if not node_id:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр node_id"
+                    }]
+                }
+            
+            # Конвертировать ID если нужно (поддержка arango_key)
+            if not node_id.isdigit():
+                # Это ключ, нужно найти AGE ID
+                age_id = self._convert_key_to_age_id(node_id)
+                if not age_id:
+                    return {
+                        "content": [{
+                            "type": "text",
+                            "text": f"❌ Узел с ключом '{node_id}' не найден"
+                        }]
+                    }
+                node_id = str(age_id)
+            
+            # Вызов API
+            import requests
+            response = requests.delete(f"http://localhost:15000/api/nodes/{node_id}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                text = f"✅ Узел удален!\n\n"
+                text += f"📊 {result['message']}"
+            elif response.status_code == 409:
+                result = response.json()
+                text = f"❌ Нельзя удалить узел\n\n"
+                text += f"Причина: {result['error']}\n"
+                text += f"💡 {result['suggestion']}"
+            elif response.status_code == 404:
+                result = response.json()
+                text = f"❌ Узел не найден\n\n"
+                text += f"Причина: {result['error']}"
+            else:
+                result = response.json()
+                text = f"❌ Ошибка удаления узла\n\n"
+                text += f"Причина: {result.get('error', 'Неизвестная ошибка')}"
+            
+            return {"content": [{"type": "text", "text": text}]}
+            
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
+                }]
+            }
+    
+    def _convert_key_to_age_id(self, node_key: str) -> int:
+        """Конвертировать arango_key в AGE ID"""
+        try:
+            import requests
+            response = requests.get(f"http://localhost:15000/api/nodes")
+            if response.status_code == 200:
+                nodes = response.json()
+                for node in nodes:
+                    if node.get('_key') == node_key:
+                        return node.get('_id')
+            return None
+        except:
+            return None
+    
+    def _handle_create_node(self, arguments: dict) -> dict:
+        """Обработка команды создания узла"""
+        try:
+            node_key = arguments.get("node_key")
+            node_name = arguments.get("node_name")
+            node_type = arguments.get("node_type")
+            properties = arguments.get("properties", {})
+            
+            if not all([node_key, node_name, node_type]):
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указаны обязательные параметры node_key, node_name, node_type"
+                    }]
+                }
+            
+            # Подготовить данные для API
+            data = {
+                "node_key": node_key,
+                "node_name": node_name,
+                "node_type": node_type
+            }
+            if properties:
+                data["properties"] = properties
+            
+            # Вызов API
+            import requests
+            response = requests.post("http://localhost:15000/api/nodes", json=data)
+            
+            if response.status_code == 200:
+                result = response.json()
+                text = f"✅ Узел создан!\n\n"
+                text += f"📊 {result['message']}\n"
+                text += f"🔑 Ключ: {result['node_key']}\n"
+                text += f"🏷️ Тип: {result['node_type']}\n"
+                text += f"🆔 ID: {result['node_id']}"
+            elif response.status_code == 409:
+                result = response.json()
+                text = f"❌ Узел уже существует\n\n"
+                text += f"Причина: {result['error']}"
+            elif response.status_code == 400:
+                result = response.json()
+                text = f"❌ Ошибка валидации\n\n"
+                text += f"Причина: {result['error']}"
+            else:
+                result = response.json()
+                text = f"❌ Ошибка создания узла\n\n"
+                text += f"Причина: {result.get('error', 'Неизвестная ошибка')}"
+            
+            return {"content": [{"type": "text", "text": text}]}
+            
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
+                }]
+            }
+    
     def _handle_check_edge_uniqueness(self, arguments: dict) -> dict:
         """Обработка команды проверки уникальности"""
         try:
@@ -901,6 +1103,89 @@ class FedocMCPServer:
                 text += f"   К: {to_label}\n"
                 text += f"   Результат: {result.get('error', 'Связь уже существует')}\n\n"
                 text += f"❌ Создание этой связи будет отклонено"
+            
+            return {"content": [{"type": "text", "text": text}]}
+            
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
+                }]
+            }
+    
+    def _handle_update_node(self, arguments: dict) -> dict:
+        """Обработка команды обновления узла"""
+        try:
+            node_id = arguments.get("node_id")
+            node_name = arguments.get("node_name")
+            node_type = arguments.get("node_type")
+            properties = arguments.get("properties")
+            
+            if not node_id:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр node_id"
+                    }]
+                }
+            
+            # Проверяем, что есть что обновлять
+            if not any([node_name, node_type, properties]):
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указаны поля для обновления (node_name, node_type, properties)"
+                    }]
+                }
+            
+            # Конвертируем ключ в ID если нужно
+            if not node_id.isdigit():
+                age_id = self._convert_key_to_age_id(node_id)
+                if not age_id:
+                    return {
+                        "content": [{
+                            "type": "text",
+                            "text": f"❌ Узел с ключом '{node_id}' не найден"
+                        }]
+                    }
+                node_id = str(age_id)
+            
+            # Подготавливаем данные для обновления
+            data = {}
+            if node_name:
+                data["node_name"] = node_name
+            if node_type:
+                data["node_type"] = node_type
+            if properties:
+                data["properties"] = properties
+            
+            # Вызов API
+            import requests
+            response = requests.put(f"http://localhost:15000/api/nodes/{node_id}", json=data)
+            
+            if response.status_code == 200:
+                result = response.json()
+                text = f"✅ Узел обновлен!\n\n"
+                text += f"📊 {result['message']}\n"
+                text += f"🔑 Ключ: {result['node_key']}\n"
+                if 'node_name' in result:
+                    text += f"🏷️ Имя: {result['node_name']}\n"
+                if 'node_type' in result:
+                    text += f"📂 Тип: {result['node_type']}\n"
+                text += f"🆔 ID: {result['node_id']}"
+            elif response.status_code == 404:
+                result = response.json()
+                text = f"❌ Узел не найден\n\n"
+                text += f"Причина: {result['error']}"
+            elif response.status_code == 400:
+                result = response.json()
+                text = f"❌ Ошибка валидации\n\n"
+                text += f"Причина: {result['error']}"
+            else:
+                result = response.json()
+                text = f"❌ Ошибка обновления узла\n\n"
+                text += f"Причина: {result.get('error', 'Неизвестная ошибка')}"
             
             return {"content": [{"type": "text", "text": text}]}
             

@@ -11,6 +11,7 @@ from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 import psycopg2
 from psycopg2.extras import Json, RealDictCursor
+from psycopg2 import IntegrityError
 import argparse
 import sys
 import json
@@ -266,6 +267,96 @@ def convert_edge_key_to_age_id(edge_identifier: str) -> Optional[int]:
         raise ValueError(f"Не удалось конвертировать ID ребра: {edge_identifier}")
 
 
+# ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+
+def process_edge(edge_id, from_id, to_id, from_name, to_name, from_key, to_key, 
+                from_kind, to_kind, projects, rel_type, project, theme, nodes_map, edges_map):
+    """Обработать ребро и добавить связанные узлы"""
+    # Определяем тип узла по ключу (как в process_isolated_node)
+    def get_node_kind(key):
+        if key.startswith('c:'):
+            return 'concept'
+        elif key.startswith('t:'):
+            return 'technology'
+        elif key.startswith('v:'):
+            return 'version'
+        else:
+            return 'other'
+    
+    # Добавить узлы (всегда, независимо от фильтрации проекта)
+    if from_id not in nodes_map:
+        from_node_kind = get_node_kind(from_key)
+        nodes_map[from_id] = {
+            'id': from_id,
+            'label': from_name,
+            '_key': from_key,
+            'shape': 'box' if from_node_kind == 'concept' else 'ellipse',
+            'color': {
+                'background': '#263238' if theme == 'dark' else '#E3F2FD'
+            } if from_node_kind == 'concept' else {
+                'background': '#1B5E20' if theme == 'dark' else '#C8E6C9'
+            }
+        }
+    
+    if to_id not in nodes_map:
+        to_node_kind = get_node_kind(to_key)
+        nodes_map[to_id] = {
+            'id': to_id,
+            'label': to_name,
+            '_key': to_key,
+            'shape': 'box' if to_node_kind == 'concept' else 'ellipse',
+            'color': {
+                'background': '#263238' if theme == 'dark' else '#E3F2FD'
+            } if to_node_kind == 'concept' else {
+                'background': '#1B5E20' if theme == 'dark' else '#C8E6C9'
+            }
+        }
+    
+    # Добавить ребро с проверкой правильного направления
+    # Фильтрация по проекту для рёбер
+    if project and (not projects or project not in projects):
+        return
+    
+    if edge_id not in edges_map:
+        # Использовать данные как есть (PostgreSQL функция исправлена)
+        actual_from = from_id
+        actual_to = to_id
+        
+        edges_map[edge_id] = {
+            'id': edge_id,
+            'from': actual_from,
+            'to': actual_to,
+            'label': ', '.join(projects) if projects else 'альтернатива',
+            'color': {
+                'color': '#64B5F6' if projects else '#9E9E9E'
+            }
+        }
+
+def process_isolated_node(node_id, node_key, node_name, theme, nodes_map):
+    """Обработать изолированный узел"""
+    if node_id not in nodes_map:
+        # Определяем тип узла по ключу
+        if node_key.startswith('c:'):
+            node_kind = 'concept'
+        elif node_key.startswith('t:'):
+            node_kind = 'technology'
+        elif node_key.startswith('v:'):
+            node_kind = 'version'
+        else:
+            node_kind = 'other'
+        
+        nodes_map[node_id] = {
+            'id': node_id,
+            'label': node_name,
+            '_key': node_key,
+            'shape': 'box' if node_kind == 'concept' else 'ellipse',
+            'color': {
+                'background': '#263238' if theme == 'dark' else '#E3F2FD'
+            } if node_kind == 'concept' else {
+                'background': '#1B5E20' if theme == 'dark' else '#C8E6C9'
+            }
+        }
+
 # ========== REST API ENDPOINTS ==========
 
 @app.route('/api/nodes', methods=['GET'])
@@ -292,6 +383,252 @@ def get_nodes():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/nodes', methods=['POST'])
+def create_node():
+    """Создать новый узел в графе"""
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'Пустой запрос'}), 400
+        
+        node_key = data.get('node_key')
+        node_name = data.get('node_name')
+        node_type = data.get('node_type')
+        properties = data.get('properties', {})
+        
+        # Валидация обязательных полей
+        if not all([node_key, node_name, node_type]):
+            return jsonify({'error': 'Отсутствуют обязательные поля: node_key, node_name, node_type'}), 400
+        
+        # Валидация типа узла
+        valid_types = ['concept', 'technology', 'version', 'other']
+        if node_type not in valid_types:
+            return jsonify({'error': f'Некорректный тип узла. Допустимые: {", ".join(valid_types)}'}), 400
+        
+        # Валидация ключа узла
+        if not validate_node_key(node_key, node_type):
+            return jsonify({'error': f'Некорректный формат ключа для типа "{node_type}". Ожидается префикс: {get_expected_prefix(node_type)}'}), 400
+        
+        # Проверка уникальности ключа
+        if check_node_key_exists(node_key):
+            return jsonify({'error': f'Узел с ключом "{node_key}" уже существует'}), 409
+        
+        # Создание узла в базе данных
+        try:
+            node_id = create_node_in_db(node_key, node_name, node_type, properties)
+        except IntegrityError as e:
+            if 'Узел с ключом' in str(e):
+                return jsonify({'error': str(e)}), 409
+            else:
+                return jsonify({'error': f'Ошибка целостности данных: {str(e)}'}), 409
+        
+        log(f"✓ Node created: {node_id} ({node_key})")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Узел {node_key} ({node_name}) успешно создан',
+            'node_id': node_id,
+            'node_key': node_key,
+            'node_name': node_name,
+            'node_type': node_type
+        })
+        
+    except Exception as e:
+        log(f"✗ Error creating node: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/nodes/<int:node_id>', methods=['PUT'])
+def update_node(node_id):
+    """Обновить существующий узел в графе"""
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'Пустой запрос'}), 400
+        
+        node_name = data.get('node_name')
+        node_type = data.get('node_type')
+        properties = data.get('properties', {})
+        
+        # Проверяем, что есть что обновлять
+        if not any([node_name, node_type, properties]):
+            return jsonify({'error': 'Не указаны поля для обновления'}), 400
+        
+        # Проверяем существование узла
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            
+            node_query = f"""
+                SELECT * FROM cypher('{graph_name}', $$
+                    MATCH (n) WHERE id(n) = {node_id}
+                    RETURN n.arango_key, n.name, n.node_type
+                $$) AS (key agtype, name agtype, node_type agtype);
+            """
+            cur.execute(node_query)
+            node_result = cur.fetchone()
+            
+            if not node_result:
+                return jsonify({'error': f'Узел с ID {node_id} не найден'}), 404
+            
+            current_key = agtype_to_python(node_result[0])
+            current_name = agtype_to_python(node_result[1])
+            current_type = agtype_to_python(node_result[2])
+        
+        # Валидация типа узла
+        if node_type:
+            valid_types = ['concept', 'technology', 'version', 'other']
+            if node_type not in valid_types:
+                return jsonify({'error': f'Некорректный тип узла. Допустимые: {", ".join(valid_types)}'}), 400
+        
+        # Подготавливаем обновления
+        updates = []
+        if node_name:
+            updates.append(f"n.name = '{node_name}'")
+        if node_type:
+            updates.append(f"n.node_type = '{node_type}'")
+        if properties:
+            props_list = []
+            for key, value in properties.items():
+                if isinstance(value, str):
+                    props_list.append(f"{key}: '{value}'")
+                else:
+                    props_list.append(f"{key}: {value}")
+            extra_props = ", " + ", ".join(props_list)
+            updates.append(f"n += {{{extra_props}}}")
+        
+        if not updates:
+            return jsonify({'error': 'Нет полей для обновления'}), 400
+        
+        # Выполняем обновление
+        update_query = f"""
+            SELECT * FROM cypher('{graph_name}', $$
+                MATCH (n) WHERE id(n) = {node_id}
+                SET {', '.join(updates)}
+                RETURN n.arango_key, n.name, n.node_type, id(n)
+            $$) AS (key agtype, name agtype, node_type agtype, node_id agtype);
+        """
+        
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            cur.execute(update_query)
+            result = cur.fetchone()
+            
+            if not result:
+                return jsonify({'error': 'Не удалось обновить узел'}), 500
+            
+            updated_key = agtype_to_python(result[0])
+            updated_name = agtype_to_python(result[1])
+            updated_type = agtype_to_python(result[2])
+            updated_id = agtype_to_python(result[3])
+        
+        log(f"✓ Node updated: {updated_id} ({updated_key})")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Узел {updated_key} успешно обновлен',
+            'node_id': updated_id,
+            'node_key': updated_key,
+            'node_name': updated_name,
+            'node_type': updated_type
+        })
+        
+    except Exception as e:
+        log(f"✗ Error updating node {node_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+def validate_node_key(node_key: str, node_type: str) -> bool:
+    """Валидация ключа узла"""
+    if node_type == 'concept' and not node_key.startswith('c:'):
+        return False
+    elif node_type == 'technology' and not node_key.startswith('t:'):
+        return False
+    elif node_type == 'version' and not node_key.startswith('v:'):
+        return False
+    elif node_type == 'other':
+        # Для типа 'other' ключ может быть любым
+        return True
+    return True
+
+
+def get_expected_prefix(node_type: str) -> str:
+    """Получить ожидаемый префикс для типа узла"""
+    prefixes = {
+        'concept': 'c:',
+        'technology': 't:',
+        'version': 'v:',
+        'other': 'любой'
+    }
+    return prefixes.get(node_type, 'неизвестный')
+
+
+def check_node_key_exists(node_key: str) -> bool:
+    """Проверить существование узла с указанным ключом"""
+    try:
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            
+            query = f"""
+                SELECT * FROM cypher('{graph_name}', $$
+                    MATCH (n {{arango_key: '{node_key}'}})
+                    RETURN count(n) as count
+                $$) AS (count agtype);
+            """
+            cur.execute(query)
+            result = cur.fetchone()
+            count = agtype_to_python(result[0]) if result else 0
+            return count > 0
+    except Exception as e:
+        log(f"Error checking node key existence: {e}")
+        return False
+
+
+def create_node_in_db(node_key: str, node_name: str, node_type: str, properties: dict) -> int:
+    """Создать узел в базе данных"""
+    try:
+        # Подготовить дополнительные свойства
+        extra_props = ""
+        if properties:
+            props_list = []
+            for key, value in properties.items():
+                if isinstance(value, str):
+                    props_list.append(f"{key}: '{value}'")
+                else:
+                    props_list.append(f"{key}: {value}")
+            extra_props = ", " + ", ".join(props_list)
+        
+        # Cypher запрос для создания узла
+        query = f"""
+            SELECT * FROM cypher('{graph_name}', $$
+                CREATE (n:canonical_node {{
+                    arango_key: '{node_key}',
+                    name: '{node_name}',
+                    node_type: '{node_type}'{extra_props}
+                }})
+                RETURN id(n)
+            $$) AS (node_id agtype);
+        """
+        
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            cur.execute(query)
+            result = cur.fetchone()
+            
+            if result and result[0]:
+                return agtype_to_python(result[0])
+            else:
+                raise Exception("Не удалось получить ID созданного узла")
+                
+    except Exception as e:
+        log(f"Error creating node in DB: {e}")
+        raise
+
+
 @app.route('/api/graph', methods=['GET'])
 def get_graph():
     """Построить граф используя PostgreSQL функции"""
@@ -304,7 +641,37 @@ def get_graph():
         # Используем новые PostgreSQL функции вместо прямых Cypher запросов
         if not start:
             # Вернуть все узлы и ребра проекта
-            results = execute_sql_function('ag_catalog.get_all_graph_for_viewer', project)
+            # Получаем рёбра
+            edge_results = execute_sql_function('ag_catalog.get_all_graph_for_viewer', project)
+            # Получаем все узлы (включая изолированные)
+            all_node_results = execute_sql_function('ag_catalog.get_all_nodes_for_viewer', project if project else None)
+            
+            # Определяем изолированные узлы
+            connected_node_ids = set()
+            for row in edge_results:
+                if len(row) == 11:  # Это ребро
+                    from_id = agtype_to_python(row[1])
+                    to_id = agtype_to_python(row[2])
+                    connected_node_ids.add(str(from_id))
+                    connected_node_ids.add(str(to_id))
+            
+            log(f"Connected node IDs: {len(connected_node_ids)}")
+            log(f"All nodes count: {len(all_node_results)}")
+            
+            # Фильтруем изолированные узлы
+            isolated_nodes = []
+            for row in all_node_results:
+                if len(row) == 3:  # Это узел
+                    node_id = str(agtype_to_python(row[0]))
+                    node_key = agtype_to_python(row[1])
+                    if node_id not in connected_node_ids:
+                        isolated_nodes.append(row)
+                        log(f"Isolated node found: {node_key} (ID: {node_id})")
+            
+            log(f"Isolated nodes count: {len(isolated_nodes)}")
+            
+            # Объединяем результаты
+            results = list(edge_results) + isolated_nodes
         else:
             # Извлечь ключ узла из start
             start_key = start.split('/')[-1] if '/' in start else start
@@ -316,64 +683,36 @@ def get_graph():
         edges_map = {}
         
         for row in results:
-            edge_id = agtype_to_python(row[0])
-            from_id = agtype_to_python(row[1])
-            to_id = agtype_to_python(row[2])
-            from_name = agtype_to_python(row[3])
-            to_name = agtype_to_python(row[4])
-            from_key = agtype_to_python(row[5])
-            to_key = agtype_to_python(row[6])
-            from_kind = agtype_to_python(row[7])
-            to_kind = agtype_to_python(row[8])
-            projects = agtype_to_python(row[9])
-            rel_type = agtype_to_python(row[10])
-            
-            # Добавить узлы (всегда, независимо от фильтрации проекта)
-            if from_id not in nodes_map:
-                nodes_map[from_id] = {
-                    'id': from_id,
-                    'label': from_name,
-                    '_key': from_key,
-                    'shape': 'box' if from_kind == 'concept' else 'ellipse',
-                    'color': {
-                        'background': '#263238' if theme == 'dark' else '#E3F2FD'
-                    } if from_kind == 'concept' else {
-                        'background': '#1B5E20' if theme == 'dark' else '#C8E6C9'
-                    }
-                }
-            
-            if to_id not in nodes_map:
-                nodes_map[to_id] = {
-                    'id': to_id,
-                    'label': to_name,
-                    '_key': to_key,
-                    'shape': 'box' if to_kind == 'concept' else 'ellipse',
-                    'color': {
-                        'background': '#263238' if theme == 'dark' else '#E3F2FD'
-                    } if to_kind == 'concept' else {
-                        'background': '#1B5E20' if theme == 'dark' else '#C8E6C9'
-                    }
-                }
-            
-            # Добавить ребро с проверкой правильного направления
-            # Фильтрация по проекту для рёбер
-            if project and (not projects or project not in projects):
-                continue
-            
-            if edge_id not in edges_map:
-                # Использовать данные как есть (PostgreSQL функция исправлена)
-                actual_from = from_id
-                actual_to = to_id
+            # Определяем тип строки по количеству колонок
+            if len(row) == 11:
+                # Это ребро из get_all_graph_for_viewer
+                edge_id = agtype_to_python(row[0])
+                from_id = agtype_to_python(row[1])
+                to_id = agtype_to_python(row[2])
+                from_name = agtype_to_python(row[3])
+                to_name = agtype_to_python(row[4])
+                from_key = agtype_to_python(row[5])
+                to_key = agtype_to_python(row[6])
+                from_kind = agtype_to_python(row[7])
+                to_kind = agtype_to_python(row[8])
+                projects = agtype_to_python(row[9])
+                rel_type = agtype_to_python(row[10])
                 
-                edges_map[edge_id] = {
-                    'id': edge_id,
-                    'from': actual_from,
-                    'to': actual_to,
-                    'label': ', '.join(projects) if projects else 'альтернатива',
-                    'color': {
-                        'color': '#64B5F6' if projects else '#9E9E9E'
-                    }
-                }
+                # Обрабатываем ребро
+                process_edge(edge_id, from_id, to_id, from_name, to_name, from_key, to_key, 
+                           from_kind, to_kind, projects, rel_type, project, theme, nodes_map, edges_map)
+            elif len(row) == 3:
+                # Это узел из get_all_nodes_for_viewer
+                node_id = agtype_to_python(row[0])
+                node_key = agtype_to_python(row[1])
+                node_name = agtype_to_python(row[2])
+                
+                # Обрабатываем узел (изолированный)
+                process_isolated_node(node_id, node_key, node_name, theme, nodes_map)
+            else:
+                # Неизвестный формат
+                log(f"Unknown row format with {len(row)} columns: {row}")
+                continue
         
         result = {
             'theme': theme,
@@ -755,6 +1094,78 @@ def check_edge_uniqueness():
     except Exception as e:
         log(f"✗ Error checking edge uniqueness: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/nodes/<int:node_id>', methods=['DELETE'])
+def delete_node(node_id):
+    """Удалить узел из графа (только если нет связанных рёбер)"""
+    try:
+        # 1. Проверить существование узла
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            
+            # Получить информацию об узле
+            node_query = f"""
+                SELECT * FROM cypher('{graph_name}', $$
+                    MATCH (n) WHERE id(n) = {node_id}
+                    RETURN n.arango_key, n.name
+                $$) AS (key agtype, name agtype);
+            """
+            cur.execute(node_query)
+            node_result = cur.fetchone()
+            
+            if not node_result:
+                return jsonify({'error': f'Узел с ID {node_id} не найден'}), 404
+            
+            node_key = agtype_to_python(node_result[0])
+            node_name = agtype_to_python(node_result[1])
+        
+        # 2. Проверить связанные рёбра
+        edges_query = f"""
+            SELECT * FROM cypher('{graph_name}', $$
+                MATCH (n)-[r]-(m) WHERE id(n) = {node_id}
+                RETURN count(r) as edge_count
+            $$) AS (count agtype);
+        """
+        
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            cur.execute(edges_query)
+            edge_count = agtype_to_python(cur.fetchone()[0])
+            
+            if edge_count > 0:
+                return jsonify({
+                    'error': f'Узел {node_key} ({node_name}) имеет {edge_count} связанных рёбер',
+                    'suggestion': 'Сначала удалите все рёбра, затем повторите удаление узла'
+                }), 409
+        
+        # 3. Удалить узел (рёбер нет)
+        delete_query = f"""
+            SELECT * FROM cypher('{graph_name}', $$
+                MATCH (n) WHERE id(n) = {node_id}
+                DELETE n
+                RETURN 'deleted'
+            $$) AS (result agtype);
+        """
+        
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            cur.execute(delete_query)
+        
+        log(f"✓ Node deleted: {node_id} ({node_key})")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Узел {node_key} ({node_name}) успешно удален',
+            'node_id': node_id
+        })
+        
+    except Exception as e:
+        log(f"✗ Error deleting node {node_id}: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/request_selection', methods=['GET'])

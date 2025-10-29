@@ -17,7 +17,7 @@ class EdgeManagerHandler:
         Инициализация handler'а
         
         Args:
-            api_url: URL API сервера Graph Viewer (default: 15000 для PostgreSQL)
+            api_url: URL API сервера Graph Viewer (default: 8899 для PostgreSQL)
         """
         self.api_url = api_url.rstrip('/')
     
@@ -274,7 +274,7 @@ def create_edge_manager_handler(api_url: str = "http://localhost:15000") -> Edge
     Создать экземпляр Edge Manager Handler
     
     Args:
-        api_url: URL API сервера (default: 15000 для PostgreSQL)
+        api_url: URL API сервера (default: 8899 для PostgreSQL)
     
     Returns:
         EdgeManagerHandler: Экземпляр handler'а

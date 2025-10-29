@@ -21,24 +21,25 @@ export const applyNodeVisualization = (node, theme, isSelected = false, isHovere
   let visualNode = {
     ...node,
     color: {
-      background: themeConfig.color,
-      border: themeConfig.border,
+      background: node.color?.background || themeConfig.color,
+      border: node.color?.border || themeConfig.border,
       highlight: {
-        background: themeConfig.color,
+        background: node.color?.background || themeConfig.color,
         border: isSelected ? visualizationConfig.states.selected.border : 
-                isHovered ? visualizationConfig.states.hover.border : themeConfig.border
+                isHovered ? visualizationConfig.states.hover.border : 
+                (node.color?.border || themeConfig.border)
       },
       hover: {
-        background: themeConfig.color,
+        background: node.color?.background || themeConfig.color,
         border: visualizationConfig.states.hover.border
       }
     },
-    shape: themeConfig.shape,
+    shape: node.shape || themeConfig.shape,
     font: {
-      color: themeConfig.font.color,
-      size: themeConfig.font.size
+      color: node.font?.color || themeConfig.font.color,
+      size: node.font?.size || themeConfig.font.size
     },
-    borderWidth: isSelected ? visualizationConfig.states.selected.width : 1,
+    borderWidth: node.borderWidth || (isSelected ? visualizationConfig.states.selected.width : 1),
     borderWidthSelected: visualizationConfig.states.selected.width
   }
   

@@ -16,7 +16,7 @@ ports:
   arango_tunnel: 8529       # Локальный порт для ArangoDB туннеля (legacy)
   
   # Сервисы
-  api_server: 15000         # REST API для графов (исправлено с 8899)
+  api_server: 15000         # REST API для графов
   vite_server: 5173         # Vue.js dev сервер
 
 # PostgreSQL настройки (основная БД)

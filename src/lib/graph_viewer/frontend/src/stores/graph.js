@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import io from 'socket.io-client'
 
-const API_BASE = '/api'
+const API_BASE = 'http://localhost:15000/api'
 
 export const useGraphStore = defineStore('graph', () => {
   // ========== STATE ==========
@@ -1031,8 +1031,8 @@ export const useGraphStore = defineStore('graph', () => {
    */
   const initWebSocket = () => {
     try {
-      // Подключение к WebSocket серверу через Vite proxy
-      socket = io({
+      // Подключение к WebSocket серверу
+      socket = io('http://localhost:15000', {
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionDelay: 1000,
