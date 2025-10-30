@@ -675,17 +675,97 @@ def get_graph():
         else:
             # Извлечь ключ узла из start
             start_key = start.split('/')[-1] if '/' in start else start
-            # Получить граф от указанного узла
-            results = execute_sql_function('ag_catalog.get_graph_for_viewer', start_key, depth, project)
+            # Получить граф только по исходящим рёбрам (outbound) от стартового узла, глубина 1..depth
+            # Возвращаем 11 колонок под return_type 'graph'
+            query = """
+                MATCH (s:canonical_node {arango_key: $start_key})
+                MATCH p=(s)-[*1..$depth]->(n)
+                UNWIND relationships(p) AS e
+                WITH DISTINCT e, startNode(e) AS a, endNode(e) AS b
+                WHERE ($project IS NULL OR $project = '' OR $project IN e.projects)
+                RETURN id(e), id(a), id(b), a.name, b.name, a.arango_key, b.arango_key, a.kind, b.kind, e.projects, e.type
+            """
+            results = execute_cypher(query, { 'start_key': start_key, 'depth': int(depth), 'project': project or '' }, return_type='graph')
         
         # Построение узлов и рёбер для vis-network
         nodes_map = {}
         edges_map = {}
         
+        # Локальный кэш канонических направлений рёбер
+        canonical_edge_dir = {}
+
+        # Кэш свойств узлов по id
+        node_props_cache = {}
+
+        def get_node_props(node_id: int):
+            if node_id in node_props_cache:
+                return node_props_cache[node_id]
+            try:
+                with db_conn.cursor() as cur:
+                    cur.execute("LOAD 'age';")
+                    cur.execute("SET search_path = ag_catalog, public;")
+                    cur.execute(f"""
+                        SELECT * FROM cypher('{graph_name}', $$
+                            MATCH (n) WHERE id(n) = {int(node_id)}
+                            RETURN n.arango_key, n.name
+                        $$) as (key agtype, name agtype);
+                    """)
+                    row = cur.fetchone()
+                    key = agtype_to_python(row[0]) if row else None
+                    name = agtype_to_python(row[1]) if row else None
+                    # Запасной вариант: если имя пусто, используем ключ
+                    if not name:
+                        name = key or str(node_id)
+                    node_props_cache[node_id] = (key or str(node_id), name)
+                    return node_props_cache[node_id]
+            except Exception:
+                node_props_cache[node_id] = (str(node_id), str(node_id))
+                return node_props_cache[node_id]
+
+        def get_canonical_from_to(eid: int):
+            if eid in canonical_edge_dir:
+                return canonical_edge_dir[eid]
+            try:
+                with db_conn.cursor() as cur:
+                    cur.execute("LOAD 'age';")
+                    cur.execute("SET search_path = ag_catalog, public;")
+                    # Явно указываем две колонки, чтобы не зависеть от эвристик execute_cypher
+                    cur.execute(f"""
+                        SELECT * FROM cypher('{graph_name}', $$
+                            MATCH (a)-[e]->(b) WHERE id(e) = {eid}
+                            RETURN id(a), id(b)
+                        $$) as (a_id agtype, b_id agtype);
+                    """)
+                    row = cur.fetchone()
+                    if row and row[0] is not None and row[1] is not None:
+                        a_id = agtype_to_python(row[0])
+                        b_id = agtype_to_python(row[1])
+                        canonical_edge_dir[eid] = (a_id, b_id)
+                        return a_id, b_id
+                    # Резервный способ: вернуть само ребро и прочитать start_id/end_id
+                    cur.execute(f"""
+                        SELECT * FROM cypher('{graph_name}', $$
+                            MATCH ()-[e]->() WHERE id(e) = {eid}
+                            RETURN e
+                        $$) as (edge agtype);
+                    """)
+                    row2 = cur.fetchone()
+                    if row2 and row2[0] is not None:
+                        e_obj = agtype_to_python(row2[0])
+                        if isinstance(e_obj, dict):
+                            s_id = e_obj.get('start_id')
+                            t_id = e_obj.get('end_id')
+                            if s_id is not None and t_id is not None:
+                                canonical_edge_dir[eid] = (int(s_id), int(t_id))
+                                return int(s_id), int(t_id)
+            except Exception:
+                pass
+            return None, None
+
         for row in results:
             # Определяем тип строки по количеству колонок
             if len(row) == 11:
-                # Это ребро из get_all_graph_for_viewer
+                # Это ребро
                 edge_id = agtype_to_python(row[0])
                 from_id = agtype_to_python(row[1])
                 to_id = agtype_to_python(row[2])
@@ -697,6 +777,17 @@ def get_graph():
                 to_kind = agtype_to_python(row[8])
                 projects = agtype_to_python(row[9])
                 rel_type = agtype_to_python(row[10])
+
+                # Нормализация направления: берём каноническое направление из базы
+                can_from, can_to = get_canonical_from_to(edge_id)
+                if can_from is not None and can_to is not None:
+                    from_id, to_id = can_from, can_to
+                
+                # Переопределяем свойства узлов по их фактическим id, чтобы исключить несоответствие колонок
+                f_key, f_name = get_node_props(from_id)
+                t_key, t_name = get_node_props(to_id)
+                from_key, to_key = f_key, t_key
+                from_name, to_name = f_name, t_name
                 
                 # Обрабатываем ребро
                 process_edge(edge_id, from_id, to_id, from_name, to_name, from_key, to_key, 
@@ -714,10 +805,22 @@ def get_graph():
                 log(f"Unknown row format with {len(row)} columns: {row}")
                 continue
         
+        # Пост-нормализация направления рёбер на основе каноники
+        normalized_edges = []
+        for e in edges_map.values():
+            eid = e.get('id')
+            if eid is not None:
+                can_from, can_to = get_canonical_from_to(eid)
+                if can_from is not None and can_to is not None:
+                    e['from'] = can_from
+                    e['to'] = can_to
+            normalized_edges.append(e)
+
+        # Отдаём сегмент из БД без дополнительной фильтрации: минимальный путь БД→API→Фронт
         result = {
             'theme': theme,
             'nodes': list(nodes_map.values()),
-            'edges': list(edges_map.values())
+            'edges': normalized_edges
         }
         
         return jsonify(result)
@@ -791,6 +894,59 @@ def get_object_details():
         log(f"Error in get_object_details: {e}")
         return jsonify({'error': str(e)}), 500
 
+
+@app.route('/api/canonical_edge', methods=['GET'])
+def canonical_edge():
+    """Диагностика: вернуть каноническое направление рёбра по edge_id."""
+    try:
+        eid = request.args.get('id')
+        if not eid:
+            return jsonify({'error': 'Missing id'}), 400
+        try:
+            edge_id = int(eid)
+        except ValueError:
+            return jsonify({'error': 'Invalid id'}), 400
+
+        # Локальная функция может находиться ниже по файлу; дублируем минимальную логику
+        def _get_canonical(edge_id: int):
+            try:
+                with db_conn.cursor() as cur:
+                    cur.execute("LOAD 'age';")
+                    cur.execute("SET search_path = ag_catalog, public;")
+                    cur.execute(f"""
+                        SELECT * FROM cypher('{graph_name}', $$
+                            MATCH (a)-[e]->(b) WHERE id(e) = {edge_id}
+                            RETURN id(a), id(b)
+                        $$) as (a_id agtype, b_id agtype);
+                    """)
+                    row = cur.fetchone()
+                    if row and row[0] is not None and row[1] is not None:
+                        a_id = agtype_to_python(row[0])
+                        b_id = agtype_to_python(row[1])
+                        return int(a_id), int(b_id)
+                    cur.execute(f"""
+                        SELECT * FROM cypher('{graph_name}', $$
+                            MATCH ()-[e]->() WHERE id(e) = {edge_id}
+                            RETURN e
+                        $$) as (edge agtype);
+                    """)
+                    row2 = cur.fetchone()
+                    if row2 and row2[0] is not None:
+                        e_obj = agtype_to_python(row2[0])
+                        if isinstance(e_obj, dict):
+                            s_id = e_obj.get('start_id')
+                            t_id = e_obj.get('end_id')
+                            if s_id is not None and t_id is not None:
+                                return int(s_id), int(t_id)
+            except Exception as ex:
+                log(f"canonical_edge error: {ex}")
+            return None, None
+
+        a, b = _get_canonical(edge_id)
+        return jsonify({ 'id': edge_id, 'from': a, 'to': b })
+    except Exception as e:
+        log(f"Error in canonical_edge: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/expand_node', methods=['GET'])
 def expand_node():

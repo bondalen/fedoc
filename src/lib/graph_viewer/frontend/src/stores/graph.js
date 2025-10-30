@@ -231,9 +231,16 @@ export const useGraphStore = defineStore('graph', () => {
       nodesDataSet.value.clear()
       edgesDataSet.value.clear()
 
+      // Сброс возможных зафиксированных координат перед вставкой
+      const freshNodes = (data.nodes || []).map(n => {
+        const c = { ...n }
+        delete c.x; delete c.y; delete c.fixed
+        return c
+      })
+
       // Добавление новых данных в визуализацию
-      if (data.nodes && data.nodes.length > 0) {
-        nodesDataSet.value.add(data.nodes)
+      if (freshNodes && freshNodes.length > 0) {
+        nodesDataSet.value.add(freshNodes)
       }
 
       if (data.edges && data.edges.length > 0) {
@@ -242,6 +249,17 @@ export const useGraphStore = defineStore('graph', () => {
       
       // Применить тему после загрузки
       applyTheme()
+
+      // Жёсткий сброс раскладки и стабилизация без переустановки источников
+      if (network.value) {
+        try {
+          network.value.setOptions({ physics: { stabilization: true } })
+          network.value.stabilize()
+          network.value.fit({ animation: true })
+        } catch (e) {
+          console.warn('Не удалось выполнить стабилизацию сети:', e)
+        }
+      }
       
     } catch (err) {
       console.error('Ошибка загрузки графа:', err)
@@ -370,7 +388,8 @@ export const useGraphStore = defineStore('graph', () => {
     try {
       selectedNodesList.value = []
 
-      for (const nodeId of nodeIds) {
+      const uniqNodeIds = Array.from(new Set(nodeIds))
+      for (const nodeId of uniqNodeIds) {
         try {
           const url = `${API_BASE}/object_details?id=${encodeURIComponent(nodeId)}`
       const response = await fetch(url)
@@ -399,7 +418,8 @@ export const useGraphStore = defineStore('graph', () => {
     try {
       selectedEdgesList.value = []
 
-      for (const edgeId of edgeIds) {
+      const uniqEdgeIds = Array.from(new Set(edgeIds))
+      for (const edgeId of uniqEdgeIds) {
         try {
           const url = `${API_BASE}/object_details?id=${encodeURIComponent(edgeId)}`
       const response = await fetch(url)
@@ -761,9 +781,9 @@ export const useGraphStore = defineStore('graph', () => {
         if (edgesDataSet.value) {
           for (const edge of edgesDataSet.value.get()) {
             // Проверяем, является ли узел началом ребра (исходящие связи)
-            const edgeStartId = edge.from || edge.start_id
+            const edgeStartId = edge.from
             if (edgeStartId == currentNodeId) {
-              const childNodeId = edge.to || edge.end_id
+              const childNodeId = edge.to
               if (childNodeId && !processedNodes.has(childNodeId)) {
                 nodeIds.push(childNodeId)
                 processedNodes.add(childNodeId)
@@ -833,16 +853,17 @@ export const useGraphStore = defineStore('graph', () => {
         throw new Error(data.error)
       }
 
-      const nodeIds = [nodeId]
+      // Не удаляем сам стартовый узел; удаляем только его предков и входящие рёбра
+      const nodeIds = []
       const edgeIds = []
       const processedNodes = new Set([nodeId])
 
       const findParentsRecursively = (currentNodeId) => {
         if (edgesDataSet.value) {
           for (const edge of edgesDataSet.value.get()) {
-            const edgeEndId = edge.to || edge.end_id
+            const edgeEndId = edge.to
             if (edgeEndId == currentNodeId) {
-              const parentNodeId = edge.from || edge.start_id
+              const parentNodeId = edge.from
               if (parentNodeId && !processedNodes.has(parentNodeId)) {
                 nodeIds.push(parentNodeId)
                 processedNodes.add(parentNodeId)
@@ -1102,8 +1123,9 @@ export const useGraphStore = defineStore('graph', () => {
     console.log('selectedEdgesList.value:', selectedEdgesList.value)
     
     // Используем данные из store, которые обновляются при выделении
-    const selectedNodes = (selectedNodesList.value || []).map(n => (n && typeof n === 'object' ? (n.id ?? n) : n))
-    const selectedEdges = (selectedEdgesList.value || []).map(e => (e && typeof e === 'object' ? (e.id ?? e) : e))
+    // Уникализируем выборку
+    const selectedNodes = Array.from(new Set((selectedNodesList.value || []).map(n => (n && typeof n === 'object' ? (n.id ?? n) : n))))
+    const selectedEdges = Array.from(new Set((selectedEdgesList.value || []).map(e => (e && typeof e === 'object' ? (e.id ?? e) : e))))
     
     console.log(`Found: ${selectedNodes.length} nodes, ${selectedEdges.length} edges`)
     console.log('selectedNodes:', selectedNodes)
