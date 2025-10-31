@@ -221,13 +221,14 @@ class EdgeValidatorAGE:
             
             # Обновить свойства ребра
             # Используем FORMAT() вместо параметров (Apache AGE 1.6.0 ограничение)
+            # Используем += для слияния свойств (сохранение существующих полей)
             props_str = format_properties_for_cypher(new_properties)
             
             query = f"""
             SELECT * FROM cypher('{self.graph_name}', $$
                 MATCH ()-[e]->()
                 WHERE id(e) = {edge_id}
-                SET e = {props_str}
+                SET e += {props_str}
                 RETURN id(e) as edge_id
             $$) as (edge_id agtype)
             """

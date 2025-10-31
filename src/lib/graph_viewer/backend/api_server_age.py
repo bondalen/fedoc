@@ -495,7 +495,7 @@ def update_node(node_id):
                     props_list.append(f"{key}: '{value}'")
                 else:
                     props_list.append(f"{key}: {value}")
-            extra_props = ", " + ", ".join(props_list)
+            extra_props = ", ".join(props_list)
             updates.append(f"n += {{{extra_props}}}")
         
         if not updates:
