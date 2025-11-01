@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Импортируем обработчики
 from handlers import graph_viewer_manager
 from handlers.edge_manager import create_edge_manager_handler
+from handlers.graph_traverse_down import graph_traverse_down
 
 class FedocMCPServer:
     """MCP сервер для управления Graph Viewer"""
@@ -472,6 +473,37 @@ class FedocMCPServer:
                     },
                     "required": ["from_node", "to_node"]
                 }
+            },
+            "graph_traverse_down": {
+                "name": "graph_traverse_down",
+                "description": "Обход графа проекта вниз от узла (sys-001). Генерирует документ с иерархией компонентов, технологий и зависимостей.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string",
+                            "description": "Ключ проекта для обхода",
+                            "enum": ["fedoc", "fepro", "femsq"]
+                        },
+                        "start_node": {
+                            "type": "string",
+                            "description": "Стартовый узел (arango_key). По умолчанию c:project"
+                        },
+                        "format": {
+                            "type": "string",
+                            "description": "Формат вывода (MVP: только markdown)",
+                            "enum": ["markdown"],
+                            "default": "markdown"
+                        },
+                        "audience": {
+                            "type": "string",
+                            "description": "Целевая аудитория (MVP: только ai)",
+                            "enum": ["ai"],
+                            "default": "ai"
+                        }
+                    },
+                    "required": ["project"]
+                }
             }
         }
     
@@ -493,7 +525,8 @@ class FedocMCPServer:
             "node_delete": self._handle_delete_node,
             "node_create": self._handle_create_node,
             "node_update": self._handle_update_node,
-            "edge_check_uniqueness": self._handle_check_edge_uniqueness
+            "edge_check_uniqueness": self._handle_check_edge_uniqueness,
+            "graph_traverse_down": self._handle_graph_traverse_down
         }
     
     def _handle_open_graph_viewer_v2(self, arguments: dict) -> dict:
@@ -1194,6 +1227,52 @@ class FedocMCPServer:
                 "content": [{
                     "type": "text",
                     "text": f"❌ Неожиданная ошибка: {str(e)}"
+                }]
+            }
+    
+    def _handle_graph_traverse_down(self, arguments: dict) -> dict:
+        """Обработка команды обхода графа вниз (sys-001)"""
+        try:
+            project = arguments.get("project")
+            start_node = arguments.get("start_node")
+            format_type = arguments.get("format", "markdown")
+            audience = arguments.get("audience", "ai")
+            
+            if not project:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр project"
+                    }]
+                }
+            
+            # Вызов функции обхода
+            result = graph_traverse_down(
+                project=project,
+                start_node=start_node,
+                format=format_type,
+                audience=audience
+            )
+            
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": result
+                }]
+            }
+            
+        except ValueError as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Ошибка валидации: {str(e)}"
+                }]
+            }
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Ошибка выполнения: {str(e)}"
                 }]
             }
     
