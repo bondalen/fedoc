@@ -70,6 +70,7 @@ def enrich_projects_data(db_conn, projects: List[str]) -> List[Dict[str, Any]]:
 def enrich_edge_properties(db_conn, properties: Dict[str, Any], edge_id: int = None) -> Dict[str, Any]:
     """
     Обогатить свойства ребра, используя нормализованную структуру проектов
+    Приоритет: edge_projects таблица > fallback на properties.projects
     
     Args:
         db_conn: Соединение с PostgreSQL
@@ -81,7 +82,7 @@ def enrich_edge_properties(db_conn, properties: Dict[str, Any], edge_id: int = N
     """
     enriched_properties = properties.copy()
     
-    # Если есть ID ребра, использовать нормализованную структуру
+    # ПРИОРИТЕТ 1: Если есть ID ребра, использовать нормализованную структуру edge_projects
     if edge_id is not None:
         try:
             with db_conn.cursor() as cur:
@@ -109,15 +110,23 @@ def enrich_edge_properties(db_conn, properties: Dict[str, Any], edge_id: int = N
                     return enriched_properties
         
         except Exception as e:
-            print(f"Ошибка получения проектов для ребра {edge_id}: {e}", file=sys.stderr)
+            print(f"Ошибка получения проектов для ребра {edge_id} из edge_projects: {e}", file=sys.stderr)
+            # Продолжаем к fallback
     
-    # Fallback: если нет edge_id или произошла ошибка, использовать старый метод
+    # FALLBACK: если нет edge_id или произошла ошибка, использовать старый метод (properties.projects)
+    # Это для обратной совместимости со старыми данными
     if 'projects' in enriched_properties and isinstance(enriched_properties['projects'], list):
         projects = enriched_properties['projects']
-        if projects and isinstance(projects[0], str):
-            # Обогатить данные проектов
-            enriched_projects = enrich_projects_data(db_conn, projects)
-            enriched_properties['projects'] = enriched_projects
+        if projects:
+            # Если это массив строк (старый формат)
+            if isinstance(projects[0], str):
+                # Обогатить данные проектов из таблицы projects
+                enriched_projects = enrich_projects_data(db_conn, projects)
+                enriched_properties['projects'] = enriched_projects
+            # Если уже обогащённые объекты - оставить как есть
+            elif isinstance(projects[0], dict):
+                # Уже обогащено - ничего не делаем
+                pass
     
     return enriched_properties
 
