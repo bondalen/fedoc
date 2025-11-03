@@ -41,48 +41,68 @@ RETURNS TABLE(
 )
 LANGUAGE plpgsql
 AS $func$
-DECLARE 
-    sql VARCHAR;
-    where_clause TEXT;
 BEGIN
     LOAD 'age';
     SET search_path TO ag_catalog;
     
-    -- Формируем WHERE для фильтрации по проекту
     IF project_filter IS NOT NULL THEN
-        where_clause := FORMAT('WHERE ''%s'' IN e.projects', project_filter);
+        RETURN QUERY
+        EXECUTE FORMAT('
+            SELECT t.edge_id, t.from_id, t.to_id, t.from_name, t.to_name, 
+                   t.from_key, t.to_key, t.from_kind, t.to_kind, t.projects, t.rel_type
+            FROM cypher(''common_project_graph'', $$
+                MATCH (start:canonical_node {arango_key: ''%s''})
+                MATCH path = (start)-[e:project_relation*1..%s]-(target)
+                WITH relationships(path) as edges_list, nodes(path) as nodes_list
+                UNWIND range(0, size(edges_list)-1) as i
+                WITH edges_list[i] as e, nodes_list[i] as from_node, nodes_list[i+1] as to_node
+                RETURN 
+                    id(e)::text as edge_id,
+                    id(from_node)::text as from_id,
+                    id(to_node)::text as to_id,
+                    from_node.name as from_name,
+                    to_node.name as to_name,
+                    from_node.arango_key as from_key,
+                    to_node.arango_key as to_key,
+                    from_node.kind as from_kind,
+                    to_node.kind as to_kind,
+                    e.projects::text as projects,
+                    e.relationType as rel_type
+                LIMIT 5000
+            $$) AS t(edge_id agtype, from_id agtype, to_id agtype, from_name agtype, to_name agtype,
+                     from_key agtype, to_key agtype, from_kind agtype, to_kind agtype, 
+                     projects agtype, rel_type agtype)
+            WHERE t.projects::text LIKE FORMAT(''%%"%s"%%'', ''%s'')
+        ', start_key, max_depth, project_filter, project_filter);
     ELSE
-        where_clause := '';
+        RETURN QUERY
+        EXECUTE FORMAT('
+            SELECT t.edge_id, t.from_id, t.to_id, t.from_name, t.to_name, 
+                   t.from_key, t.to_key, t.from_kind, t.to_kind, t.projects, t.rel_type
+            FROM cypher(''common_project_graph'', $$
+                MATCH (start:canonical_node {arango_key: ''%s''})
+                MATCH path = (start)-[e:project_relation*1..%s]-(target)
+                WITH relationships(path) as edges_list, nodes(path) as nodes_list
+                UNWIND range(0, size(edges_list)-1) as i
+                WITH edges_list[i] as e, nodes_list[i] as from_node, nodes_list[i+1] as to_node
+                RETURN 
+                    id(e)::text as edge_id,
+                    id(from_node)::text as from_id,
+                    id(to_node)::text as to_id,
+                    from_node.name as from_name,
+                    to_node.name as to_name,
+                    from_node.arango_key as from_key,
+                    to_node.arango_key as to_key,
+                    from_node.kind as from_kind,
+                    to_node.kind as to_kind,
+                    e.projects::text as projects,
+                    e.relationType as rel_type
+                LIMIT 5000
+            $$) AS t(edge_id agtype, from_id agtype, to_id agtype, from_name agtype, to_name agtype,
+                     from_key agtype, to_key agtype, from_kind agtype, to_kind agtype, 
+                     projects agtype, rel_type agtype)
+        ', start_key, max_depth);
     END IF;
-    
-    sql := FORMAT('
-        SELECT *
-        FROM cypher(''common_project_graph'', $$
-            MATCH (start:canonical_node {arango_key: ''%s''})
-            MATCH path = (start)-[e:project_relation*1..%s]-(target)
-            WITH relationships(path) as edges_list, nodes(path) as nodes_list
-            UNWIND range(0, size(edges_list)-1) as i
-            WITH edges_list[i] as e, nodes_list[i] as from_node, nodes_list[i+1] as to_node
-            %s
-            RETURN 
-                id(e)::text as edge_id,
-                id(from_node)::text as from_id,
-                id(to_node)::text as to_id,
-                from_node.name as from_name,
-                to_node.name as to_name,
-                from_node.arango_key as from_key,
-                to_node.arango_key as to_key,
-                from_node.kind as from_kind,
-                to_node.kind as to_kind,
-                e.projects::text as projects,
-                e.relationType as rel_type
-            LIMIT 5000
-        $$) AS (edge_id agtype, from_id agtype, to_id agtype, from_name agtype, to_name agtype,
-                from_key agtype, to_key agtype, from_kind agtype, to_kind agtype, 
-                projects agtype, rel_type agtype);
-    ', start_key, max_depth, where_clause);
-    
-    RETURN QUERY EXECUTE sql;
 END;
 $func$;
 
@@ -114,25 +134,16 @@ RETURNS TABLE(
 )
 LANGUAGE plpgsql
 AS $func$
-DECLARE 
-    sql VARCHAR;
-    where_clause TEXT;
 BEGIN
     LOAD 'age';
     SET search_path TO ag_catalog;
     
-    -- Формируем WHERE для фильтрации по проекту
     IF project_filter IS NOT NULL THEN
-        where_clause := FORMAT('WHERE ''%s'' IN e.projects', project_filter);
-    ELSE
-        where_clause := '';
-    END IF;
-    
-    sql := FORMAT('
-        SELECT *
-        FROM cypher(''common_project_graph'', $$
+        RETURN QUERY
+        SELECT t.edge_id, t.from_id, t.to_id, t.from_name, t.to_name, 
+               t.from_key, t.to_key, t.from_kind, t.to_kind, t.projects, t.rel_type
+        FROM cypher('common_project_graph', $$
             MATCH (n:canonical_node)-[e:project_relation]->(m:canonical_node)
-            %s
             RETURN 
                 id(e)::text as edge_id,
                 id(n)::text as from_id,
@@ -146,12 +157,33 @@ BEGIN
                 e.projects::text as projects,
                 e.relationType as rel_type
             LIMIT 5000
-        $$) AS (edge_id agtype, from_id agtype, to_id agtype, from_name agtype, to_name agtype,
-                from_key agtype, to_key agtype, from_kind agtype, to_kind agtype, 
-                projects agtype, rel_type agtype);
-    ', where_clause);
-    
-    RETURN QUERY EXECUTE sql;
+        $$) AS t(edge_id agtype, from_id agtype, to_id agtype, from_name agtype, to_name agtype,
+                 from_key agtype, to_key agtype, from_kind agtype, to_kind agtype, 
+                 projects agtype, rel_type agtype)
+        WHERE t.projects::text LIKE FORMAT('%%"%s"%%', project_filter);
+    ELSE
+        RETURN QUERY
+        SELECT t.edge_id, t.from_id, t.to_id, t.from_name, t.to_name, 
+               t.from_key, t.to_key, t.from_kind, t.to_kind, t.projects, t.rel_type
+        FROM cypher('common_project_graph', $$
+            MATCH (n:canonical_node)-[e:project_relation]->(m:canonical_node)
+            RETURN 
+                id(e)::text as edge_id,
+                id(n)::text as from_id,
+                id(m)::text as to_id,
+                n.name as from_name,
+                m.name as to_name,
+                n.arango_key as from_key,
+                m.arango_key as to_key,
+                n.kind as from_kind,
+                m.kind as to_kind,
+                e.projects::text as projects,
+                e.relationType as rel_type
+            LIMIT 5000
+        $$) AS t(edge_id agtype, from_id agtype, to_id agtype, from_name agtype, to_name agtype,
+                 from_key agtype, to_key agtype, from_kind agtype, to_kind agtype, 
+                 projects agtype, rel_type agtype);
+    END IF;
 END;
 $func$;
 
@@ -244,22 +276,25 @@ LANGUAGE plpgsql
 AS $func$
 DECLARE 
     sql VARCHAR;
+    filter_pattern TEXT;
 BEGIN
     LOAD 'age';
     SET search_path TO ag_catalog;
     
     IF project_filter IS NOT NULL THEN
+        filter_pattern := FORMAT('%%"%s"%%', project_filter);
         sql := FORMAT('
-            SELECT *
+            SELECT DISTINCT t.node_id, t.node_key, t.node_name
             FROM cypher(''common_project_graph'', $$
                 MATCH (n:canonical_node)<-[e:project_relation]-(m)
-                WHERE ''%s'' IN e.projects
                 RETURN DISTINCT 
                     id(n)::text as node_id, 
                     n.arango_key as node_key, 
-                    n.name as node_name
-            $$) AS (node_id agtype, node_key agtype, node_name agtype);
-        ', project_filter);
+                    n.name as node_name,
+                    e.projects::text as projects
+            $$) AS t(node_id agtype, node_key agtype, node_name agtype, projects agtype)
+            WHERE t.projects::text LIKE %L
+        ', filter_pattern);
     ELSE
         sql := '
             SELECT *
