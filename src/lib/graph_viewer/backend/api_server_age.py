@@ -683,7 +683,7 @@ def get_graph():
                 UNWIND relationships(p) AS e
                 WITH DISTINCT e, startNode(e) AS a, endNode(e) AS b
                 WHERE ($project IS NULL OR $project = '' OR $project IN e.projects)
-                RETURN id(e), id(a), id(b), a.name, b.name, a.arango_key, b.arango_key, a.kind, b.kind, e.projects, e.type
+                RETURN id(e), id(a), id(b), a.name, b.name, a.arango_key, b.arango_key, a.kind, b.kind, e.projects, e.relationType
             """
             results = execute_cypher(query, { 'start_key': start_key, 'depth': int(depth), 'project': project or '' }, return_type='graph')
         
@@ -1249,6 +1249,610 @@ def check_edge_uniqueness():
         
     except Exception as e:
         log(f"✗ Error checking edge uniqueness: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== EDGE PROJECTS MANAGEMENT ENDPOINTS ==========
+
+@app.route('/api/edges/<int:edge_id>/projects', methods=['GET'])
+def get_edge_projects(edge_id):
+    """Получить список проектов, связанных с ребром"""
+    try:
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            
+            # Получить проекты через PostgreSQL функцию
+            cur.execute("""
+                SELECT project_info, role, weight, created_at, created_by, metadata
+                FROM ag_catalog.get_edge_projects_enriched(%s)
+            """, (edge_id,))
+            
+            projects_data = cur.fetchall()
+            
+            # Форматировать результаты
+            projects = []
+            for row in projects_data:
+                project_info = row[0]  # JSONB с информацией о проекте
+                projects.append({
+                    'key': project_info.get('id'),
+                    'name': project_info.get('name'),
+                    'description': project_info.get('description'),
+                    'role': row[1],  # роль в связи
+                    'weight': float(row[2]) if row[2] else 1.0,  # вес связи
+                    'created_at': row[3].isoformat() if row[3] else None,
+                    'created_by': row[4],
+                    'metadata': row[5] if row[5] else {}
+                })
+            
+            return jsonify({
+                'success': True,
+                'edge_id': edge_id,
+                'projects': projects
+            })
+            
+    except Exception as e:
+        log(f"✗ Error getting projects for edge {edge_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/edges/<int:edge_id>/projects', methods=['POST'])
+def add_project_to_edge(edge_id):
+    """Добавить проект к ребру"""
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Пустой запрос'}), 400
+        
+        project_key = data.get('project_key')
+        if not project_key:
+            return jsonify({'success': False, 'error': 'Отсутствует обязательное поле project_key'}), 400
+        
+        role = data.get('role', 'participant')
+        weight = float(data.get('weight', 1.0))
+        created_by = data.get('created_by', 'api')
+        metadata = data.get('metadata', {})
+        
+        # Проверить существование ребра
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            
+            # Проверка существования ребра
+            cur.execute(f"""
+                SELECT * FROM cypher('{graph_name}', $$
+                    MATCH ()-[e]->() WHERE id(e) = {edge_id}
+                    RETURN id(e)
+                $$) AS (edge_id agtype);
+            """)
+            if not cur.fetchone():
+                return jsonify({'success': False, 'error': f'Ребро с ID {edge_id} не найдено'}), 404
+            
+            # Добавить проект к ребру
+            try:
+                cur.execute("""
+                    SELECT ag_catalog.add_project_to_edge(
+                        %s, %s, %s, %s, %s, %s::jsonb
+                    )
+                """, (edge_id, project_key, role, weight, created_by, json.dumps(metadata)))
+                
+                result = cur.fetchone()
+                if result and result[0]:
+                    log(f"✓ Project {project_key} added to edge {edge_id}")
+                    return jsonify({
+                        'success': True,
+                        'message': f'Проект {project_key} добавлен к ребру {edge_id}',
+                        'edge_id': edge_id,
+                        'project_key': project_key
+                    })
+                else:
+                    return jsonify({'success': False, 'error': 'Не удалось добавить проект'}), 500
+                    
+            except Exception as e:
+                error_msg = str(e)
+                if 'not found' in error_msg.lower():
+                    return jsonify({'success': False, 'error': f'Проект {project_key} не найден'}), 404
+                else:
+                    raise
+        
+    except Exception as e:
+        log(f"✗ Error adding project to edge {edge_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/edges/<int:edge_id>/projects/<project_key>', methods=['DELETE'])
+def remove_project_from_edge(edge_id, project_key):
+    """Удалить проект из ребра"""
+    try:
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            
+            # Проверка существования ребра
+            cur.execute(f"""
+                SELECT * FROM cypher('{graph_name}', $$
+                    MATCH ()-[e]->() WHERE id(e) = {edge_id}
+                    RETURN id(e)
+                $$) AS (edge_id agtype);
+            """)
+            if not cur.fetchone():
+                return jsonify({'success': False, 'error': f'Ребро с ID {edge_id} не найдено'}), 404
+            
+            # Удалить проект из ребра
+            try:
+                cur.execute("""
+                    SELECT ag_catalog.remove_project_from_edge(%s, %s)
+                """, (edge_id, project_key))
+                
+                result = cur.fetchone()
+                if result and result[0]:
+                    log(f"✓ Project {project_key} removed from edge {edge_id}")
+                    return jsonify({
+                        'success': True,
+                        'message': f'Проект {project_key} удалён из ребра {edge_id}',
+                        'edge_id': edge_id,
+                        'project_key': project_key
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Проект {project_key} не связан с ребром {edge_id}'
+                    }), 404
+                    
+            except Exception as e:
+                error_msg = str(e)
+                if 'not found' in error_msg.lower():
+                    return jsonify({'success': False, 'error': f'Проект {project_key} не найден'}), 404
+                else:
+                    raise
+        
+    except Exception as e:
+        log(f"✗ Error removing project from edge {edge_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/edges/<int:edge_id>', methods=['GET'])
+def get_edge_info(edge_id):
+    """Получить полную информацию о ребре (узлы, тип связи, проекты)"""
+    try:
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            
+            # Получить информацию о ребре из графа
+            cur.execute(f"""
+                SELECT * FROM cypher('{graph_name}', $$
+                    MATCH (a)-[e]->(b) WHERE id(e) = {edge_id}
+                    RETURN id(a), a.arango_key, a.name, a.kind,
+                           id(b), b.arango_key, b.name, b.kind,
+                           e.relationType
+                $$) AS (from_id agtype, from_key agtype, from_name agtype, from_kind agtype,
+                        to_id agtype, to_key agtype, to_name agtype, to_kind agtype,
+                        rel_type agtype);
+            """)
+            
+            edge_row = cur.fetchone()
+            if not edge_row:
+                return jsonify({'success': False, 'error': f'Ребро с ID {edge_id} не найдено'}), 404
+            
+            # Конвертировать значения
+            from_id = agtype_to_python(edge_row[0])
+            from_key = agtype_to_python(edge_row[1])
+            from_name = agtype_to_python(edge_row[2])
+            from_kind = agtype_to_python(edge_row[3])
+            to_id = agtype_to_python(edge_row[4])
+            to_key = agtype_to_python(edge_row[5])
+            to_name = agtype_to_python(edge_row[6])
+            to_kind = agtype_to_python(edge_row[7])
+            rel_type = agtype_to_python(edge_row[8])
+            
+            # Получить проекты
+            cur.execute("""
+                SELECT project_info
+                FROM ag_catalog.get_edge_projects_enriched(%s)
+            """, (edge_id,))
+            
+            projects_data = cur.fetchall()
+            projects = []
+            for row in projects_data:
+                project_info = row[0]  # JSONB
+                projects.append(project_info.get('id'))  # key проекта
+            
+            return jsonify({
+                'success': True,
+                'edge': {
+                    'edge_id': edge_id,
+                    'from': {
+                        'id': from_id,
+                        'key': from_key,
+                        'name': from_name,
+                        'kind': from_kind
+                    },
+                    'to': {
+                        'id': to_id,
+                        'key': to_key,
+                        'name': to_name,
+                        'kind': to_kind
+                    },
+                    'relation_type': rel_type,
+                    'projects': projects
+                }
+            })
+            
+    except Exception as e:
+        log(f"✗ Error getting edge info for {edge_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/edges/check-connection', methods=['POST'])
+def check_connection():
+    """Проверить связь/пути между узлами с таймаутами и режимами.
+    Режимы:
+      - direct: только прямое ребро A→B
+      - reachable: существует ли путь A⇢B (кратчайший)
+      - paths: вернуть некоторые пути A⇢B (усечённо, в пределах времени)
+    Ограничение выполнения задаётся временем (statement_timeout + watchdog).
+    """
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'error': 'Пустой запрос'}), 400
+
+        from_node = data.get('from_node')
+        to_node = data.get('to_node')
+        project_filter = data.get('project_filter')
+        mode = (data.get('mode') or 'direct').lower()
+        direction = (data.get('direction') or 'outbound').lower()
+        time_limit_ms = int(data.get('time_limit_ms') or 2000)
+        hard_kill_ms = int(data.get('hard_kill_ms') or (time_limit_ms + 500))
+        enumerate_nodes_only = bool(data.get('enumerate_nodes_only', True))
+        return_partial = bool(data.get('return_partial', True))
+
+        if not from_node or not to_node:
+            return jsonify({'success': False, 'error': 'Отсутствуют обязательные поля from_node и to_node'}), 400
+
+        # Преобразовать в AGE IDs
+        try:
+            from_vertex_id = convert_node_key_to_age_id(from_node)
+            to_vertex_id = convert_node_key_to_age_id(to_node)
+        except ValueError as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
+
+        start_ts = time.monotonic()
+        elapsed_ms = lambda: int((time.monotonic() - start_ts) * 1000)
+
+        result_payload = {
+            'connected': False,
+            'elapsed_ms': 0,
+            'timed_out': False,
+        }
+
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+
+            # Сначала быстрая проверка прямой связи (независимо от mode)
+            cur.execute(f"""
+                SELECT * FROM cypher('{graph_name}', $$
+                    MATCH (a)-[e]->(b)
+                    WHERE id(a) = {from_vertex_id} AND id(b) = {to_vertex_id}
+                    RETURN id(e), e.relationType
+                    LIMIT 1
+                $$) AS (edge_id agtype, rel_type agtype);
+            """)
+            direct_row = cur.fetchone()
+            if direct_row:
+                result_payload['connected'] = True
+                result_payload['edge'] = {
+                    'edge_id': agtype_to_python(direct_row[0]),
+                    'from_node': from_vertex_id,
+                    'to_node': to_vertex_id,
+                    'relation_type': agtype_to_python(direct_row[1])
+                }
+                # Проекты прямой связи
+                try:
+                    cur.execute("""
+                        SELECT project_info
+                        FROM ag_catalog.get_edge_projects_enriched(%s)
+                    """, (result_payload['edge']['edge_id'],))
+                    edge_projects = [ (row[0] or {}).get('id') for row in cur.fetchall() ]
+                    result_payload['edge']['projects'] = edge_projects
+                except Exception:
+                    result_payload['edge']['projects'] = []
+
+            # Если только direct — возвращаем
+            if mode == 'direct':
+                result_payload['elapsed_ms'] = elapsed_ms()
+                return jsonify(result_payload)
+
+            # Дальше — режимы reachable/paths с таймаутом на стороне БД
+            try:
+                cur.execute(f"SET LOCAL statement_timeout = {int(hard_kill_ms)};")
+
+                if direction == 'inbound':
+                    rel_pattern = "<-[*1..100]-"
+                else:
+                    rel_pattern = "-[*1..100]->"
+
+                if mode == 'reachable':
+                    # Ищем кратчайший путь в пределах таймаута
+                    query = f"""
+                        SELECT * FROM cypher('{graph_name}', $$
+                            MATCH (a), (b)
+                            WHERE id(a) = {from_vertex_id} AND id(b) = {to_vertex_id}
+                            MATCH p = (a){rel_pattern}(b)
+                            RETURN count(p) as cnt, min(length(p)) as dist
+                        $$) AS (cnt agtype, dist agtype);
+                    """
+                    cur.execute(query)
+                    row = cur.fetchone()
+                    cnt = agtype_to_python(row[0]) if row else 0
+                    dist = agtype_to_python(row[1]) if row else None
+                    result_payload['path_exists'] = bool(cnt and cnt > 0)
+                    result_payload['shortest_distance'] = int(dist) if dist is not None else None
+                elif mode == 'paths':
+                    # Возвращаем некоторые пути как последовательности ключей узлов
+                    # Список ключей: [n IN nodes(p) | n.arango_key]
+                    query = f"""
+                        SELECT * FROM cypher('{graph_name}', $$
+                            MATCH (a), (b)
+                            WHERE id(a) = {from_vertex_id} AND id(b) = {to_vertex_id}
+                            MATCH p = (a){rel_pattern}(b)
+                            RETURN [n IN nodes(p) | n.arango_key] as path_keys
+                            LIMIT 100000
+                        $$) AS (path_keys agtype);
+                    """
+                    cur.execute(query)
+                    rows = cur.fetchall()
+                    paths = [agtype_to_python(r[0]) for r in rows]
+                    # Если только ключи, возвращаем сразу; иначе можно обогатить позже
+                    result_payload['paths'] = paths
+                    result_payload['truncated'] = False  # время контролирует сечение
+                else:
+                    # Неизвестный режим — трактуем как reachable
+                    query = f"""
+                        SELECT * FROM cypher('{graph_name}', $$
+                            MATCH (a), (b)
+                            WHERE id(a) = {from_vertex_id} AND id(b) = {to_vertex_id}
+                            MATCH p = (a){rel_pattern}(b)
+                            RETURN count(p) as cnt, min(length(p)) as dist
+                        $$) AS (cnt agtype, dist agtype);
+                    """
+                    cur.execute(query)
+                    row = cur.fetchone()
+                    cnt = agtype_to_python(row[0]) if row else 0
+                    dist = agtype_to_python(row[1]) if row else None
+                    result_payload['path_exists'] = bool(cnt and cnt > 0)
+                    result_payload['shortest_distance'] = int(dist) if dist is not None else None
+
+            except Exception as qe:
+                # Таймаут или иная ошибка выполнения
+                msg = str(qe)
+                result_payload['timed_out'] = ('statement timeout' in msg.lower() or 'canceling statement' in msg.lower())
+                if mode == 'reachable':
+                    result_payload['path_exists'] = 'unknown'
+                    result_payload['shortest_distance'] = None
+                elif mode == 'paths':
+                    if return_partial:
+                        # Частичный возврат невозможен без курсора, поэтому просто помечаем усечение
+                        result_payload['paths'] = []
+                        result_payload['truncated'] = True
+                    result_payload['advisory_risk'] = 'cycle_check_incomplete'
+                else:
+                    # Для direct мы сюда не попадаем
+                    pass
+
+            result_payload['elapsed_ms'] = elapsed_ms()
+            return jsonify(result_payload)
+
+    except Exception as e:
+        log(f"✗ Error checking connection: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/edges/batch-add-projects', methods=['POST'])
+def batch_add_projects():
+    """Массовое добавление проекта к нескольким рёбрам"""
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Пустой запрос'}), 400
+        
+        edge_ids = data.get('edge_ids')
+        project_key = data.get('project_key')
+        
+        if not edge_ids or not isinstance(edge_ids, list):
+            return jsonify({'success': False, 'error': 'Отсутствует обязательное поле edge_ids (массив)'}), 400
+        
+        if not project_key:
+            return jsonify({'success': False, 'error': 'Отсутствует обязательное поле project_key'}), 400
+        
+        role = data.get('role', 'participant')
+        weight = float(data.get('weight', 1.0))
+        created_by = data.get('created_by', 'api')
+        metadata = data.get('metadata', {})
+        
+        # Валидация edge_ids
+        if len(edge_ids) == 0:
+            return jsonify({'success': False, 'error': 'Массив edge_ids пуст'}), 400
+        
+        # Результаты операции
+        results = []
+        added_count = 0
+        skipped_count = 0
+        errors = []
+        
+        # Выполняем операции в одной транзакции
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            
+            for edge_id in edge_ids:
+                try:
+                    # Проверка существования ребра
+                    cur.execute(f"""
+                        SELECT * FROM cypher('{graph_name}', $$
+                            MATCH ()-[e]->() WHERE id(e) = {edge_id}
+                            RETURN id(e)
+                        $$) AS (edge_id agtype);
+                    """)
+                    if not cur.fetchone():
+                        errors.append({
+                            'edge_id': edge_id,
+                            'error': 'Ребро не найдено'
+                        })
+                        continue
+                    
+                    # Добавить проект к ребру
+                    try:
+                        cur.execute("""
+                            SELECT ag_catalog.add_project_to_edge(
+                                %s, %s, %s, %s, %s, %s::jsonb
+                            )
+                        """, (edge_id, project_key, role, weight, created_by, json.dumps(metadata)))
+                        
+                        result = cur.fetchone()
+                        if result and result[0]:
+                            results.append({
+                                'edge_id': edge_id,
+                                'status': 'added'
+                            })
+                            added_count += 1
+                            log(f"✓ Project {project_key} added to edge {edge_id}")
+                        else:
+                            results.append({
+                                'edge_id': edge_id,
+                                'status': 'skipped',
+                                'reason': 'Не удалось добавить'
+                            })
+                            skipped_count += 1
+                    except Exception as e:
+                        error_msg = str(e)
+                        if 'not found' in error_msg.lower() and 'project' in error_msg.lower():
+                            errors.append({
+                                'edge_id': edge_id,
+                                'error': f'Проект {project_key} не найден'
+                            })
+                        else:
+                            errors.append({
+                                'edge_id': edge_id,
+                                'error': error_msg
+                            })
+                        
+                except Exception as e:
+                    errors.append({
+                        'edge_id': edge_id,
+                        'error': str(e)
+                    })
+        
+        return jsonify({
+            'success': True,
+            'project_key': project_key,
+            'total': len(edge_ids),
+            'added': added_count,
+            'skipped': skipped_count,
+            'errors': errors,
+            'results': results
+        })
+        
+    except Exception as e:
+        log(f"✗ Error in batch_add_projects: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/edges/batch-remove-projects', methods=['POST'])
+def batch_remove_projects():
+    """Массовое удаление проекта из нескольких рёбер"""
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Пустой запрос'}), 400
+        
+        edge_ids = data.get('edge_ids')
+        project_key = data.get('project_key')
+        
+        if not edge_ids or not isinstance(edge_ids, list):
+            return jsonify({'success': False, 'error': 'Отсутствует обязательное поле edge_ids (массив)'}), 400
+        
+        if not project_key:
+            return jsonify({'success': False, 'error': 'Отсутствует обязательное поле project_key'}), 400
+        
+        # Валидация edge_ids
+        if len(edge_ids) == 0:
+            return jsonify({'success': False, 'error': 'Массив edge_ids пуст'}), 400
+        
+        # Результаты операции
+        removed_count = 0
+        not_found_count = 0
+        errors = []
+        
+        # Выполняем операции
+        with db_conn.cursor() as cur:
+            cur.execute("LOAD 'age';")
+            cur.execute("SET search_path = ag_catalog, public;")
+            
+            for edge_id in edge_ids:
+                try:
+                    # Проверка существования ребра
+                    cur.execute(f"""
+                        SELECT * FROM cypher('{graph_name}', $$
+                            MATCH ()-[e]->() WHERE id(e) = {edge_id}
+                            RETURN id(e)
+                        $$) AS (edge_id agtype);
+                    """)
+                    if not cur.fetchone():
+                        errors.append({
+                            'edge_id': edge_id,
+                            'error': 'Ребро не найдено'
+                        })
+                        continue
+                    
+                    # Удалить проект из ребра
+                    try:
+                        cur.execute("""
+                            SELECT ag_catalog.remove_project_from_edge(%s, %s)
+                        """, (edge_id, project_key))
+                        
+                        result = cur.fetchone()
+                        if result and result[0]:
+                            removed_count += 1
+                            log(f"✓ Project {project_key} removed from edge {edge_id}")
+                        else:
+                            not_found_count += 1
+                            log(f"⚠ Project {project_key} not found on edge {edge_id}")
+                    except Exception as e:
+                        error_msg = str(e)
+                        if 'not found' in error_msg.lower() and 'project' in error_msg.lower():
+                            errors.append({
+                                'edge_id': edge_id,
+                                'error': f'Проект {project_key} не найден'
+                            })
+                        else:
+                            errors.append({
+                                'edge_id': edge_id,
+                                'error': error_msg
+                            })
+                        
+                except Exception as e:
+                    errors.append({
+                        'edge_id': edge_id,
+                        'error': str(e)
+                    })
+        
+        return jsonify({
+            'success': True,
+            'project_key': project_key,
+            'total': len(edge_ids),
+            'removed': removed_count,
+            'not_found': not_found_count,
+            'errors': errors
+        })
+        
+    except Exception as e:
+        log(f"✗ Error in batch_remove_projects: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

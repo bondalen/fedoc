@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Импортируем обработчики
 from handlers import graph_viewer_manager
 from handlers.edge_manager import create_edge_manager_handler
+from handlers.edge_project_manager import create_edge_project_manager_handler
 from handlers.graph_traverse_down import graph_traverse_down
 
 class FedocMCPServer:
@@ -33,6 +34,7 @@ class FedocMCPServer:
         self.ssh_tunnel = self._init_ssh_tunnel()
         self.process_manager = self._init_process_manager()
         self.edge_manager = create_edge_manager_handler()
+        self.edge_project_manager = create_edge_project_manager_handler()
         self._register_tools()
         self._register_handlers()
     
@@ -504,6 +506,180 @@ class FedocMCPServer:
                     },
                     "required": ["project"]
                 }
+            },
+            "edge_get_projects": {
+                "name": "edge_get_projects",
+                "description": "Получить список проектов, связанных с ребром",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "edge_id": {
+                            "type": "integer",
+                            "description": "ID ребра"
+                        }
+                    },
+                    "required": ["edge_id"]
+                }
+            },
+            "edge_add_project": {
+                "name": "edge_add_project",
+                "description": "Добавить проект к существующему ребру",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "edge_id": {
+                            "type": "integer",
+                            "description": "ID ребра"
+                        },
+                        "project_key": {
+                            "type": "string",
+                            "description": "Ключ проекта (fepro, femsq, fedoc)"
+                        },
+                        "role": {
+                            "type": "string",
+                            "description": "Роль проекта в связи (по умолчанию 'participant')",
+                            "default": "participant"
+                        },
+                        "weight": {
+                            "type": "number",
+                            "description": "Вес связи (по умолчанию 1.0)",
+                            "default": 1.0
+                        }
+                    },
+                    "required": ["edge_id", "project_key"]
+                }
+            },
+            "edge_remove_project": {
+                "name": "edge_remove_project",
+                "description": "Удалить проект из ребра",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "edge_id": {
+                            "type": "integer",
+                            "description": "ID ребра"
+                        },
+                        "project_key": {
+                            "type": "string",
+                            "description": "Ключ проекта для удаления"
+                        }
+                    },
+                    "required": ["edge_id", "project_key"]
+                }
+            },
+            "edge_get_info": {
+                "name": "edge_get_info",
+                "description": "Получить полную информацию о ребре (узлы, тип связи, проекты)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "edge_id": {
+                            "type": "integer",
+                            "description": "ID ребра"
+                        }
+                    },
+                    "required": ["edge_id"]
+                }
+            },
+            "nodes_check_connection": {
+                "name": "nodes_check_connection",
+                "description": "Проверить связь/пути между узлами (direct|reachable|paths) с таймаутом",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "from_node": {
+                            "type": "string",
+                            "description": "ID или ключ исходного узла"
+                        },
+                        "to_node": {
+                            "type": "string",
+                            "description": "ID или ключ целевого узла"
+                        },
+                        "project_filter": {
+                            "type": "string",
+                            "description": "Проверить связь для конкретного проекта (optional)"
+                        },
+                        "mode": {
+                            "type": "string",
+                            "description": "Режим: direct | reachable | paths",
+                            "enum": ["direct", "reachable", "paths"],
+                            "default": "direct"
+                        },
+                        "direction": {
+                            "type": "string",
+                            "description": "Направление: outbound (A→B) или inbound (A←B)",
+                            "enum": ["outbound", "inbound"],
+                            "default": "outbound"
+                        },
+                        "time_limit_ms": {
+                            "type": "integer",
+                            "description": "Мягкий лимит времени выполнения в миллисекундах"
+                        },
+                        "hard_kill_ms": {
+                            "type": "integer",
+                            "description": "Жёсткий таймаут (statement_timeout) в миллисекундах"
+                        },
+                        "enumerate_nodes_only": {
+                            "type": "boolean",
+                            "description": "В mode=paths возвращать только ключи узлов",
+                            "default": true
+                        },
+                        "return_partial": {
+                            "type": "boolean",
+                            "description": "Разрешить частичный результат при таймауте",
+                            "default": true
+                        }
+                    },
+                    "required": ["from_node", "to_node"]
+                }
+            },
+            "edge_batch_add_projects": {
+                "name": "edge_batch_add_projects",
+                "description": "Массовое добавление проекта к нескольким рёбрам",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "edge_ids": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                            "description": "Массив ID рёбер"
+                        },
+                        "project_key": {
+                            "type": "string",
+                            "description": "Ключ проекта для добавления"
+                        },
+                        "role": {
+                            "type": "string",
+                            "description": "Роль проекта (по умолчанию 'participant')",
+                            "default": "participant"
+                        },
+                        "weight": {
+                            "type": "number",
+                            "description": "Вес связи (по умолчанию 1.0)",
+                            "default": 1.0
+                        }
+                    },
+                    "required": ["edge_ids", "project_key"]
+                }
+            },
+            "edge_batch_remove_projects": {
+                "name": "edge_batch_remove_projects",
+                "description": "Массовое удаление проекта из нескольких рёбер",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "edge_ids": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                            "description": "Массив ID рёбер"
+                        },
+                        "project_key": {
+                            "type": "string",
+                            "description": "Ключ проекта для удаления"
+                        }
+                    },
+                    "required": ["edge_ids", "project_key"]
+                }
             }
         }
     
@@ -526,7 +702,14 @@ class FedocMCPServer:
             "node_create": self._handle_create_node,
             "node_update": self._handle_update_node,
             "edge_check_uniqueness": self._handle_check_edge_uniqueness,
-            "graph_traverse_down": self._handle_graph_traverse_down
+            "graph_traverse_down": self._handle_graph_traverse_down,
+            "edge_get_projects": self._handle_get_edge_projects,
+            "edge_add_project": self._handle_add_project_to_edge,
+            "edge_remove_project": self._handle_remove_project_from_edge,
+            "edge_get_info": self._handle_get_edge_info,
+            "nodes_check_connection": self._handle_check_connection,
+            "edge_batch_add_projects": self._handle_batch_add_projects,
+            "edge_batch_remove_projects": self._handle_batch_remove_projects
         }
     
     def _handle_open_graph_viewer_v2(self, arguments: dict) -> dict:
@@ -1273,6 +1456,396 @@ class FedocMCPServer:
                 "content": [{
                     "type": "text",
                     "text": f"❌ Ошибка выполнения: {str(e)}"
+                }]
+            }
+    
+    def _handle_get_edge_projects(self, arguments: dict) -> dict:
+        """Обработка команды получения проектов ребра"""
+        try:
+            edge_id = arguments.get("edge_id")
+            if not edge_id:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр edge_id"
+                    }]
+                }
+            
+            result = self.edge_project_manager.get_projects(edge_id)
+            
+            if result.get('success'):
+                projects = result.get('projects', [])
+                text = f"✅ Проекты ребра {edge_id}:\n\n"
+                if projects:
+                    for p in projects:
+                        text += f"  • {p['key']} ({p.get('name', '')})"
+                        if p.get('role'):
+                            text += f" - роль: {p['role']}"
+                        text += "\n"
+                else:
+                    text += "  Проекты не найдены\n"
+                return {"content": [{"type": "text", "text": text}]}
+            else:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": f"❌ Ошибка: {result.get('error', 'Неизвестная ошибка')}"
+                    }]
+                }
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
+                }]
+            }
+    
+    def _handle_add_project_to_edge(self, arguments: dict) -> dict:
+        """Обработка команды добавления проекта к ребру"""
+        try:
+            edge_id = arguments.get("edge_id")
+            project_key = arguments.get("project_key")
+            
+            if not edge_id:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр edge_id"
+                    }]
+                }
+            
+            if not project_key:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр project_key"
+                    }]
+                }
+            
+            result = self.edge_project_manager.add_project(
+                edge_id=edge_id,
+                project_key=project_key,
+                role=arguments.get("role", "participant"),
+                weight=float(arguments.get("weight", 1.0))
+            )
+            
+            if result.get('success'):
+                text = f"✅ {result.get('message', 'Проект добавлен')}\n\n"
+                text += f"📊 Ребро: {edge_id}\n"
+                text += f"📋 Проект: {project_key}"
+                return {"content": [{"type": "text", "text": text}]}
+            else:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": f"❌ Ошибка: {result.get('error', 'Неизвестная ошибка')}"
+                    }]
+                }
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
+                }]
+            }
+    
+    def _handle_remove_project_from_edge(self, arguments: dict) -> dict:
+        """Обработка команды удаления проекта из ребра"""
+        try:
+            edge_id = arguments.get("edge_id")
+            project_key = arguments.get("project_key")
+            
+            if not edge_id:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр edge_id"
+                    }]
+                }
+            
+            if not project_key:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр project_key"
+                    }]
+                }
+            
+            result = self.edge_project_manager.remove_project(edge_id, project_key)
+            
+            if result.get('success'):
+                text = f"✅ {result.get('message', 'Проект удалён')}\n\n"
+                text += f"📊 Ребро: {edge_id}\n"
+                text += f"📋 Проект: {project_key}"
+                return {"content": [{"type": "text", "text": text}]}
+            else:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": f"❌ Ошибка: {result.get('error', 'Неизвестная ошибка')}"
+                    }]
+                }
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
+                }]
+            }
+    
+    def _handle_get_edge_info(self, arguments: dict) -> dict:
+        """Обработка команды получения полной информации о ребре"""
+        try:
+            edge_id = arguments.get("edge_id")
+            if not edge_id:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр edge_id"
+                    }]
+                }
+            
+            result = self.edge_project_manager.get_edge_info(edge_id)
+            
+            if result.get('success'):
+                edge = result.get('edge', {})
+                from_node = edge.get('from', {})
+                to_node = edge.get('to', {})
+                
+                text = f"✅ Информация о ребре {edge_id}:\n\n"
+                text += f"📊 От узла:\n"
+                text += f"   • Ключ: {from_node.get('key', 'N/A')}\n"
+                text += f"   • Имя: {from_node.get('name', 'N/A')}\n"
+                text += f"   • Тип: {from_node.get('kind', 'N/A')}\n\n"
+                text += f"📊 К узлу:\n"
+                text += f"   • Ключ: {to_node.get('key', 'N/A')}\n"
+                text += f"   • Имя: {to_node.get('name', 'N/A')}\n"
+                text += f"   • Тип: {to_node.get('kind', 'N/A')}\n\n"
+                text += f"🔗 Тип связи: {edge.get('relation_type', 'N/A')}\n\n"
+                projects = edge.get('projects', [])
+                if projects:
+                    text += f"📋 Проекты: {', '.join(projects)}"
+                else:
+                    text += f"📋 Проекты: нет"
+                return {"content": [{"type": "text", "text": text}]}
+            else:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": f"❌ Ошибка: {result.get('error', 'Неизвестная ошибка')}"
+                    }]
+                }
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
+                }]
+            }
+    
+    def _handle_check_connection(self, arguments: dict) -> dict:
+        """Обработка команды проверки связи между узлами"""
+        try:
+            from_node = arguments.get("from_node")
+            to_node = arguments.get("to_node")
+            project_filter = arguments.get("project_filter")
+            mode = arguments.get("mode", "direct")
+            direction = arguments.get("direction", "outbound")
+            time_limit_ms = arguments.get("time_limit_ms")
+            hard_kill_ms = arguments.get("hard_kill_ms")
+            enumerate_nodes_only = arguments.get("enumerate_nodes_only", True)
+            return_partial = arguments.get("return_partial", True)
+            
+            if not from_node or not to_node:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указаны обязательные параметры from_node и to_node"
+                    }]
+                }
+            
+            result = self.edge_project_manager.check_connection(
+                from_node=from_node,
+                to_node=to_node,
+                project_filter=project_filter,
+                mode=mode,
+                direction=direction,
+                time_limit_ms=time_limit_ms,
+                hard_kill_ms=hard_kill_ms,
+                enumerate_nodes_only=enumerate_nodes_only,
+                return_partial=return_partial
+            )
+            
+            text_lines = []
+            # Общая шапка
+            if result.get('connected'):
+                edge = result.get('edge', {})
+                text_lines.append("✅ Прямая связь найдена")
+                text_lines.append(f"📊 Ребро ID: {edge.get('edge_id', 'N/A')}")
+                text_lines.append(f"🔗 Тип связи: {edge.get('relation_type', 'N/A')}")
+                projects = edge.get('projects', [])
+                if projects:
+                    text_lines.append(f"📋 Проекты: {', '.join(projects)}")
+            else:
+                text_lines.append("❌ Прямая связь не найдена")
+            
+            # Доп. поля для reachable/paths
+            if mode in ("reachable", "paths"):
+                if 'path_exists' in result:
+                    pe = result.get('path_exists')
+                    if pe == 'unknown':
+                        text_lines.append("ℹ️ Достижимость: неизвестно (таймаут)")
+                    else:
+                        text_lines.append(f"🔍 Достижимость: {'да' if pe else 'нет'}")
+                if 'shortest_distance' in result and result.get('shortest_distance') is not None:
+                    text_lines.append(f"🧭 Кратчайшая длина пути: {result.get('shortest_distance')}")
+                if 'paths' in result:
+                    paths = result.get('paths') or []
+                    if paths:
+                        text_lines.append("🛣️ Пути:")
+                        # показываем до 3 путей компактно
+                        for p in paths[:3]:
+                            text_lines.append(f"   • {' → '.join(p)}")
+                        if len(paths) > 3:
+                            text_lines.append(f"   … и ещё {len(paths)-3} путей")
+                    if result.get('truncated'):
+                        text_lines.append("⏳ Список путей усечён по времени")
+            
+            # Тайминг
+            if 'elapsed_ms' in result:
+                text_lines.append(f"⏱️ Время: {result.get('elapsed_ms')} мс")
+            if result.get('timed_out'):
+                text_lines.append("⚠️ Истёк лимит времени")
+                if result.get('advisory_risk'):
+                    text_lines.append("‼️ Проверка неполная, возможен риск цикла")
+
+            text = "\n".join(text_lines)
+            
+            return {"content": [{"type": "text", "text": text}]}
+            
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
+                }]
+            }
+    
+    def _handle_batch_add_projects(self, arguments: dict) -> dict:
+        """Обработка команды массового добавления проекта"""
+        try:
+            edge_ids = arguments.get("edge_ids")
+            project_key = arguments.get("project_key")
+            
+            if not edge_ids or not isinstance(edge_ids, list):
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр edge_ids (массив)"
+                    }]
+                }
+            
+            if not project_key:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр project_key"
+                    }]
+                }
+            
+            result = self.edge_project_manager.batch_add_projects(
+                edge_ids=edge_ids,
+                project_key=project_key,
+                role=arguments.get("role", "participant"),
+                weight=float(arguments.get("weight", 1.0))
+            )
+            
+            if result.get('success'):
+                text = f"✅ Массовое добавление проекта {project_key}\n\n"
+                text += f"📊 Статистика:\n"
+                text += f"   • Всего рёбер: {result.get('total', 0)}\n"
+                text += f"   • Добавлено: {result.get('added', 0)}\n"
+                text += f"   • Пропущено: {result.get('skipped', 0)}\n"
+                
+                errors = result.get('errors', [])
+                if errors:
+                    text += f"\n⚠️ Ошибки ({len(errors)}):\n"
+                    for err in errors[:5]:  # Показываем первые 5 ошибок
+                        text += f"   • Ребро {err.get('edge_id')}: {err.get('error')}\n"
+                    if len(errors) > 5:
+                        text += f"   ... и ещё {len(errors) - 5} ошибок\n"
+                
+                return {"content": [{"type": "text", "text": text}]}
+            else:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": f"❌ Ошибка: {result.get('error', 'Неизвестная ошибка')}"
+                    }]
+                }
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
+                }]
+            }
+    
+    def _handle_batch_remove_projects(self, arguments: dict) -> dict:
+        """Обработка команды массового удаления проекта"""
+        try:
+            edge_ids = arguments.get("edge_ids")
+            project_key = arguments.get("project_key")
+            
+            if not edge_ids or not isinstance(edge_ids, list):
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр edge_ids (массив)"
+                    }]
+                }
+            
+            if not project_key:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": "❌ Ошибка: Не указан обязательный параметр project_key"
+                    }]
+                }
+            
+            result = self.edge_project_manager.batch_remove_projects(
+                edge_ids=edge_ids,
+                project_key=project_key
+            )
+            
+            if result.get('success'):
+                text = f"✅ Массовое удаление проекта {project_key}\n\n"
+                text += f"📊 Статистика:\n"
+                text += f"   • Всего рёбер: {result.get('total', 0)}\n"
+                text += f"   • Удалено: {result.get('removed', 0)}\n"
+                text += f"   • Не найдено: {result.get('not_found', 0)}\n"
+                
+                errors = result.get('errors', [])
+                if errors:
+                    text += f"\n⚠️ Ошибки ({len(errors)}):\n"
+                    for err in errors[:5]:  # Показываем первые 5 ошибок
+                        text += f"   • Ребро {err.get('edge_id')}: {err.get('error')}\n"
+                    if len(errors) > 5:
+                        text += f"   ... и ещё {len(errors) - 5} ошибок\n"
+                
+                return {"content": [{"type": "text", "text": text}]}
+            else:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": f"❌ Ошибка: {result.get('error', 'Неизвестная ошибка')}"
+                    }]
+                }
+        except Exception as e:
+            return {
+                "content": [{
+                    "type": "text",
+                    "text": f"❌ Неожиданная ошибка: {str(e)}"
                 }]
             }
     
