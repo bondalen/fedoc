@@ -16,6 +16,12 @@ export const applyNodeVisualization = (node, theme, isSelected = false, isHovere
   const type = getNodeType(node.key)
   const typeConfig = visualizationConfig.nodes[type] || visualizationConfig.default.nodes
   const themeConfig = typeConfig[theme]
+  const defaultConfig = visualizationConfig.default.nodes[theme]
+  
+  // Получить размеры из конфига
+  const sizeConfig = themeConfig.size || defaultConfig.size || {}
+  const borderWidth = sizeConfig.borderWidth || 1
+  const actualBorderWidth = isSelected ? visualizationConfig.states.selected.width : borderWidth
   
   // Базовое оформление
   let visualNode = {
@@ -37,10 +43,33 @@ export const applyNodeVisualization = (node, theme, isSelected = false, isHovere
     shape: node.shape || themeConfig.shape,
     font: {
       color: node.font?.color || themeConfig.font.color,
-      size: node.font?.size || themeConfig.font.size
+      size: node.font?.size || themeConfig.font.size,
+      strokeWidth: themeConfig.font?.strokeWidth || defaultConfig.font?.strokeWidth || 0,
+      strokeColor: themeConfig.font?.strokeColor || defaultConfig.font?.strokeColor || 'transparent'
     },
-    borderWidth: node.borderWidth || (isSelected ? visualizationConfig.states.selected.width : 1),
+    borderWidth: node.borderWidth || actualBorderWidth,
     borderWidthSelected: visualizationConfig.states.selected.width
+  }
+  
+  // Применить размеры в зависимости от формы
+  const shape = visualNode.shape
+  if (sizeConfig) {
+    if (shape === 'box' && sizeConfig.width && sizeConfig.height) {
+      visualNode.width = node.width || sizeConfig.width
+      visualNode.height = node.height || sizeConfig.height
+      if (sizeConfig.borderRadius !== undefined) {
+        visualNode.borderRadius = sizeConfig.borderRadius
+      }
+    } else if ((shape === 'circle' || shape === 'dot') && sizeConfig.size) {
+      visualNode.size = node.size || sizeConfig.size
+    } else if (shape === 'diamond' && sizeConfig.size) {
+      visualNode.size = node.size || sizeConfig.size
+    }
+    
+    // Применить margin для всех форм
+    if (sizeConfig.margin !== undefined) {
+      visualNode.margin = sizeConfig.margin
+    }
   }
   
   return visualNode

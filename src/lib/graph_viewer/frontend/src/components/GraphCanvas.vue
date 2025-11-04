@@ -237,6 +237,10 @@ const initNetwork = () => {
       console.log(`Context menu on edge: ${edgeId} at (${position.x}, ${position.y})`)
       // Передать событие наверх в GraphViewer
       emit('show-context-menu', { edgeId, position })
+    } else {
+      // Пустой клик - показать меню экспорта
+      console.log(`Context menu on empty canvas at (${position.x}, ${position.y})`)
+      emit('show-context-menu', { position })
     }
   })
   

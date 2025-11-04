@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import io from 'socket.io-client'
+import { applyNodesVisualization, applyEdgesVisualization } from '@/utils/visualization'
 
 const API_BASE = 'http://localhost:15000/api'
 
@@ -238,13 +239,17 @@ export const useGraphStore = defineStore('graph', () => {
         return c
       })
 
+      // Применение оформления из конфигурации
+      const visualNodes = applyNodesVisualization(freshNodes, theme.value)
+      const visualEdges = applyEdgesVisualization(data.edges || [], theme.value)
+
       // Добавление новых данных в визуализацию
-      if (freshNodes && freshNodes.length > 0) {
-        nodesDataSet.value.add(freshNodes)
+      if (visualNodes && visualNodes.length > 0) {
+        nodesDataSet.value.add(visualNodes)
       }
 
-      if (data.edges && data.edges.length > 0) {
-        edgesDataSet.value.add(data.edges)
+      if (visualEdges && visualEdges.length > 0) {
+        edgesDataSet.value.add(visualEdges)
       }
       
       // Применить тему после загрузки
@@ -468,6 +473,25 @@ export const useGraphStore = defineStore('graph', () => {
   }
   
   /**
+   * Центрировать граф на конкретном узле
+   */
+  const focusNode = (nodeId) => {
+    if (!network.value || !nodeId) return
+    
+    try {
+      network.value.focus(nodeId, {
+        animation: {
+          duration: 500,
+          easingFunction: 'easeInOutQuad'
+        },
+        scale: 1.2
+      })
+    } catch (err) {
+      console.error('Error focusing node:', err)
+    }
+  }
+  
+  /**
    * Смена проекта
    */
   const changeProject = async () => {
@@ -643,8 +667,12 @@ export const useGraphStore = defineStore('graph', () => {
       let addedNodesCount = 0
       let addedEdgesCount = 0
 
+      // Применить оформление к новым узлам и рёбрам
+      const visualNodes = applyNodesVisualization(newNodes, theme.value)
+      const visualEdges = applyEdgesVisualization(newEdges, theme.value)
+
       // Добавить узлы, которых еще нет
-      for (const node of newNodes) {
+      for (const node of visualNodes) {
         const existsInDataSet = nodesDataSet.value.get(node.id)
         if (!existsInDataSet) {
           nodesDataSet.value.add(node)
@@ -653,7 +681,7 @@ export const useGraphStore = defineStore('graph', () => {
       }
 
       // Добавить рёбра, которых еще нет
-      for (const edge of newEdges) {
+      for (const edge of visualEdges) {
         const existsInDataSet = edgesDataSet.value.get(edge.id)
         if (!existsInDataSet) {
           edgesDataSet.value.add(edge)
@@ -997,14 +1025,18 @@ export const useGraphStore = defineStore('graph', () => {
       edgesDataSet.value.clear()
     }
 
+    // Применить оформление перед восстановлением
+    const visualNodes = applyNodesVisualization(state.nodes || [], theme.value)
+    const visualEdges = applyEdgesVisualization(state.edges || [], theme.value)
+
     // Добавить узлы в визуализацию
-    if (state.nodes && state.nodes.length > 0) {
-      nodesDataSet.value.add(state.nodes)
+    if (visualNodes && visualNodes.length > 0) {
+      nodesDataSet.value.add(visualNodes)
     }
 
     // Добавить рёбра в визуализацию
-    if (state.edges && state.edges.length > 0) {
-      edgesDataSet.value.add(state.edges)
+    if (visualEdges && visualEdges.length > 0) {
+      edgesDataSet.value.add(visualEdges)
     }
 
     console.log(`Восстановлено: ${state.nodes?.length || 0} узлов, ${state.edges?.length || 0} рёбер`)
@@ -1207,6 +1239,7 @@ export const useGraphStore = defineStore('graph', () => {
            updateSelectedEdges,
            clearSelection,
            fitGraph,
+           focusNode,
            changeProject,
            loadDocumentDetails,
            closeFullText,

@@ -56,12 +56,23 @@
         </div>
       </div>
     </template>
+    
+    <!-- Меню для пустого места (экспорт графа) -->
+    <template v-else>
+      <div class="menu-section">
+        <div class="menu-item" @click="handleExportToSVG">
+          <span class="menu-icon">📄</span>
+          <span class="menu-label">Экспорт в SVG</span>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useGraphStore } from '@/stores/graph'
+import { exportGraphToSVG, downloadSVG } from '@/utils/exportToSVG'
 
 const store = useGraphStore()
 
@@ -156,6 +167,37 @@ const handleFocusNode = () => {
   
   store.focusNode(props.nodeId)
   emit('close')
+}
+
+/**
+ * Обработчик: Экспорт графа в SVG
+ */
+const handleExportToSVG = () => {
+  try {
+    const network = store.network
+    const nodesDataSet = store.nodesDataSet
+    const edgesDataSet = store.edgesDataSet
+    
+    if (!network || !nodesDataSet || !edgesDataSet) {
+      console.error('Cannot export: network not initialized')
+      return
+    }
+    
+    const theme = store.theme || 'light'
+    const svgContent = exportGraphToSVG(network, nodesDataSet, edgesDataSet, theme)
+    
+    if (!svgContent) {
+      console.error('Failed to generate SVG')
+      return
+    }
+    
+    downloadSVG(svgContent, 'graph.svg')
+    console.log('Graph exported to SVG')
+    
+    emit('close')
+  } catch (err) {
+    console.error('Error exporting to SVG:', err)
+  }
 }
 
 /**

@@ -71,6 +71,8 @@ const handleShowContextMenu = ({ nodeId, edgeId, position }) => {
     console.log(`Show context menu for node: ${nodeId}`)
   } else if (edgeId) {
     console.log(`Show context menu for edge: ${edgeId}`)
+  } else {
+    console.log('Show context menu for empty canvas')
   }
 }
 
