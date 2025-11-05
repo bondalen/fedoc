@@ -416,7 +416,7 @@ class FedocMCPServer:
                         },
                         "node_type": {
                             "type": "string",
-                            "enum": ["concept", "technology", "version", "other"],
+                            "enum": ["concept", "technology", "version", "directory", "module", "other"],
                             "description": "Тип узла"
                         },
                         "properties": {
@@ -1178,7 +1178,7 @@ class FedocMCPServer:
             
             # Вызов API
             import requests
-            response = requests.delete(f"http://localhost:15000/api/nodes/{node_id}")
+            response = requests.delete(f"http://localhost:15000/api/nodes/{node_id}", timeout=30)
             
             if response.status_code == 200:
                 result = response.json()
@@ -1212,7 +1212,7 @@ class FedocMCPServer:
         """Конвертировать arango_key в AGE ID"""
         try:
             import requests
-            response = requests.get(f"http://localhost:15000/api/nodes")
+            response = requests.get(f"http://localhost:15000/api/nodes", timeout=30)
             if response.status_code == 200:
                 nodes = response.json()
                 for node in nodes:
@@ -1249,7 +1249,7 @@ class FedocMCPServer:
             
             # Вызов API
             import requests
-            response = requests.post("http://localhost:15000/api/nodes", json=data)
+            response = requests.post("http://localhost:15000/api/nodes", json=data, timeout=30)
             
             if response.status_code == 200:
                 result = response.json()
@@ -1378,7 +1378,7 @@ class FedocMCPServer:
             
             # Вызов API
             import requests
-            response = requests.put(f"http://localhost:15000/api/nodes/{node_id}", json=data)
+            response = requests.put(f"http://localhost:15000/api/nodes/{node_id}", json=data, timeout=30)
             
             if response.status_code == 200:
                 result = response.json()

@@ -206,7 +206,13 @@ def convert_node_key_to_age_id(node_identifier: str) -> Optional[int]:
         pass
     
     # Извлечь ключ из arango-style ID
-    key = node_identifier.split('/')[-1] if '/' in node_identifier else node_identifier
+    # Если содержит '/', это может быть arango-style ID (collection/key) или путь с '/' (например d:src/lib)
+    # Если начинается с префикса (c:, t:, v:, d:, m:, f:), используем как есть (это уже ключ)
+    if node_identifier.startswith(('c:', 't:', 'v:', 'd:', 'm:', 'f:')):
+        key = node_identifier
+    else:
+        # Иначе извлекаем последнюю часть после '/'
+        key = node_identifier.split('/')[-1] if '/' in node_identifier else node_identifier
     
     # Запрос к PostgreSQL для получения AGE ID по ключу
     with db_conn.cursor() as cur:
@@ -402,7 +408,7 @@ def create_node():
             return jsonify({'error': 'Отсутствуют обязательные поля: node_key, node_name, node_type'}), 400
         
         # Валидация типа узла
-        valid_types = ['concept', 'technology', 'version', 'other']
+        valid_types = ['concept', 'technology', 'version', 'directory', 'module', 'other']
         if node_type not in valid_types:
             return jsonify({'error': f'Некорректный тип узла. Допустимые: {", ".join(valid_types)}'}), 400
         
@@ -478,7 +484,7 @@ def update_node(node_id):
         
         # Валидация типа узла
         if node_type:
-            valid_types = ['concept', 'technology', 'version', 'other']
+            valid_types = ['concept', 'technology', 'version', 'directory', 'module', 'other']
             if node_type not in valid_types:
                 return jsonify({'error': f'Некорректный тип узла. Допустимые: {", ".join(valid_types)}'}), 400
         
@@ -548,6 +554,10 @@ def validate_node_key(node_key: str, node_type: str) -> bool:
         return False
     elif node_type == 'version' and not node_key.startswith('v:'):
         return False
+    elif node_type == 'directory' and not node_key.startswith('d:'):
+        return False
+    elif node_type == 'module' and not node_key.startswith('m:'):
+        return False
     elif node_type == 'other':
         # Для типа 'other' ключ может быть любым
         return True
@@ -560,6 +570,8 @@ def get_expected_prefix(node_type: str) -> str:
         'concept': 'c:',
         'technology': 't:',
         'version': 'v:',
+        'directory': 'd:',
+        'module': 'm:',
         'other': 'любой'
     }
     return prefixes.get(node_type, 'неизвестный')
