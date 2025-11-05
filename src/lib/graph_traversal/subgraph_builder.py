@@ -98,71 +98,107 @@ class SubgraphBuilder:
             cur.execute("LOAD 'age';")
             cur.execute("SET search_path = ag_catalog, public;")
             
-            # Получить все рёбра проекта
-            # Используем простой подход через API-подобный запрос
+            # Получить project_id для фильтрации
+            cur.execute("""
+                SELECT id FROM public.projects WHERE key = %s;
+            """, (project_key,))
+            project_result = cur.fetchone()
+            
+            if not project_result:
+                raise ValueError(f"Проект '{project_key}' не найден в таблице projects")
+            
+            project_id = project_result['id']
+            
+            # Получить все рёбра проекта через JOIN с edge_projects
+            # Новая архитектура: проекты хранятся в таблице edge_projects, а не в свойствах рёбер
+            # Используем двухшаговый подход: сначала получаем edge_id из таблицы, затем фильтруем Cypher
             query = f"""
-                SELECT * FROM cypher('{self.graph_name}', $$
-                  MATCH (a)-[r]->(b)
-                  RETURN id(a) as from_id, 
-                         a.arango_key as from_key,
-                         a.name as from_name,
-                         type(r) as edge_type,
-                         r.projects as edge_projects,
-                         id(b) as to_id,
-                         b.arango_key as to_key,
-                         b.name as to_name
-                $$) as (from_id agtype, from_key agtype, from_name agtype,
-                        edge_type agtype, edge_projects agtype,
-                        to_id agtype, to_key agtype, to_name agtype);
+                WITH project_edges AS (
+                    SELECT edge_id FROM public.edge_projects WHERE project_id = {project_id}
+                )
+                SELECT DISTINCT
+                    cypher_result.from_id::text as from_id, 
+                    cypher_result.from_key as from_key,
+                    cypher_result.from_name as from_name,
+                    cypher_result.edge_type as edge_type,
+                    cypher_result.to_id::text as to_id,
+                    cypher_result.to_key as to_key,
+                    cypher_result.to_name as to_name
+                FROM (
+                    SELECT * FROM cypher('{self.graph_name}', $$
+                      MATCH (a)-[r]->(b)
+                      RETURN id(a) as from_id, 
+                             a.arango_key as from_key,
+                             a.name as from_name,
+                             type(r) as edge_type,
+                             id(r) as edge_id,
+                             id(b) as to_id,
+                             b.arango_key as to_key,
+                             b.name as to_name
+                    $$) as (from_id agtype, from_key agtype, from_name agtype,
+                            edge_type agtype, edge_id agtype,
+                            to_id agtype, to_key agtype, to_name agtype)
+                ) cypher_result
+                INNER JOIN project_edges pe ON pe.edge_id = cypher_result.edge_id::text::bigint;
             """
             
             cur.execute(query)
             
+            rows = cur.fetchall()
+            if not rows:
+                raise ValueError(f"Проект '{project_key}' не найден или не имеет рёбер (запрос вернул 0 строк, project_id={project_id})")
+            
             nodes = {}
             adjacency = defaultdict(list)
+            rows_processed = 0
             
-            for row in cur.fetchall():
-                # Парсинг AGE данных
-                from_id = self._parse_agtype(row['from_id'])
-                from_key = self._parse_agtype(row['from_key'])
-                from_name = self._parse_agtype(row['from_name'])
-                
-                edge_type = self._parse_agtype(row['edge_type'])
-                edge_projects = self._parse_agtype(row['edge_projects'])
-                
-                to_id = self._parse_agtype(row['to_id'])
-                to_key = self._parse_agtype(row['to_key'])
-                to_name = self._parse_agtype(row['to_name'])
-                
-                # Фильтр по проекту
-                if not edge_projects or project_key not in edge_projects:
-                    continue
-                
-                # Сохранить узлы (базовая информация)
-                if from_id not in nodes:
-                    nodes[from_id] = {
-                        'arango_key': from_key,
-                        'name': from_name
-                    }
-                
-                if to_id not in nodes:
-                    nodes[to_id] = {
-                        'arango_key': to_key,
-                        'name': to_name
-                    }
-                
-                # Сохранить ребро
-                adjacency[from_id].append({
-                    'to': to_id,
-                    'type': edge_type,
-                    'projects': edge_projects
-                })
+            try:
+                for row in rows:
+                    rows_processed += 1
+                    try:
+                        # Парсинг данных (теперь уже преобразованные через JOIN)
+                        from_id = int(row['from_id'])
+                        from_key = self._parse_agtype(row['from_key'])
+                        from_name = self._parse_agtype(row['from_name'])
+                        
+                        edge_type = self._parse_agtype(row['edge_type'])
+                        
+                        to_id = int(row['to_id'])
+                        to_key = self._parse_agtype(row['to_key'])
+                        to_name = self._parse_agtype(row['to_name'])
+                        
+                        # Сохранить узлы (базовая информация)
+                        if from_id not in nodes:
+                            nodes[from_id] = {
+                                'arango_key': from_key,
+                                'name': from_name
+                            }
+                        
+                        if to_id not in nodes:
+                            nodes[to_id] = {
+                                'arango_key': to_key,
+                                'name': to_name
+                            }
+                        
+                        # Сохранить ребро
+                        adjacency[from_id].append({
+                            'to': to_id,
+                            'type': edge_type,
+                            'projects': [project_key]  # Добавляем для совместимости
+                        })
+                    except Exception as row_error:
+                        raise ValueError(f"Ошибка при обработке строки #{rows_processed}: {row_error}")
+            except Exception as e:
+                raise ValueError(f"Ошибка при обработке строки #{rows_processed}: {e}")
+            
+            if not nodes:
+                raise ValueError(f"Проект '{project_key}': обработано {rows_processed} строк, но не создано ни одного узла")
             
             # Получить детальную информацию об узлах
             self._enrich_nodes(cur, nodes)
             
             if not nodes:
-                raise ValueError(f"Проект '{project_key}' не найден или не имеет рёбер")
+                raise ValueError(f"Проект '{project_key}': узлы были созданы, но пропали после _enrich_nodes")
             
             return Subgraph(nodes=nodes, adjacency=dict(adjacency))
             

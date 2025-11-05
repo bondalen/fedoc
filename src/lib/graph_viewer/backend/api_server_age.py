@@ -675,17 +675,15 @@ def get_graph():
         else:
             # Извлечь ключ узла из start
             start_key = start.split('/')[-1] if '/' in start else start
-            # Получить граф только по исходящим рёбрам (outbound) от стартового узла, глубина 1..depth
-            # Возвращаем 11 колонок под return_type 'graph'
-            query = """
-                MATCH (s:canonical_node {arango_key: $start_key})
-                MATCH p=(s)-[*1..$depth]->(n)
-                UNWIND relationships(p) AS e
-                WITH DISTINCT e, startNode(e) AS a, endNode(e) AS b
-                WHERE ($project IS NULL OR $project = '' OR $project IN e.projects)
-                RETURN id(e), id(a), id(b), a.name, b.name, a.arango_key, b.arango_key, a.kind, b.kind, e.projects, e.relationType
-            """
-            results = execute_cypher(query, { 'start_key': start_key, 'depth': int(depth), 'project': project or '' }, return_type='graph')
+            # Используем функцию get_graph_for_viewer, которая работает с edge_projects
+            # Функция возвращает 11 колонок: edge_id, from_id, to_id, from_name, to_name, 
+            # from_key, to_key, from_kind, to_kind, projects, rel_type
+            results = execute_sql_function(
+                'ag_catalog.get_graph_for_viewer',
+                start_key,
+                depth,
+                project if project else None
+            )
         
         # Построение узлов и рёбер для vis-network
         nodes_map = {}
