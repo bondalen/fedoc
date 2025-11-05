@@ -622,12 +622,12 @@ class FedocMCPServer:
                         "enumerate_nodes_only": {
                             "type": "boolean",
                             "description": "В mode=paths возвращать только ключи узлов",
-                            "default": true
+                            "default": True
                         },
                         "return_partial": {
                             "type": "boolean",
                             "description": "Разрешить частичный результат при таймауте",
-                            "default": true
+                            "default": True
                         }
                     },
                     "required": ["from_node", "to_node"]
