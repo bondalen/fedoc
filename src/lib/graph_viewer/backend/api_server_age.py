@@ -207,8 +207,8 @@ def convert_node_key_to_age_id(node_identifier: str) -> Optional[int]:
     
     # Извлечь ключ из arango-style ID
     # Если содержит '/', это может быть arango-style ID (collection/key) или путь с '/' (например d:src/lib)
-    # Если начинается с префикса (c:, t:, v:, d:, m:, f:), используем как есть (это уже ключ)
-    if node_identifier.startswith(('c:', 't:', 'v:', 'd:', 'm:', 'f:')):
+    # Если начинается с префикса (c:, t:, v:, d:, m:, f:, comp:), используем как есть (это уже ключ)
+    if node_identifier.startswith(('c:', 't:', 'v:', 'd:', 'm:', 'f:', 'comp:')):
         key = node_identifier
     else:
         # Иначе извлекаем последнюю часть после '/'
@@ -408,7 +408,7 @@ def create_node():
             return jsonify({'error': 'Отсутствуют обязательные поля: node_key, node_name, node_type'}), 400
         
         # Валидация типа узла
-        valid_types = ['concept', 'technology', 'version', 'directory', 'module', 'other']
+        valid_types = ['concept', 'technology', 'version', 'directory', 'module', 'component', 'other']
         if node_type not in valid_types:
             return jsonify({'error': f'Некорректный тип узла. Допустимые: {", ".join(valid_types)}'}), 400
         
@@ -484,7 +484,7 @@ def update_node(node_id):
         
         # Валидация типа узла
         if node_type:
-            valid_types = ['concept', 'technology', 'version', 'directory', 'module', 'other']
+            valid_types = ['concept', 'technology', 'version', 'directory', 'module', 'component', 'other']
             if node_type not in valid_types:
                 return jsonify({'error': f'Некорректный тип узла. Допустимые: {", ".join(valid_types)}'}), 400
         
@@ -558,6 +558,8 @@ def validate_node_key(node_key: str, node_type: str) -> bool:
         return False
     elif node_type == 'module' and not node_key.startswith('m:'):
         return False
+    elif node_type == 'component' and not node_key.startswith('comp:'):
+        return False
     elif node_type == 'other':
         # Для типа 'other' ключ может быть любым
         return True
@@ -572,6 +574,7 @@ def get_expected_prefix(node_type: str) -> str:
         'version': 'v:',
         'directory': 'd:',
         'module': 'm:',
+        'component': 'comp:',
         'other': 'любой'
     }
     return prefixes.get(node_type, 'неизвестный')

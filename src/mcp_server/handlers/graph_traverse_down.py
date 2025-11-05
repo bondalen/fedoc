@@ -17,7 +17,8 @@ def graph_traverse_down(
     project: str,
     start_node: str = None,
     format: str = "markdown",
-    audience: str = "ai"
+    audience: str = "ai",
+    db_config: dict = None
 ) -> str:
     """
     Обход графа проекта вниз от стартового узла (sys-001)
@@ -57,14 +58,16 @@ def graph_traverse_down(
         raise ValueError(f"MVP: поддерживается только audience='ai', получено '{audience}'")
     
     try:
-        # Конфигурация БД
-        db_config = {
-            'host': 'localhost',
-            'port': 15432,
-            'database': 'fedoc',
-            'user': 'postgres',
-            'password': 'fedoc_test_2025'
-        }
+        # Конфигурация БД (используем переданную или значения по умолчанию)
+        if db_config is None:
+            import os
+            db_config = {
+                'host': os.getenv('POSTGRES_HOST', 'localhost'),
+                'port': int(os.getenv('POSTGRES_PORT', '15432')),
+                'database': os.getenv('POSTGRES_DB', 'fedoc'),
+                'user': os.getenv('POSTGRES_USER', 'postgres'),
+                'password': os.getenv('POSTGRES_PASSWORD', 'fedoc_test_2025')
+            }
         
         # Шаг 1: Построить подграф проекта
         builder = SubgraphBuilder(db_config)

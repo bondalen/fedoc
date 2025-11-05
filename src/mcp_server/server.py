@@ -59,6 +59,13 @@ class FedocMCPServer:
             "graph_viewer": {
                 "api_port": int(os.getenv("GRAPH_VIEWER_API_PORT", "8899")),
                 "frontend_port": int(os.getenv("GRAPH_VIEWER_FRONTEND_PORT", "5173"))
+            },
+            "postgres": {
+                "host": os.getenv("POSTGRES_HOST", "localhost"),
+                "port": int(os.getenv("POSTGRES_PORT", "15432")),
+                "database": os.getenv("POSTGRES_DB", "fedoc"),
+                "user": os.getenv("POSTGRES_USER", "postgres"),
+                "password": os.getenv("POSTGRES_PASSWORD", "fedoc_test_2025")
             }
         }
     
@@ -416,7 +423,7 @@ class FedocMCPServer:
                         },
                         "node_type": {
                             "type": "string",
-                            "enum": ["concept", "technology", "version", "directory", "module", "other"],
+                            "enum": ["concept", "technology", "version", "directory", "module", "component", "other"],
                             "description": "Тип узла"
                         },
                         "properties": {
@@ -443,7 +450,7 @@ class FedocMCPServer:
                         },
                         "node_type": {
                             "type": "string",
-                            "enum": ["concept", "technology", "version", "other"],
+                            "enum": ["concept", "technology", "version", "directory", "module", "component", "other"],
                             "description": "Новый тип узла (опционально)"
                         },
                         "properties": {
@@ -1429,12 +1436,23 @@ class FedocMCPServer:
                     }]
                 }
             
-            # Вызов функции обхода
+            # Получить конфигурацию PostgreSQL из настроек сервера
+            postgres_config = self.config.get("postgres", {})
+            db_config = {
+                'host': postgres_config.get('host', 'localhost'),
+                'port': postgres_config.get('port', 15432),
+                'database': postgres_config.get('database', 'fedoc'),
+                'user': postgres_config.get('user', 'postgres'),
+                'password': postgres_config.get('password', 'fedoc_test_2025')
+            }
+            
+            # Вызов функции обхода с передачей конфигурации БД
             result = graph_traverse_down(
                 project=project,
                 start_node=start_node,
                 format=format_type,
-                audience=audience
+                audience=audience,
+                db_config=db_config
             )
             
             return {
