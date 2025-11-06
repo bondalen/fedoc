@@ -1,0 +1,108 @@
+@startuml metadata-classes-uml
+
+package "Backend (Python)" {
+  abstract class "GraphObject\n(models.base)" {
+  }
+  
+  abstract class "GraphVertex\n(models.vertices.graph_vertex)" {
+  }
+  
+  class "GraphEdge\n(models.edges.graph_edge)" {
+  }
+  
+  class "ConceptVertex\n(models.vertices.concept_vertex)" {
+  }
+  
+  class "TechnologyVertex\n(models.vertices.technology_vertex)" {
+  }
+  
+  class "VersionVertex\n(models.vertices.version_vertex)" {
+  }
+  
+  class "Project\n(models.business.project)" {
+  }
+  
+  class "Backend\n(models.business.backend)" {
+  }
+  
+  class "Frontend\n(models.business.frontend)" {
+  }
+}
+
+package "Frontend (JavaScript)" {
+  class "GraphObject\n(models/base.js)" {
+  }
+  
+  class "GraphVertex\n(models/vertices/GraphVertex.js)" {
+  }
+  
+  class "GraphEdge\n(models/edges/GraphEdge.js)" {
+  }
+  
+  class "ConceptVertex\n(models/vertices/ConceptVertex.js)" {
+  }
+  
+  class "TechnologyVertex\n(models/vertices/TechnologyVertex.js)" {
+  }
+  
+  class "VersionVertex\n(models/vertices/VersionVertex.js)" {
+  }
+  
+  class "Project\n(models/business/Project.js)" {
+  }
+  
+  class "Backend\n(models/business/Backend.js)" {
+  }
+  
+  class "Frontend\n(models/business/Frontend.js)" {
+  }
+}
+
+' Наследование на бакенде
+"GraphObject\n(models.base)" <|-- "GraphVertex\n(models.vertices.graph_vertex)"
+"GraphObject\n(models.base)" <|-- "GraphEdge\n(models.edges.graph_edge)"
+"GraphVertex\n(models.vertices.graph_vertex)" <|-- "ConceptVertex\n(models.vertices.concept_vertex)"
+"GraphVertex\n(models.vertices.graph_vertex)" <|-- "TechnologyVertex\n(models.vertices.technology_vertex)"
+"GraphVertex\n(models.vertices.graph_vertex)" <|-- "VersionVertex\n(models.vertices.version_vertex)"
+"ConceptVertex\n(models.vertices.concept_vertex)" <|-- "Project\n(models.business.project)"
+"ConceptVertex\n(models.vertices.concept_vertex)" <|-- "Backend\n(models.business.backend)"
+"ConceptVertex\n(models.vertices.concept_vertex)" <|-- "Frontend\n(models.business.frontend)"
+
+' Наследование на фронтенде
+"GraphObject\n(models/base.js)" <|-- "GraphVertex\n(models/vertices/GraphVertex.js)"
+"GraphObject\n(models/base.js)" <|-- "GraphEdge\n(models/edges/GraphEdge.js)"
+"GraphVertex\n(models/vertices/GraphVertex.js)" <|-- "ConceptVertex\n(models/vertices/ConceptVertex.js)"
+"GraphVertex\n(models/vertices/GraphVertex.js)" <|-- "TechnologyVertex\n(models/vertices/TechnologyVertex.js)"
+"GraphVertex\n(models/vertices/GraphVertex.js)" <|-- "VersionVertex\n(models/vertices/VersionVertex.js)"
+"ConceptVertex\n(models/vertices/ConceptVertex.js)" <|-- "Project\n(models/business/Project.js)"
+"ConceptVertex\n(models/vertices/ConceptVertex.js)" <|-- "Backend\n(models/business/Backend.js)"
+"ConceptVertex\n(models/vertices/ConceptVertex.js)" <|-- "Frontend\n(models/business/Frontend.js)"
+
+' Синхронизация через граф (метаданные)
+"GraphObject\n(models.base)" ..> "GraphObject\n(models/base.js)" : синхронизация\nчерез граф
+"GraphVertex\n(models.vertices.graph_vertex)" ..> "GraphVertex\n(models/vertices/GraphVertex.js)" : синхронизация\nчерез граф
+"GraphEdge\n(models.edges.graph_edge)" ..> "GraphEdge\n(models/edges/GraphEdge.js)" : синхронизация\nчерез граф
+"ConceptVertex\n(models.vertices.concept_vertex)" ..> "ConceptVertex\n(models/vertices/ConceptVertex.js)" : синхронизация\nчерез граф
+"TechnologyVertex\n(models.vertices.technology_vertex)" ..> "TechnologyVertex\n(models/vertices/TechnologyVertex.js)" : синхронизация\nчерез граф
+"VersionVertex\n(models.vertices.version_vertex)" ..> "VersionVertex\n(models/vertices/VersionVertex.js)" : синхронизация\nчерез граф
+"Project\n(models.business.project)" ..> "Project\n(models/business/Project.js)" : синхронизация\nчерез граф
+"Backend\n(models.business.backend)" ..> "Backend\n(models/business/Backend.js)" : синхронизация\nчерез граф
+"Frontend\n(models.business.frontend)" ..> "Frontend\n(models/business/Frontend.js)" : синхронизация\nчерез граф
+
+note right of "GraphObject\n(models.base)"
+  Базовый класс для всех объектов графа
+  Синхронизирован с фронтендом через метаданные в графе
+end note
+
+note right of "GraphVertex\n(models.vertices.graph_vertex)"
+  Базовый класс для всех вершин графа
+  Синхронизирован с фронтендом через метаданные в графе
+end note
+
+note right of "Project\n(models.business.project)"
+  Проект в системе fedoc
+  Синхронизирован с фронтендом через метаданные в графе
+end note
+
+@enduml
+

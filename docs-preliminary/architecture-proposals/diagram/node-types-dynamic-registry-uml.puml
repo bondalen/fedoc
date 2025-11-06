@@ -1,0 +1,311 @@
+@startuml node-types-dynamic-registry-uml
+
+' Базовый класс для всех объектов графа
+abstract class GraphObject {
+}
+
+' Абстрактный класс для всех вершин графа
+abstract class GraphVertex {
+}
+
+' Класс для рёбер графа
+class GraphEdge {
+}
+
+' ============================================
+' СЕГМЕНТЫ ГРАФА (промежуточные абстрактные классы)
+' ============================================
+
+' Сегмент архитектуры проекта
+abstract class ArchitectureSegmentVertex {
+}
+
+' Сегмент структуры кода
+abstract class CodeStructureSegmentVertex {
+}
+
+' Сегмент файловой системы
+abstract class FileSystemSegmentVertex {
+}
+
+' ============================================
+' КОНКРЕТНЫЕ КЛАССЫ ВЕРШИН (базовые типы)
+' ============================================
+
+' Узлы архитектуры
+class ConceptVertex {
+}
+
+class TechnologyVertex {
+}
+
+class VersionVertex {
+}
+
+' Узлы структуры кода
+class ModuleVertex {
+}
+
+class ComponentVertex {
+}
+
+class ClassVertex {
+}
+
+class NestedClassVertex {
+}
+
+' Узлы файловой системы
+class DirectoryVertex {
+}
+
+class FileVertex {
+}
+
+' Прочие узлы
+class OtherVertex {
+}
+
+' ============================================
+' СИСТЕМА РЕГИСТРАЦИИ ТИПОВ
+' ============================================
+
+class VertexTypeRegistry {
+}
+
+class VertexTypeInfo {
+}
+
+class VertexFactory {
+}
+
+interface IVertexTypeProvider {
+}
+
+' ============================================
+' ИЕРАРХИЯ НАСЛЕДОВАНИЯ
+' ============================================
+
+' Базовое наследование
+GraphObject <|-- GraphVertex
+GraphObject <|-- GraphEdge
+
+' Сегменты наследуются от GraphVertex
+GraphVertex <|-- ArchitectureSegmentVertex
+GraphVertex <|-- CodeStructureSegmentVertex
+GraphVertex <|-- FileSystemSegmentVertex
+GraphVertex <|-- OtherVertex
+
+' Конкретные классы наследуются от сегментов
+ArchitectureSegmentVertex <|-- ConceptVertex
+ArchitectureSegmentVertex <|-- TechnologyVertex
+ArchitectureSegmentVertex <|-- VersionVertex
+
+CodeStructureSegmentVertex <|-- ModuleVertex
+CodeStructureSegmentVertex <|-- ComponentVertex
+CodeStructureSegmentVertex <|-- ClassVertex
+CodeStructureSegmentVertex <|-- NestedClassVertex
+
+FileSystemSegmentVertex <|-- DirectoryVertex
+FileSystemSegmentVertex <|-- FileVertex
+
+' Система регистрации использует вершины
+VertexTypeRegistry --> VertexTypeInfo : содержит
+VertexFactory --> VertexTypeRegistry : использует
+VertexFactory --> GraphVertex : создаёт
+IVertexTypeProvider <|.. VertexTypeRegistry : реализует
+
+' ============================================
+' ЗАМЕТКИ
+' ============================================
+
+note bottom of GraphObject
+  Базовый класс для всех объектов графа
+  Методы: to_dict(), from_dict(), validate(), to_json()
+end note
+
+note bottom of GraphVertex
+  Абстрактный класс для всех вершин графа
+  Методы: infer_type(), get_visual_style(), to_vis_format()
+  Свойства: key, label, node_type
+end note
+
+note bottom of ArchitectureSegmentVertex
+  Сегмент: Архитектура проекта
+  Узлы: concept, technology, version
+  Префиксы: c:, t:, v:
+  
+  Использование:
+  - Фильтрация графа по архитектуре
+  - Оформление рёбер между узлами архитектуры
+  - Визуализация технологического стека
+end note
+
+note bottom of CodeStructureSegmentVertex
+  Сегмент: Структура кода
+  Узлы: module, component, class, nested-class
+  Префиксы: m:, comp:, class:, nested:
+  
+  Использование:
+  - Фильтрация графа по структуре кода
+  - Оформление рёбер между модулями/компонентами/классами
+  - Визуализация зависимостей кода
+end note
+
+note bottom of FileSystemSegmentVertex
+  Сегмент: Файловая система
+  Узлы: directory, file
+  Префиксы: d:, f:
+  
+  Использование:
+  - Фильтрация графа по файловой системе
+  - Оформление рёбер между директориями и файлами
+  - Визуализация структуры проекта
+end note
+
+note bottom of ConceptVertex
+  Тип узла: concept
+  Префикс ключа: c:
+  Сегмент: Architecture
+  Примеры: c:project, c:backend, c:frontend
+end note
+
+note bottom of TechnologyVertex
+  Тип узла: technology
+  Префикс ключа: t:
+  Сегмент: Architecture
+  Примеры: t:python, t:vue, t:postgresql
+end note
+
+note bottom of VersionVertex
+  Тип узла: version
+  Префикс ключа: v:
+  Сегмент: Architecture
+  Примеры: v:python@3.12, v:vue@3.5.22
+end note
+
+note bottom of ModuleVertex
+  Тип узла: module
+  Префикс ключа: m:
+  Сегмент: CodeStructure
+  Примеры: m:lib.graph_viewer, m:mcp_server
+end note
+
+note bottom of ComponentVertex
+  Тип узла: component
+  Префикс ключа: comp:
+  Сегмент: CodeStructure
+  Примеры: comp:api_server_age, comp:graph_viewer_manager
+end note
+
+note bottom of ClassVertex
+  Тип узла: class
+  Префикс ключа: class:
+  Сегмент: CodeStructure
+  Примеры: class:GraphObject, class:GraphVertex, class:Project
+end note
+
+note bottom of NestedClassVertex
+  Тип узла: nested-class
+  Префикс ключа: nested:
+  Сегмент: CodeStructure
+  Примеры: nested:GraphObject.Validator, nested:Project.Config
+end note
+
+note bottom of DirectoryVertex
+  Тип узла: directory
+  Префикс ключа: d:
+  Сегмент: FileSystem
+  Примеры: d:src/lib/graph_viewer
+end note
+
+note bottom of FileVertex
+  Тип узла: file
+  Префикс ключа: f:
+  Сегмент: FileSystem
+  Примеры: f:src/lib/graph_viewer/api_server.py
+end note
+
+note bottom of OtherVertex
+  Тип узла: other
+  Префикс ключа: любой
+  Сегмент: не определён
+  Для узлов, не попадающих в другие категории
+end note
+
+note bottom of VertexTypeRegistry
+  Реестр типов вершин
+  
+  Методы:
+  - get_type(type_name) → VertexTypeInfo
+  - validate_key(node_key, node_type) → bool
+  - get_expected_prefix(node_type) → str
+  - get_segment(node_type) → str
+  - get_all_types() → list
+  - register_type(...) → void
+  
+  Источник данных:
+  - Загружает типы из графа (c:vertex-types-registry)
+  - Кэширует в памяти для производительности
+  - Обновляется при регистрации новых типов
+end note
+
+note bottom of VertexTypeInfo
+  Метаданные типа вершины
+  
+  Свойства:
+  - type_name: str
+  - key_prefix: str
+  - segment: str
+  - base_class: str
+  - validation_pattern: str
+  - visual_style: dict
+  
+  Хранится в графе как узел:
+  c:vertex-type-{type_name}
+end note
+
+note bottom of VertexFactory
+  Фабрика для создания вершин
+  
+  Методы:
+  - create_vertex(node_key, node_name, node_type, properties) → GraphVertex
+  - create_from_dict(data) → GraphVertex
+  
+  Использует:
+  - VertexTypeRegistry для получения метаданных типа
+  - Динамическое создание экземпляров классов
+  - Валидацию через реестр
+end note
+
+note bottom of IVertexTypeProvider
+  Интерфейс для провайдеров типов вершин
+  
+  Методы:
+  - get_type(type_name) → VertexTypeInfo
+  - get_all_types() → list
+  
+  Реализации:
+  - GraphVertexTypeProvider (из графа)
+  - ConfigVertexTypeProvider (из конфига)
+  - HybridVertexTypeProvider (гибридный)
+end note
+
+note bottom of GraphEdge
+  Класс для рёбер графа
+  
+  Расширение для сегментов:
+  - get_segment_from() - получить сегмент исходного узла
+  - get_segment_to() - получить сегмент целевого узла
+  - get_edge_style_by_segments() - стиль рёбра в зависимости от сегментов
+  
+  Примеры стилей рёбер:
+  - Architecture → Architecture: сплошная линия, синий
+  - CodeStructure → CodeStructure: сплошная линия, зелёный
+  - FileSystem → FileSystem: пунктир, серый
+  - Architecture → CodeStructure: стрелка, оранжевый
+  - CodeStructure → FileSystem: пунктир, фиолетовый
+end note
+
+@enduml
+

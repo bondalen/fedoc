@@ -1,0 +1,102 @@
+@startuml node-types-classes-uml
+
+' Базовый класс для всех объектов графа
+abstract class GraphObject {
+}
+
+' Абстрактный класс для всех вершин графа
+abstract class GraphVertex {
+}
+
+' Класс для рёбер графа
+class GraphEdge {
+}
+
+' Специализированные классы вершин по типам узлов
+class ConceptVertex {
+}
+
+class TechnologyVertex {
+}
+
+class VersionVertex {
+}
+
+class DirectoryVertex {
+}
+
+class ModuleVertex {
+}
+
+class ComponentVertex {
+}
+
+class OtherVertex {
+}
+
+' Наследование
+GraphObject <|-- GraphVertex
+GraphObject <|-- GraphEdge
+GraphVertex <|-- ConceptVertex
+GraphVertex <|-- TechnologyVertex
+GraphVertex <|-- VersionVertex
+GraphVertex <|-- DirectoryVertex
+GraphVertex <|-- ModuleVertex
+GraphVertex <|-- ComponentVertex
+GraphVertex <|-- OtherVertex
+
+note right of GraphObject
+  Базовый класс для всех объектов графа
+  Методы: to_dict(), from_dict(), validate(), to_json()
+end note
+
+note right of GraphVertex
+  Абстрактный класс для всех вершин графа
+  Методы: infer_type(), get_visual_style(), to_vis_format()
+  Свойства: key, label, node_type
+end note
+
+note right of ConceptVertex
+  Тип узла: concept
+  Префикс ключа: c:
+  Примеры: c:project, c:backend, c:frontend
+end note
+
+note right of TechnologyVertex
+  Тип узла: technology
+  Префикс ключа: t:
+  Примеры: t:python, t:vue, t:postgresql
+end note
+
+note right of VersionVertex
+  Тип узла: version
+  Префикс ключа: v:
+  Примеры: v:python@3.12, v:vue@3.5.22
+end note
+
+note right of DirectoryVertex
+  Тип узла: directory
+  Префикс ключа: d:
+  Примеры: d:src/lib/graph_viewer
+end note
+
+note right of ModuleVertex
+  Тип узла: module
+  Префикс ключа: m:
+  Примеры: m:lib.graph_viewer, m:mcp_server
+end note
+
+note right of ComponentVertex
+  Тип узла: component
+  Префикс ключа: comp:
+  Примеры: comp:api_server_age, comp:graph_viewer_manager
+end note
+
+note right of OtherVertex
+  Тип узла: other
+  Префикс ключа: любой
+  Для узлов, не попадающих в другие категории
+end note
+
+@enduml
+
