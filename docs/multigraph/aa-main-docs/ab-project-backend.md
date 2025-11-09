@@ -1,0 +1,243 @@
+# fedoc multigraph — Backend
+
+**Версия:** 0.1.0  
+**Дата:** 2025-11-08  
+**Статус:** 🚧 В разработке  
+**Авторы:** Александр
+
+Документ описывает внутреннюю архитектуру и рабочие процессы backend-подсистемы multigraph. Для общего обзора проекта см. `aa-project.md`.
+
+---
+
+## 📦 Развертывание
+
+### Требования
+
+**Сервер:**
+- Docker 20.10+
+- 1 GB RAM минимум (рекомендуется 2 GB)
+- 5 GB дискового пространства
+
+**Локальная машина:**
+- Python 3.10+
+- Cursor AI
+- SSH доступ к серверу
+
+### Первоначальное развертывание
+
+```bash
+# 1. Подготовка на сервере
+ssh fedoc-server
+mkdir -p /opt/fedoc/{app,data}
+
+# 2. Сборка и загрузка базового образа
+cd fedoc/mgsrc/docker
+docker build -t fedoc/multigraph:base -f Dockerfile.base .
+docker save fedoc/multigraph:base | ssh fedoc-server docker load
+
+# 3. Запуск контейнера
+ssh fedoc-server
+docker run -d \
+  --name fedoc-multigraph \
+  -p 127.0.0.1:8080:8080 \
+  -v /opt/fedoc/app:/app:ro \
+  -v /opt/fedoc/data:/var/lib/postgresql/data \
+  -e POSTGRES_PASSWORD=<password> \
+  --restart unless-stopped \
+  fedoc/multigraph:base
+
+# 4. Загрузка приложения
+cd fedoc/mgsrc/backend
+./build-pyz.sh 1.0.0
+scp dist/fedoc-multigraph-1.0.0.pyz fedoc-server:/opt/fedoc/app/fedoc-multigraph.pyz
+
+# 5. Перезапуск приложения
+ssh fedoc-server docker exec fedoc-multigraph supervisorctl restart pythonapp
+```
+
+### Обновление приложения
+
+```bash
+# Из директории mgsrc/backend
+./build-pyz.sh 1.1.0
+
+# Скрипт автоматически:
+# - Загрузит .pyz на сервер
+# - Сделает backup старой версии
+# - Заменит файл
+# - Перезапустит приложение (PostgreSQL не трогается!)
+../deploy/update.sh 1.1.0
+
+# Время обновления: 2-5 секунд
+```
+
+### Откат
+
+```bash
+ssh fedoc-server
+cd /opt/fedoc/app
+mv fedoc-multigraph.pyz fedoc-multigraph.pyz.failed
+mv fedoc-multigraph.pyz.backup fedoc-multigraph.pyz
+docker exec fedoc-multigraph supervisorctl restart pythonapp
+```
+
+---
+
+## 🛠️ Разработка
+
+### Структура проекта
+
+```
+fedoc/mgsrc/
+├── backend/                    # Flask Backend
+│   ├── fedoc_multigraph/       # Основной пакет
+│   │   ├── __init__.py
+│   │   ├── app.py              # create_app()
+│   │   ├── api/                # REST endpoints (health, blocks, ...)
+│   │   ├── middleware/         # middleware registry (заглушка)
+│   │   ├── errors/             # обработчики ошибок
+│   │   ├── validators/         # валидация запросов
+│   │   ├── auth/               # декораторы авторизации
+│   │   └── config/             # Settings / env
+│   ├── setup.py
+│   ├── requirements.txt
+│   └── README.md
+│
+├── frontend/
+│   └── ... (подготовка)
+│
+├── mcp_client/
+│   └── ... (подготовка)
+│
+├── docker/
+│   └── ...
+│
+└── deploy/
+    └── ...
+```
+
+#### Текущее состояние (chat-25-1108-resume-23-10)
+- Реализована фабрика `create_app()` с базовым health-endpoint.
+- Заглушки для middleware, errors, validators, auth готовы к наполнению.
+- Конфигурация (`config/settings.py`) читает переменные окружения через dataclass `Settings`.
+- Подготовлены `setup.py`, `requirements.txt`, `README.md` для backend.
+- Следующие шаги: подключение к PostgreSQL, реализация REST API и сервисного слоя (см. bb-tasks 1.2.*, 1.3.*).
+- **Новый прогресс ([chat-25-1109-resume-06-37.md](../bb-chats/chat-25-1109-resume-06-37.md)):**
+  - Добавлен `api/blocks.py` с CRUD-эндпоинтами `/api/blocks`.
+  - Реализованы схемы валидации (`validators/blocks.py`), сервис (`services/blocks.py`) и репозиторий (`db/repositories/blocks.py`).
+  - Ошибки (`errors/blocks.py`) и настройки (`Settings.graph_blocks_name`, `Settings.api_default_limit`) расширены для работы с графом `mg_blocks`.
+- **Новый прогресс ([chat-25-1109-resume-07-35.md](../bb-chats/chat-25-1109-resume-07-35.md)):**
+  - Исправлена структура графа `mg_blocks`: label `block_type` пересоздан без лишних колонок, восстановлен `PRIMARY KEY` и внешний ключ `mg.design_to_block.block_id`.
+  - Репозиторий блоков переведён на использование `id(vertex) = <graphid>` и inline map literal, удалены попытки передачи JSON-параметров в `cypher`.
+  - CRUD `/api/blocks` успешно прошёл интеграционные тесты против живой БД AGE (полная последовательность create → get → patch → delete).
+
+### Локальная разработка
+
+**Backend:**
+```bash
+cd mgsrc/backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Запуск с локальной PostgreSQL
+export DATABASE_URL="postgresql://user:pass@localhost:5432/fedoc_mg"
+python -m fedoc_multigraph.app
+```
+
+**Frontend:**
+```bash
+cd mgsrc/frontend
+npm install
+npm run dev
+
+# Доступ: http://localhost:5173
+```
+
+**MCP:**
+```bash
+cd mgsrc/mcp_client
+python server.py
+
+# Настроить в Cursor: .cursor/mcp.json
+```
+
+### Сборка `.pyz`
+
+```bash
+cd mgsrc/backend
+
+# Собрать frontend
+cd ../frontend && npm run build && cd ../backend
+
+# Собрать .pyz
+./build-pyz.sh 1.0.0
+
+# Результат: dist/fedoc-multigraph-1.0.0.pyz
+```
+
+---
+
+## 📊 Мониторинг и логи
+
+### Проверка состояния
+
+```bash
+# Статус контейнера
+docker ps | grep fedoc-multigraph
+
+# Статус процессов внутри
+docker exec fedoc-multigraph supervisorctl status
+
+# Логи PostgreSQL
+docker exec fedoc-multigraph tail -f /var/log/supervisor/postgres.log
+
+# Логи приложения
+docker exec fedoc-multigraph tail -f /var/log/supervisor/pythonapp.log
+```
+
+### Метрики ресурсов
+
+```bash
+# Использование RAM/CPU
+docker stats fedoc-multigraph
+
+# Размер базы данных
+docker exec fedoc-multigraph \
+  psql -U fedoc -d fedoc_mg -c \
+  "SELECT pg_size_pretty(pg_database_size('fedoc_mg'));"
+```
+
+---
+
+## 🔐 Безопасность
+
+### Текущая модель
+
+**Уровень:** Базовый (одиночный пользователь)
+
+**Реализовано:**
+- ✅ Порты закрыты внешне (только localhost:8080)
+- ✅ Доступ через SSH tunnel
+- ✅ PostgreSQL недоступен извне (внутри контейнера)
+
+**Не реализовано (не требуется для одиночного использования):**
+- ❌ Аутентификация пользователей
+- ❌ Авторизация (RBAC)
+- ❌ HTTPS (используется SSH tunnel)
+- ❌ Rate limiting
+
+### Рекомендации на будущее
+
+- Добавить JWT authentication
+- Реализовать RBAC для проектов
+- Настроить HTTPS (Let's Encrypt)
+- Включить rate limiting (Flask-Limiter)
+
+---
+
+## Ссылки
+
+- [chat-25-1108-resume-10-55.md](../bb-chats/chat-25-1108-resume-10-55.md) — определение архитектуры и выбор `.pyz`
+- [chat-25-1108-resume-23-10.md](../bb-chats/chat-25-1108-resume-23-10.md) — реализация каркаса backend и окружения
+- [psycopg2-shiv-test.md](../cc-preliminary/25-1108/psycopg2-shiv-test.md) — отчёт о тестировании `.pyz`
