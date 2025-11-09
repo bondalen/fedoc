@@ -53,6 +53,52 @@ pytest -m integration
 - В `tests/integration/utils.py` вынесены функции `create_block`, `create_design`, `create_project` и соответствующие `delete_*`, уменьшая дублирование кода в тестах.
 - Обновлены сценарии для дизайнов и проектов; все проверки проходят (`16 passed`).
 
+### 2.6 Pre-PR чек-лист для интеграционных тестов
+Перед созданием Pull Request выполняем:
+1. **Синхронизация зависимостей**  
+   ```bash
+   source venv/bin/activate
+   pip install -r mgsrc/backend/requirements.txt
+   pip install -r mgsrc/backend/requirements-dev.txt
+   ```
+2. **Подготовка БД**  
+   ```bash
+   ssh -f -N -L 15432:localhost:5432 fedoc-server  # при необходимости
+   python -m fedoc_multigraph.scripts.seed_multigraph --force \
+     --dsn "postgresql://postgres:fedoc_test_2025@127.0.0.1:15432/fedoc"
+   ```
+3. **Запуск тестов**  
+   ```bash
+   pytest -m integration
+   ```
+4. **Проверка статуса**  
+   - Убедиться, что `16 passed` без предупреждений.
+   - Зафиксировать результаты в описании PR (указать дату и команду).
+5. **Документация**  
+   - Обновить релевантные разделы (`testing-ci-deep-dive.md`, `ab-project-backend.md`, если добавлены новые шаги).
+
+### 2.7 Анализ логов при падении тестов
+Если интеграционные тесты падают:
+1. **Получить сообщение об ошибке**
+   ```bash
+   pytest -m integration -vv --maxfail=1
+   ```
+2. **Проверить состояние AGE**
+   ```bash
+   psql "postgresql://postgres:fedoc_test_2025@127.0.0.1:15432/fedoc" \
+     -c "LOAD 'age'; SET search_path = ag_catalog, \"$user\", public; SELECT * FROM cypher('mg_blocks', $$MATCH (n) RETURN count(n)$$) AS (count agtype);"
+   ```
+3. **Просмотреть логи PostgreSQL/AGE**
+   ```bash
+   docker exec fedoc-multigraph tail -n 100 /var/log/supervisor/postgres.log
+   ```
+4. **Проверить логи приложения**
+   ```bash
+   docker exec fedoc-multigraph tail -n 200 /var/log/supervisor/pythonapp.log
+   ```
+5. **Повторить сидирование**
+   Если проблема в неконсистентных данных, перезапустить сидер и повторить тесты.
+
 ---
 
 ## 3. GitHub Actions
