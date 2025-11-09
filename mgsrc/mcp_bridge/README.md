@@ -62,3 +62,17 @@ cd /home/alex/fedoc
 pytest mgsrc/mcp_bridge/tests
 ```
 
+## Запуск (CLI / daemon)
+```bash
+# режим демона (по умолчанию)
+python -m mcp_bridge.run_bridge --log-level DEBUG
+
+# единичный запрос выделения (результат в stdout)
+python -m mcp_bridge.run_bridge --mode once --timeout 3.0
+```
+
+- Скрипт читает конфигурацию из `BridgeConfig.from_env()` и корректно завершается по `SIGINT/SIGTERM`.
+- Режим `once` запрашивает актуальное выделение и печатает JSON-результат.
+- Логирование настраивается через параметр `--log-level` либо переменную `FEDOC_MCP_BRIDGE_LOG`.
+- Следующий этап — интеграция со слоем MCP (регистрация команд `push_selection`, `get_selection`, `poll_updates`).
+

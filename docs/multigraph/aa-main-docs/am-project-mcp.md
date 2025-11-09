@@ -31,7 +31,12 @@ cd mgsrc/mcp_bridge
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python -m mcp_bridge.run_bridge  # (будет добавлено после интеграции MCP-протокола)
+
+# режим демона
+python -m mcp_bridge.run_bridge --log-level INFO
+
+# единичный снимок выделения (для отладки)
+python -m mcp_bridge.run_bridge --mode once --timeout 3.0
 ```
 
 > Важно: существующий `src/mcp_server` из классической версии fedoc остаётся неизменным — новая реализация хранится отдельно в `mgsrc/mcp_bridge`.
@@ -65,4 +70,5 @@ mgsrc/mcp_bridge/
 - ✅ Реализован `WebSocketBridge` на `python-socketio` с автоподпиской на `graph_updates` и `selection_updates`. — Чаты: [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)
 - ✅ Класс `MCPBridge` предоставляет API для MCP-команд (`push_selection`, `get_selection_snapshot`, `poll_graph_updates`). — Чаты: [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)
 - ✅ Написаны unit-тесты (pytest) на обработку событий и обновление состояния выделений. — Чаты: [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)
+- ✅ Добавлен CLI `mcp_bridge.run_bridge` с поддержкой режимов `daemon` и `once`. — Чаты: *(будет зафиксировано после интеграции MCP)*
 - 🚧 Интеграция с MCP протоколом (`

@@ -353,6 +353,11 @@
   Чаты: [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)  
   Задачи: bb-tasks 1.3.B  
   ФС:  mgsrc/mcp_bridge/tests
+- **3.5.5 Bridge Runner (`mcp_bridge.run_bridge`) — *Component***  
+  Статус: `done`  
+  Чаты: *(будет зафиксировано после интеграции MCP)*  
+  Задачи: bb-tasks 1.3.B  
+  ФС:  mcp_bridge/run_bridge.py, mgsrc/mcp_bridge/mcp_bridge/run_bridge.py
 
 ---
 
