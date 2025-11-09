@@ -404,6 +404,14 @@ selected = mcp.call("get_selected_elements")
 
 **MCP Bridge:** новая реализация располагается в `mgsrc/mcp_bridge/`; поддерживает синхронизацию выделений и приём событий `graph_updated` (см. [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)).
 
+```bash
+# запуск демона моста
+python -m mcp_bridge.run_bridge --log-level INFO
+
+# единичный снимок выделения (результат — JSON в stdout)
+python -m mcp_bridge.run_bridge --mode once --timeout 3
+```
+
 ---
 
 ## 📦 Развертывание

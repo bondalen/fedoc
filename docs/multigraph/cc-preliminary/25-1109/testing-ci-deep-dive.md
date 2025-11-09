@@ -147,6 +147,13 @@ pytest -m integration
 - **Артефакты:** обязательные (`integration-junit.xml`, `postgres.log`); скачиваем при падении пайплайна.
 - **Принятие PR:** без зелёного статуса workflow PR не сливается (check обязательный).
 
+### 3.5 План системных тестов WebSocket hub + MCP Bridge
+1. **Smoke-сценарий:** поднять backend (`pytest --maxfail=1`), запустить `python -m mcp_bridge.run_bridge --mode once` и убедиться, что возвращается JSON со списком узлов/рёбер.
+2. **Broadcast-сценарий:** в тестовом процессе инициировать событие `graph_updated` (REST PATCH) и проверить, что Bridge получает его через `poll_graph_updates`.
+3. **Selection round-trip:** Bridge отправляет `push_selection`, фронтенд (WebSocket клиент) подтверждает событие и возвращает `selected_nodes` → Bridge фиксирует обновление.
+4. **Negative:** обрывы соединения (kill websocket) — Bridge должен переподключиться в пределах `FEDOC_WS_RECONNECT_DELAY`.
+5. **Automation:** интегрировать сценарии в отдельный pytest-модуль `tests/system/test_mcp_bridge_ws.py` (TODO) и запускать опционально в CI с пометкой `mcp_system`.
+
 ---
 
 ## 4. Диагностика и отладка
