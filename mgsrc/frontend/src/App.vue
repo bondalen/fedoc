@@ -18,7 +18,12 @@
       </section>
     </aside>
     <main class="workspace">
-      <GraphCanvas :nodes="graph.nodes" :edges="graph.edges" />
+      <GraphCanvas
+        :nodes="graph.nodes"
+        :edges="graph.edges"
+        :selected-nodes="selection.nodes"
+        @select="handleGraphSelect"
+      />
     </main>
     <section class="details-panel">
       <SelectionPanel :selection="selection" />
@@ -39,7 +44,7 @@ const realtime = useRealtime();
 const apiStatus = ref("unknown");
 const wsConnected = ref(false);
 const graph = ref({ nodes: [], edges: [] } as { nodes: any[]; edges: any[] });
-const selection = ref({ nodes: [], edges: [] } as { nodes: any[]; edges: any[] });
+const selection = ref({ nodes: [], edges: [] } as { nodes: string[]; edges: string[] });
 
 const apiStatusLabel = computed(() => {
   switch (apiStatus.value) {
@@ -54,12 +59,40 @@ const apiStatusLabel = computed(() => {
 
 function refreshData() {
   api.getProjectGraph().then((data) => {
-    graph.value = data;
+    graph.value = normalizeGraph(data);
   });
 }
 
 function requestSelection() {
   realtime.requestSelection();
+}
+
+function pushSelection(payload: { nodes: string[]; edges: string[] }) {
+  realtime.pushSelection(payload);
+}
+
+function handleGraphSelect(payload: { nodes: string[]; edges: string[] }) {
+  selection.value = {
+    nodes: payload.nodes,
+    edges: payload.edges,
+  };
+  pushSelection(payload);
+}
+
+function normalizeGraph(raw: any) {
+  const nodes = (raw?.nodes || []).map((node: any) => ({
+    id: node.id || node.vertex_id || node.name,
+    label: node.name || node.label || node.id,
+  }));
+
+  const edges = (raw?.edges || []).map((edge: any) => ({
+    id: edge.id || edge.edge_id,
+    from: edge.source || edge.start_id || edge.from,
+    to: edge.target || edge.end_id || edge.to,
+    label: edge.label,
+  }));
+
+  return { nodes, edges };
 }
 
 onMounted(async () => {
@@ -69,6 +102,9 @@ onMounted(async () => {
   });
   realtime.onConnectionChange((connected) => {
     wsConnected.value = connected;
+  });
+  realtime.onGraphUpdate((payload) => {
+    graph.value = normalizeGraph(payload);
   });
   realtime.connect();
   refreshData();

@@ -7,6 +7,7 @@ interface SelectionPayload {
 
 type SelectionListener = (payload: SelectionPayload) => void;
 type ConnectionListener = (connected: boolean) => void;
+type GraphUpdateListener = (payload: any) => void;
 
 export function useRealtime() {
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws";
@@ -14,6 +15,7 @@ export function useRealtime() {
 
   const selectionListeners: SelectionListener[] = [];
   const connectionListeners: ConnectionListener[] = [];
+  const graphListeners: GraphUpdateListener[] = [];
 
   function connect() {
     if (socket) {
@@ -35,6 +37,9 @@ export function useRealtime() {
       const payload = JSON.parse(event.data ?? "{}");
       if (payload.type === "selected_nodes" && payload.data) {
         selectionListeners.forEach((listener) => listener(payload.data));
+      }
+      if (payload.type === "graph_updated" && payload.data) {
+        graphListeners.forEach((listener) => listener(payload.data));
       }
     });
   }
@@ -75,11 +80,16 @@ export function useRealtime() {
     connectionListeners.push(listener);
   }
 
+  function onGraphUpdate(listener: GraphUpdateListener) {
+    graphListeners.push(listener);
+  }
+
   return {
     connect,
     requestSelection,
     pushSelection,
     onSelection,
     onConnectionChange,
+    onGraphUpdate,
   };
 }

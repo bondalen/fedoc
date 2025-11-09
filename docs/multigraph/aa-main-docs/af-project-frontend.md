@@ -67,8 +67,9 @@ fedoc/mgsrc/frontend/
 
 ### Текущий статус (2025-11-09)
 - **Vite + Vue база:** настроены package.json, tsconfig, vite.config с прокси на backend `8080`.
-- **Каркас UI:** `App.vue` формирует трёхколоночный layout (sidebar, workspace, details) + компоненты `GraphCanvas` и `SelectionPanel`.
+- **Каркас UI:** `App.vue` формирует трёхколоночный layout (sidebar, workspace, details panel); подключены компоненты `GraphCanvas` и `SelectionPanel`.
 - **Сервисы:** `useApi()` (REST) и `useRealtime()` (WebSocket) лежат в `src/services`.
+- **Визуализация:** `GraphCanvas` использует `vis-network` для отображения графа и обработки выделений.
 - **Стили:** базовые глобальные стили (`src/style.css`).
 
 ### Roadmap (обновлён)
