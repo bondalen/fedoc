@@ -364,11 +364,11 @@
   Задачи: bb-tasks 5.1.1
 - **5.3 Integration / Smoke Tests (`tests/integration`) — *Component***  
   Статус: `done`  
-  Чаты: [chat-25-1109-resume-08-10.md](../bb-chats/chat-25-1109-resume-08-10.md), [chat-25-1109-resume-10-30.md](../bb-chats/chat-25-1109-resume-10-30.md)  
+  Чаты: [chat-25-1109-resume-08-10.md](../bb-chats/chat-25-1109-resume-08-10.md), [chat-25-1109-resume-10-30.md](../bb-chats/chat-25-1109-resume-10-30.md), [chat-25-1109-resume-13-15.md](../bb-chats/chat-25-1109-resume-13-15.md)  
   Задачи: bb-tasks 5.2.1
   - **5.3.1 Projects API Integration (`tests.integration.test_projects_api`) — *Component***  
     Статус: `done`  
-    Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+    Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md), [chat-25-1109-resume-13-15.md](../bb-chats/chat-25-1109-resume-13-15.md)  
     Задачи: bb-tasks 5.1.2  
     ФС:  mgsrc/backend/tests/integration/test_projects_api.py
 
