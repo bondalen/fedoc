@@ -217,6 +217,11 @@
   Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
     Задачи: bb-tasks 1.2.2  
     ФС:  mgsrc/backend/fedoc_multigraph/db/repositories/designs.py
+- **1.4.5 Seed Script (`scripts.seed_multigraph`) — *Component***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-11-30.md](../bb-chats/chat-25-1109-resume-11-30.md)  
+  Задачи: *(уточнить)*  
+  ФС:  mgsrc/backend/fedoc_multigraph/scripts/seed_multigraph.py
 - **1.4.4 Task Queue Integration (`infra.tasks`) — *Component***  
   Статус: `planned`  
   Чаты: *(нет)*  

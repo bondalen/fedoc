@@ -56,3 +56,15 @@ pytest -m integration
 ### CI
 
 GitHub Actions workflow `.github/workflows/integration-tests.yml` выполняет `pytest -m integration`, если в секретах репозитория определён `FEDOC_DATABASE_URL`. Секрет должен указывать на доступную PostgreSQL/AGE базу с тестовыми данными (аналогично локальной переменной окружения).
+
+## Наполнение демо-данными
+
+Для локальной разработки и проверки API предусмотрен скрипт сидирования:
+
+```bash
+cd mgsrc/backend
+python -m fedoc_multigraph.scripts.seed_multigraph --force \
+  --dsn "postgresql://postgres:fedoc_test_2025@127.0.0.1:15432/fedoc"
+```
+
+Параметр `--dsn` можно опустить, если настроена переменная окружения `FEDOC_DATABASE_URL`. Скрипт очищает графы `mg_blocks`, `mg_designs` и таблицу `mg.design_to_block`, затем создаёт несколько типовых блоков и дизайнов для тестирования.
