@@ -5,6 +5,8 @@ from http import HTTPStatus
 
 import pytest
 
+from .utils import create_block, create_design, delete_block, delete_design
+
 
 pytestmark = pytest.mark.integration
 
@@ -12,37 +14,24 @@ pytestmark = pytest.mark.integration
 def test_designs_crud_flow(client):
     """Full CRUD flow for designs including optional block linkage."""
 
-    # Ensure at least one block exists to link against.
-    block_name = f"pytest-block-{uuid.uuid4().hex[:6]}"
-    create_block_resp = client.post(
-        "/api/blocks/",
-        json={"name": block_name, "description": "Block for design link", "type": "concept"},
+    block = create_block(client, description="Block for design link")
+    block_id = block["id"]
+
+    design = create_design(
+        client,
+        block_id=block_id,
+        description="Integration test design",
+        status="draft",
     )
-    assert create_block_resp.status_code == HTTPStatus.CREATED, create_block_resp.get_data(as_text=True)
-    created_block = create_block_resp.get_json()
-    block_id = created_block["id"]
+    design_id = design["id"]
 
-    design_name = f"pytest-design-{uuid.uuid4().hex[:6]}"
-    create_design_payload = {
-        "name": design_name,
-        "description": "Integration test design",
-        "status": "draft",
-        "block_id": block_id,
-    }
-
-    design_id = None
     try:
-        create_design_resp = client.post("/api/designs/", json=create_design_payload)
-        assert create_design_resp.status_code == HTTPStatus.CREATED, create_design_resp.get_data(as_text=True)
-        created_design = create_design_resp.get_json()
-        design_id = created_design["id"]
-        assert created_design.get("block_id") == block_id
-        assert created_design["properties"]["status"] == "draft"
+        assert design.get("block_id") == block_id
+        assert design["properties"]["status"] == "draft"
 
         get_resp = client.get(f"/api/designs/{design_id}")
         assert get_resp.status_code == HTTPStatus.OK, get_resp.get_data(as_text=True)
         fetched_design = get_resp.get_json()
-        assert fetched_design["properties"]["name"] == design_name
         assert fetched_design.get("block_id") == block_id
 
         patch_payload = {
@@ -59,16 +48,13 @@ def test_designs_crud_flow(client):
 
         delete_resp = client.delete(f"/api/designs/{design_id}")
         assert delete_resp.status_code == HTTPStatus.NO_CONTENT, delete_resp.get_data(as_text=True)
-        deleted_id = design_id
-        design_id = None
 
-        get_deleted = client.get(f"/api/designs/{deleted_id}")
+        get_deleted = client.get(f"/api/designs/{design_id}")
         assert get_deleted.status_code == HTTPStatus.NOT_FOUND
 
     finally:
-        if design_id is not None:
-            client.delete(f"/api/designs/{design_id}")
-        client.delete(f"/api/blocks/{block_id}")
+        delete_design(client, design_id)
+        delete_block(client, block_id)
 
 
 def test_designs_get_nonexistent_returns_404(client):

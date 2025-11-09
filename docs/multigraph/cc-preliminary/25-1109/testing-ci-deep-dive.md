@@ -38,13 +38,19 @@ cd /home/alex/fedoc
 source venv/bin/activate
 pytest -m integration
 ```
-Результат на 2025-11-09: **16 passed**, warnings (Pytest mark registration) планируется устранить в отдельной задаче.
+Результат на 2025-11-09: **16 passed**.
 
 ### 2.4 Покрытие сценариев
 - `/api/blocks`: CRUD, 404, 422.
 - `/api/designs`: CRUD, изменение `block_id`, 404, 409, 422.
 - `/api/projects`: CRUD, `design_edge_to_project`, граф (узлы/рёбра/блоки), устойчивость к удалённым рёбрам, конфликты имён, отсутствующие сущности.
 - `/api/health`: smoke-check.
+
+### 2.5 Конфигурация pytest и вспомогательные утилиты (2025-11-09, вторая половина дня)
+- Создан корневой `pytest.ini`, поэтому при запуске из корня репозитория автоматически подхватываются `markers = integration`.
+- Дублирующий `mgsrc/backend/pytest.ini` удалён.
+- В `tests/integration/utils.py` вынесены функции `create_block`, `create_design`, `create_project` и соответствующие `delete_*`, уменьшая дублирование кода в тестах.
+- Обновлены сценарии для дизайнов и проектов, все проверки проходят (`16 passed`).
 
 ---
 

@@ -1,14 +1,21 @@
 from __future__ import annotations
 
-import json
 import os
-import uuid
 from http import HTTPStatus
 
 import pytest
 
 from fedoc_multigraph.config.settings import Settings
 from fedoc_multigraph.db.session import SessionManager
+
+from .utils import (
+    create_block,
+    create_design,
+    create_project,
+    delete_block,
+    delete_design,
+    delete_project,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -19,11 +26,8 @@ def _get_session_manager() -> SessionManager:
 
 
 def test_projects_crud_flow(client):
-    unique_name = f"Project-{uuid.uuid4().hex[:6]}"
-    create_resp = client.post("/api/projects/", json={"name": unique_name, "description": "Test project"})
-    assert create_resp.status_code == HTTPStatus.CREATED, create_resp.get_data(as_text=True)
-    created_project = create_resp.get_json()
-    project_id = created_project["id"]
+    project = create_project(client, description="Test project")
+    project_id = project["id"]
 
     try:
         list_resp = client.get("/api/projects/")
@@ -33,7 +37,7 @@ def test_projects_crud_flow(client):
 
         get_resp = client.get(f"/api/projects/{project_id}")
         assert get_resp.status_code == HTTPStatus.OK
-        assert get_resp.get_json()["name"] == unique_name
+        assert get_resp.get_json()["name"] == project["name"]
 
         patch_resp = client.patch(
             f"/api/projects/{project_id}",
@@ -44,25 +48,20 @@ def test_projects_crud_flow(client):
 
         delete_resp = client.delete(f"/api/projects/{project_id}")
         assert delete_resp.status_code == HTTPStatus.NO_CONTENT
-        project_id = None
 
-        not_found_resp = client.get(f"/api/projects/{created_project['id']}")
+        not_found_resp = client.get(f"/api/projects/{project_id}")
         assert not_found_resp.status_code == HTTPStatus.NOT_FOUND
     finally:
-        if project_id is not None:
-            client.delete(f"/api/projects/{project_id}")
+        delete_project(client, project_id)
 
 
 def test_projects_duplicate_name_returns_conflict(client):
-    name = f"Duplicate-{uuid.uuid4().hex[:6]}"
-    first = client.post("/api/projects/", json={"name": name})
-    assert first.status_code == HTTPStatus.CREATED
-    project_id = first.get_json()["id"]
+    first = create_project(client)
     try:
-        second = client.post("/api/projects/", json={"name": name})
-        assert second.status_code == HTTPStatus.CONFLICT
+        dup_resp = client.post("/api/projects/", json={"name": first["name"]})
+        assert dup_resp.status_code == HTTPStatus.CONFLICT
     finally:
-        client.delete(f"/api/projects/{project_id}")
+        delete_project(client, first["id"])
 
 
 def test_projects_get_nonexistent_returns_404(client):
@@ -76,23 +75,14 @@ def test_projects_patch_nonexistent_returns_404(client):
 
 
 def test_projects_patch_duplicate_name_returns_conflict(client):
-    first_name = f"Primary-{uuid.uuid4().hex[:6]}"
-    second_name = f"Secondary-{uuid.uuid4().hex[:6]}"
-
-    first_resp = client.post("/api/projects/", json={"name": first_name})
-    assert first_resp.status_code == HTTPStatus.CREATED
-    first_id = first_resp.get_json()["id"]
-
-    second_resp = client.post("/api/projects/", json={"name": second_name})
-    assert second_resp.status_code == HTTPStatus.CREATED
-    second_id = second_resp.get_json()["id"]
-
+    first = create_project(client)
+    second = create_project(client)
     try:
-        conflict_resp = client.patch(f"/api/projects/{second_id}", json={"name": first_name})
+        conflict_resp = client.patch(f"/api/projects/{second['id']}", json={"name": first["name"]})
         assert conflict_resp.status_code == HTTPStatus.CONFLICT
     finally:
-        client.delete(f"/api/projects/{first_id}")
-        client.delete(f"/api/projects/{second_id}")
+        delete_project(client, first["id"])
+        delete_project(client, second["id"])
 
 
 def test_projects_create_invalid_payload_returns_422(client):
@@ -101,36 +91,22 @@ def test_projects_create_invalid_payload_returns_422(client):
 
 
 def test_projects_graph_returns_designs_blocks(client):
-    block_resp = client.post(
-        "/api/blocks/",
-        json={
-            "name": f"ProjBlock-{uuid.uuid4().hex[:6]}",
-            "description": "Block for project graph",
-            "type": "component",
-        },
-    )
-    assert block_resp.status_code == HTTPStatus.CREATED
-    block = block_resp.get_json()
+    block = create_block(client, description="Block for project graph", type="component")
     block_id = block["id"]
 
-    design_ids = []
+    design_ids: list[str] = []
+    session_manager = _get_session_manager()
+    edge_id = None
     try:
-        for suffix in ("A", "B"):
-            design_resp = client.post(
-                "/api/designs/",
-                json={
-                    "name": f"ProjectDesign-{suffix}-{uuid.uuid4().hex[:4]}",
-                    "description": "Design for project graph test",
-                    "status": "active",
-                    "block_id": block_id,
-                },
+        for _ in range(2):
+            design = create_design(
+                client,
+                block_id=block_id,
+                description="Design for project graph test",
+                status="active",
             )
-            assert design_resp.status_code == HTTPStatus.CREATED
-            design_ids.append(design_resp.get_json()["id"])
+            design_ids.append(design["id"])
 
-        # Create design edge between the two designs.
-        session_manager = _get_session_manager()
-        edge_id = None
         with session_manager.cursor() as cursor:
             cursor.execute(
                 "INSERT INTO mg_designs.design_edge (start_id, end_id, properties) "
@@ -144,22 +120,16 @@ def test_projects_graph_returns_designs_blocks(client):
             )
             edge_row = cursor.fetchone()
         edge_id = edge_row["id"] if edge_row else None
-
         assert edge_id, "Design edge should be created."
 
-        project_name = f"GraphProject-{uuid.uuid4().hex[:6]}"
-        create_project = client.post(
-            "/api/projects/",
-            json={"name": project_name, "design_edge_ids": [edge_id]},
-        )
-        assert create_project.status_code == HTTPStatus.CREATED
-        project_id = create_project.get_json()["id"]
+        project = create_project(client, design_edge_ids=[edge_id])
+        project_id = project["id"]
 
         try:
             graph_resp = client.get(f"/api/projects/{project_id}/graph")
             assert graph_resp.status_code == HTTPStatus.OK, graph_resp.get_data(as_text=True)
             payload = graph_resp.get_json()
-            assert payload["project"]["name"] == project_name
+            assert payload["project"]["name"] == project["name"]
 
             designs = payload["graph"]["designs"]
             design_ids_in_graph = {item["id"] for item in designs}
@@ -171,50 +141,37 @@ def test_projects_graph_returns_designs_blocks(client):
             blocks = payload["graph"]["blocks"]
             assert any(item["id"] == block_id for item in blocks)
         finally:
-            client.delete(f"/api/projects/{project_id}")
+            delete_project(client, project_id)
 
     finally:
         for design_id in design_ids:
-            client.delete(f"/api/designs/{design_id}")
+            delete_design(client, design_id)
         if edge_id:
             with session_manager.cursor() as cursor:
                 cursor.execute(
                     "DELETE FROM mg_designs.design_edge WHERE id = %s::graphid",
                     (edge_id,),
                 )
-        client.delete(f"/api/blocks/{block_id}")
+        delete_block(client, block_id)
 
 
 def test_projects_graph_handles_missing_edges(client):
     session_manager = _get_session_manager()
-    block_resp = client.post(
-        "/api/blocks/",
-        json={
-            "name": f"MissingEdgeBlock-{uuid.uuid4().hex[:6]}",
-            "description": "Block for missing edge test",
-            "type": "component",
-        },
-    )
-    assert block_resp.status_code == HTTPStatus.CREATED
-    block_id = block_resp.get_json()["id"]
+    block = create_block(client, description="Block for missing edge test", type="component")
+    block_id = block["id"]
 
-    design_ids = []
+    design_ids: list[str] = []
     try:
-        for suffix in ("X", "Y"):
-            design_resp = client.post(
-                "/api/designs/",
-                json={
-                    "name": f"MissingEdgeDesign-{suffix}-{uuid.uuid4().hex[:4]}",
-                    "status": "active",
-                    "block_id": block_id,
-                },
+        for _ in range(2):
+            design = create_design(
+                client,
+                block_id=block_id,
+                status="active",
             )
-            assert design_resp.status_code == HTTPStatus.CREATED
-            design_ids.append(design_resp.get_json()["id"])
+            design_ids.append(design["id"])
 
-        project_resp = client.post("/api/projects/", json={"name": f"EdgeMissing-{uuid.uuid4().hex[:6]}"})
-        assert project_resp.status_code == HTTPStatus.CREATED
-        project_id = project_resp.get_json()["id"]
+        project = create_project(client, name="EdgeMissing-test")
+        project_id = project["id"]
 
         try:
             with session_manager.cursor() as cursor:
@@ -247,9 +204,9 @@ def test_projects_graph_handles_missing_edges(client):
             assert payload["graph"]["design_edges"] == []
             assert payload["graph"]["designs"] == []
         finally:
-            client.delete(f"/api/projects/{project_id}")
+            delete_project(client, project_id)
     finally:
         for design_id in design_ids:
-            client.delete(f"/api/designs/{design_id}")
-        client.delete(f"/api/blocks/{block_id}")
+            delete_design(client, design_id)
+        delete_block(client, block_id)
 

@@ -371,6 +371,11 @@
     Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md), [chat-25-1109-resume-13-15.md](../bb-chats/chat-25-1109-resume-13-15.md)  
     Задачи: bb-tasks 5.1.2  
     ФС:  mgsrc/backend/tests/integration/test_projects_api.py
+  - **5.3.2 Integration Helpers (`tests.integration.utils`) — *Component***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-14-10.md](../bb-chats/chat-25-1109-resume-14-10.md)  
+    Задачи: bb-tasks 5.1.2  
+    ФС:  mgsrc/backend/tests/integration/utils.py
 
 ---
 
