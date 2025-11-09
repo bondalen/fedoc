@@ -73,7 +73,8 @@ pytest -m integration
    ```
 4. **Проверка статуса**  
    - Убедиться, что `16 passed` без предупреждений.
-   - Зафиксировать результаты в описании PR (указать дату и команду).
+   - Зафиксировать результаты в описании PR (указать дату, commit SHA и команду).
+   - Убедиться, что GitHub Actions workflow `Integration Tests` завершился успешно.
 5. **Документация**  
    - Обновить релевантные разделы (`testing-ci-deep-dive.md`, `ab-project-backend.md`, если добавлены новые шаги).
 
@@ -99,6 +100,14 @@ pytest -m integration
 5. **Повторить сидирование**
    Если проблема в неконсистентных данных, перезапустить сидер и повторить тесты.
 
+### 2.8 Автоматизация диагностики
+- Скрипт `scripts/run_integration_diagnostics.sh` выполняет пункты 2.7 последовательно: запускает `pytest -vv`, делает cypher-проверку через `psql`, выгружает логи контейнера `fedoc-multigraph` и сохраняет результаты в `dev/integration-diagnostics/`.
+- Запускаем из корня репозитория:
+  ```bash
+  bash scripts/run_integration_diagnostics.sh
+  ```
+  При необходимости можно передать переменную `FEDOC_DATABASE_URL`; по умолчанию используется `postgresql://postgres:fedoc_test_2025@127.0.0.1:15432/fedoc`.
+
 ---
 
 ## 3. GitHub Actions
@@ -111,36 +120,32 @@ pytest -m integration
 ### 3.2 Шаги пайплайна
 1. **Checkout & Python setup**  
    `actions/checkout@v4`, `actions/setup-python@v5 (python-version: 3.12)`.
-2. **Установка зависимостей**  
-   ```
-   python -m venv venv
-   source venv/bin/activate
-   pip install -r mgsrc/backend/requirements.txt
-   pip install -r mgsrc/backend/requirements-dev.txt
-   ```
+2. **Зависимости**  
+   - `sudo apt-get install postgresql-client` для `psql`;
+   - создание `venv`, установка `requirements.txt` и `requirements-dev.txt`.
 3. **PostgreSQL/AGE сервис**  
-   - image `apache/age:latest`;  
-   - env: `POSTGRES_DB=fedoc`, `POSTGRES_USER=postgres`, `POSTGRES_PASSWORD=fedoc_test_2025`;  
-   - проброс порта `5432:5432`;  
+   - image `apache/age:latest`, переменные `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`;  
    - health-check через `pg_isready`.
 4. **Инициализация AGE**  
-   Осуществляется серией `psql` запросов:
-   - `CREATE EXTENSION IF NOT EXISTS age;`  
-   - `LOAD 'age'; SET search_path = ag_catalog, "$user", public;`  
-   - `SELECT create_graph('mg_blocks'); SELECT create_vlabel('mg_blocks', 'block_type');`  
-   - `SELECT create_graph('mg_designs'); SELECT create_vlabel('mg_designs', 'design_node');`  
-   - Создание схемы `mg` и таблицы `mg.design_to_block` с внешними ключами на `mg_blocks.block_type` и `mg_designs.design_node`.
-5. **Запуск тестов**  
-   ```
-   source venv/bin/activate
-   cd mgsrc/backend
-   export FEDOC_DATABASE_URL="postgresql://postgres:fedoc_test_2025@localhost:5432/fedoc"
-   pytest -m integration
-   ```
+   - `CREATE EXTENSION age`, загрузка `LOAD 'age'; SET search_path ...`;  
+   - создание графов `mg_blocks`, `mg_designs`, ярлыков `block_type`, `design_node`, `block_edge`, `design_edge`;  
+   - создание схемы `mg` + таблиц `projects`, `design_to_block`, `design_edge_to_project` и индексов.
+5. **Сидер**  
+   - `python -m fedoc_multigraph.scripts.seed_multigraph --force --dsn ${FEDOC_DATABASE_URL}`.
+6. **Запуск тестов**  
+   - `pytest -m integration --maxfail=1 --junitxml=../reports/integration-junit.xml`.
+7. **Артефакты**  
+   - логи сервиса (`docker logs postgres`) и `reports/integration-junit.xml` загружаются артефактами.
 
 ### 3.3 Артефакты и время
-- Среднее время выполнения: ~4 мин (подъём контейнера + инициализация AGE).
-- Отчёты pytest выводятся в лог workflow; дополнительных артефактов пока не сохраняется.
+- Среднее время выполнения: ~6–7 минут (холодный старт контейнера + сидирование).
+- Логи PostgreSQL и `integration-junit.xml` публикуются артефактами (`integration-test-artifacts`).
+
+### 3.4 SLA и контроль
+- **Триггер:** каждый PR/commit, затрагивающий backend `mgsrc/backend/**` или сам workflow.
+- **Допустимое время:** не более 10 минут; превышение сигнализирует о проблемах с сидированием или сетью.
+- **Артефакты:** обязательные (`integration-junit.xml`, `postgres.log`); скачиваем при падении пайплайна.
+- **Принятие PR:** без зелёного статуса workflow PR не сливается (check обязательный).
 
 ---
 

@@ -12,8 +12,24 @@ on:
 
 jobs:
   run-integration-tests:
-    if: ${{ secrets.FEDOC_DATABASE_URL != '' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      FEDOC_DATABASE_URL: postgresql://postgres:fedoc_test_2025@localhost:5432/fedoc
+    services:
+      postgres:
+        image: apache/age:latest
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: fedoc
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fedoc_test_2025
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fedoc"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 6
 
     steps:
       - name: Checkout repository
@@ -24,15 +40,102 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install system packages
         run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Install Python dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
           python -m pip install --upgrade pip
+          pip install -r mgsrc/backend/requirements.txt
           pip install -r mgsrc/backend/requirements-dev.txt
 
-      - name: Run integration tests
-        env:
-          FEDOC_DATABASE_URL: ${{ secrets.FEDOC_DATABASE_URL }}
+      - name: Wait for database
         run: |
+          for i in {1..12}; do
+            pg_isready --dbname=fedoc --host=localhost --port=5432 --username=postgres && exit 0
+            echo "Database is not ready yet. Retrying in 5 seconds..."
+            sleep 5
+          done
+          echo "Database did not become ready in time." >&2
+          exit 1
+
+      - name: Initialize AGE schema
+        env:
+          PGPASSWORD: fedoc_test_2025
+        run: |
+          psql "host=localhost port=5432 dbname=fedoc user=postgres" <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS age;
+          LOAD 'age';
+          SET search_path = ag_catalog, "$user", public;
+
+          SELECT create_graph('mg_blocks');
+          SELECT create_vlabel('mg_blocks', 'block_type');
+
+          SELECT create_graph('mg_designs');
+          SELECT create_vlabel('mg_designs', 'design_node');
+
+          SELECT create_elabel('mg_blocks', 'block_edge');
+          SELECT create_elabel('mg_designs', 'design_edge');
+
+          CREATE SCHEMA IF NOT EXISTS mg AUTHORIZATION postgres;
+          CREATE TABLE IF NOT EXISTS mg.projects (
+            id SERIAL PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            description TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          CREATE TABLE IF NOT EXISTS mg.design_to_block (
+            design_id graphid PRIMARY KEY,
+            block_id graphid NOT NULL,
+            CONSTRAINT fk_design_to_block_design FOREIGN KEY (design_id)
+              REFERENCES mg_designs.design_node (id),
+            CONSTRAINT fk_design_to_block_block FOREIGN KEY (block_id)
+              REFERENCES mg_blocks.block_type (id)
+          );
+          CREATE TABLE IF NOT EXISTS mg.design_edge_to_project (
+            edge_id graphid NOT NULL,
+            project_id INTEGER NOT NULL,
+            PRIMARY KEY (edge_id, project_id),
+            CONSTRAINT fk_design_edge_to_project_edge FOREIGN KEY (edge_id)
+              REFERENCES mg_designs.design_edge (id),
+            CONSTRAINT fk_design_edge_to_project_project FOREIGN KEY (project_id)
+              REFERENCES mg.projects (id)
+          );
+          CREATE INDEX IF NOT EXISTS idx_design_to_block_block_id
+            ON mg.design_to_block (block_id);
+          CREATE INDEX IF NOT EXISTS idx_design_edge_to_project_project_id
+            ON mg.design_edge_to_project (project_id);
+          SQL
+
+      - name: Seed demo data
+        run: |
+          source venv/bin/activate
           cd mgsrc/backend
-          pytest -m integration
+          python -m fedoc_multigraph.scripts.seed_multigraph --force \
+            --dsn "${FEDOC_DATABASE_URL}"
+
+      - name: Run integration tests
+        run: |
+          source venv/bin/activate
+          cd mgsrc/backend
+          mkdir -p ../reports
+          pytest -m integration --maxfail=1 --junitxml=../reports/integration-junit.xml
+
+      - name: Collect service logs
+        if: always()
+        run: |
+          mkdir -p reports/logs
+          docker logs postgres > reports/logs/postgres.log || true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-artifacts
+          path: |
+            reports/
 

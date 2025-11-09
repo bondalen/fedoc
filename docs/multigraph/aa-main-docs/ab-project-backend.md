@@ -188,6 +188,12 @@ python server.py
 # Настроить в Cursor: .cursor/mcp.json
 ```
 
+### Регламент интеграционных тестов
+- **Pre-PR чек-лист:** синхронизация зависимостей, сидирование (`python -m fedoc_multigraph.scripts.seed_multigraph --force`), прогон `pytest -m integration`, фиксация результата в PR и ссылка на артефакты.
+- **CI:** workflow `Integration Tests` запускается на каждом PR/commit к `mgsrc/backend/**`; разворачивает контейнер `apache/age:latest`, инициализирует графы/схемы, запускает сидер и тесты в `venv`.
+- **SLA:** время выполнения не более 10 минут; артефакты (`integration-junit.xml`, `postgres.log`) обязательны для анализа падений.
+- **Автоматизация диагностики:** скрипт `scripts/run_integration_diagnostics.sh` повторяет шаги анализа (pytest, `psql`, логи контейнера) и сохраняет вывод в `dev/integration-diagnostics/`.
+
 ### Сборка `.pyz`
 
 ```bash
