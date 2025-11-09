@@ -160,6 +160,11 @@ fedoc/mgsrc/
   - Workflow `integration-tests.yml` доведён до полного цикла: запуск контейнера AGE, сидирование, выгрузка артефактов (`integration-junit.xml`, `postgres.log`).
   - Реализован WebSocket hub (`GraphHub`, `_GraphNamespace`) и подключён к Flask-приложению; добавлены интеграционные тесты `test_websocket_hub.py`.
   - Подготовлен скрипт `scripts/run_integration_diagnostics.sh` для быстрого повторения шагов диагностики (pytest, psql, логи контейнера).
+- **Новый прогресс (2025-11-09 19:55, текущая сессия)**:
+  - Подтверждено, что REST-эндпоинты `/api/health`, `/api/projects`, `/api/projects/<id>/graph` возвращают данные после сидирования; граф проекта 53 содержит блоки, дизайны и рёбра.
+  - Исправлена проблема с отказом `/api/projects/<id>/graph` (код 500) из-за неактивного SSH-туннеля к PostgreSQL: регламент дополнен обязательной проверкой `ssh -L 15432` перед запуском backend.
+  - Запуск Flask-SocketIO в режиме разработки ведётся с `allow_unsafe_werkzeug=True`, что устраняет аварийное завершение сервера при поднятии Socket.IO хаба в локальной среде.
+  - Зафиксирован формат ответа Socket.IO (`/socket.io/?EIO=4`) для отладки handshake и мониторинга доступности realtime-шины.
 
 ### Локальная разработка
 

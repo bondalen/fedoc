@@ -5,7 +5,8 @@
 </template>
 
 <script lang="ts" setup>
-import { Network, DataSet, type Node, type Edge } from "vis-network";
+import { Network, type Node, type Edge } from "vis-network";
+import { DataSet } from "vis-data/peer/esm/vis-data";
 import { onMounted, onBeforeUnmount, ref, watch } from "vue";
 
 interface GraphNode {

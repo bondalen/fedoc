@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { io, type Socket } from "socket.io-client";
 
 interface SelectionPayload {
   nodes: string[];
@@ -10,8 +10,16 @@ type ConnectionListener = (connected: boolean) => void;
 type GraphUpdateListener = (payload: any) => void;
 
 export function useRealtime() {
-  const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws";
-  let socket: WebSocket | null = null;
+  let defaultUrl = "http://localhost:8080";
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    const backendPort = import.meta.env.VITE_BACKEND_PORT ? Number(import.meta.env.VITE_BACKEND_PORT) : 8080;
+    defaultUrl = `http://${host}:${backendPort}`;
+  }
+
+  const socketUrl = (import.meta.env.VITE_WS_URL || defaultUrl).replace(/\/$/, "");
+  const namespace = "/ws";
+  let socket: Socket | null = null;
 
   const selectionListeners: SelectionListener[] = [];
   const connectionListeners: ConnectionListener[] = [];
@@ -19,22 +27,31 @@ export function useRealtime() {
 
   function connect() {
     if (socket) {
-      socket.close();
+      socket.disconnect();
     }
 
-    socket = new WebSocket(wsUrl);
+    socket = io(`${socketUrl}${namespace}`, {
+      path: "/socket.io",
+      transports: ["websocket"],
+      autoConnect: true,
+    });
 
-    socket.addEventListener("open", () => {
+    socket.on("connect", () => {
       connectionListeners.forEach((listener) => listener(true));
       subscribeToChannels(["graph_updates", "selection_updates"]);
     });
 
-    socket.addEventListener("close", () => {
+    socket.on("disconnect", () => {
       connectionListeners.forEach((listener) => listener(false));
     });
 
-    socket.addEventListener("message", (event) => {
-      const payload = JSON.parse(event.data ?? "{}");
+    socket.on("event", (payload: any) => {
+      if (!payload) {
+        return;
+      }
+      if (payload.type === "hello") {
+        requestSelection();
+      }
       if (payload.type === "selected_nodes" && payload.data) {
         selectionListeners.forEach((listener) => listener(payload.data));
       }
@@ -42,14 +59,18 @@ export function useRealtime() {
         graphListeners.forEach((listener) => listener(payload.data));
       }
     });
+
+    socket.on("connect_error", (error) => {
+      console.error("Socket.IO connection error", error.message);
+    });
   }
 
   function send(message: unknown) {
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      console.warn("WebSocket is not ready");
+    if (!socket || !socket.connected) {
+      console.warn("Socket.IO client is not connected");
       return;
     }
-    socket.send(JSON.stringify(message));
+    socket.emit("client_event", message);
   }
 
   function subscribeToChannels(channels: string[]) {

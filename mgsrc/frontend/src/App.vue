@@ -16,6 +16,7 @@
         <ul>
           <li>API: <span :class="{ ok: apiStatus === 'ok', fail: apiStatus !== 'ok' }">{{ apiStatusLabel }}</span></li>
           <li>WS: <span :class="{ ok: wsConnected, fail: !wsConnected }">{{ wsConnected ? 'подключено' : 'нет соединения' }}</span></li>
+          <li v-if="activeProjectId !== null">Проект: <span>{{ activeProjectName }}</span></li>
           <li>Снимков: <span>{{ historyLabel }}</span></li>
         </ul>
       </section>
@@ -56,11 +57,15 @@ const canRedo = computed(() => history.canRedo.value);
 const historyDepth = history.depth;
 const historyPointer = history.pointer;
 const historyLabel = computed(() => {
-  if (!historyDepth.value) {
+  const depth = historyDepth.value;
+  const pointer = historyPointer.value;
+  if (!depth || pointer < 0) {
     return "0/0";
   }
-  return `${historyPointer.value + 1}/${historyDepth.value}`;
+  return `${pointer + 1}/${depth}`;
 });
+const activeProjectId = ref<number | null>(null);
+const activeProjectName = ref<string>("");
 
 const activeNodes = computed(() => activeSnapshot.value.nodes);
 const activeEdges = computed(() => activeSnapshot.value.edges);
@@ -77,7 +82,16 @@ const apiStatusLabel = computed(() => {
 });
 
 async function refreshData() {
-  const raw = await api.getProjectGraph();
+  if (activeProjectId.value === null) {
+    const projects = await api.listProjects();
+    if (!projects.length) {
+      throw new Error("No projects available");
+    }
+    activeProjectId.value = projects[0].id;
+    activeProjectName.value = projects[0].name;
+  }
+
+  const raw = await api.getProjectGraph(activeProjectId.value || 53);
   history.pushState(normalizeGraph(raw));
 }
 
@@ -107,17 +121,47 @@ function redo() {
 }
 
 function normalizeGraph(raw: any) {
-  const nodes = (raw?.nodes || raw?.vertices || []).map((node: any) => ({
-    id: node.id || node.vertex_id || node.name,
-    label: node.name || node.label || node.id,
+  const graph = raw?.graph ?? raw ?? {};
+
+  const blockNodes = (graph.blocks || []).map((block: any) => ({
+    id: String(block.id ?? block.raw_id),
+    label: block.properties?.name || block.label || String(block.id ?? "block"),
+    group: "block",
   }));
 
-  const edges = (raw?.edges || []).map((edge: any) => ({
-    id: edge.id || edge.edge_id,
-    from: edge.source || edge.start_id || edge.from,
-    to: edge.target || edge.end_id || edge.to,
-    label: edge.label,
+  const designNodes = (graph.designs || []).map((design: any) => ({
+    id: String(design.id ?? design.raw_id),
+    label: design.properties?.name || design.label || String(design.id ?? "design"),
+    group: "design",
+    blockId: design.block_id ? String(design.block_id) : undefined,
   }));
+
+  const designEdges = (graph.design_edges || []).map((edge: any) => ({
+    id: String(edge.id ?? edge.edge_id ?? `${edge.start_id}-${edge.end_id}`),
+    from: String(edge.start_id ?? edge.source ?? edge.from),
+    to: String(edge.end_id ?? edge.target ?? edge.to),
+    label: edge.properties?.relation_type || edge.label,
+  }));
+
+  const blockLinks = designNodes
+    .filter((node: any) => node.blockId)
+    .map((node: any) => ({
+      id: `block:${node.blockId}->design:${node.id}`,
+      from: node.blockId,
+      to: node.id,
+      label: "contains",
+    }));
+
+  const seenIds = new Set<string>();
+  const nodes = [...blockNodes, ...designNodes].filter((node) => {
+    if (seenIds.has(node.id)) {
+      return false;
+    }
+    seenIds.add(node.id);
+    return true;
+  });
+
+  const edges = [...designEdges, ...blockLinks];
 
   return { nodes, edges };
 }
