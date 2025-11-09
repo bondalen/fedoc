@@ -518,6 +518,25 @@ Apache License 2.0 (аналогично основному проекту fedoc
 
 ---
 
-**Последнее обновление:** 2025-11-08  
+## ✅ Тестирование и CI
+
+### Локальные проверки
+- `pytest -m integration` — основной прогон, требует доступной PostgreSQL/AGE и переменной `FEDOC_DATABASE_URL`.
+- `python -m fedoc_multigraph.scripts.seed_multigraph --force` — приводит БД к известному состоянию (блоки, дизайны, демонстрационный проект с ребром).
+- На 2025-11-09 проходит 16 интеграционных тестов, включая негативные сценарии для `/api/projects`.
+
+### GitHub Actions
+- Workflow `.github/workflows/integration-tests.yml` запускается на `push`/`pull_request` в `main`.
+- Шаги:
+  1. Развёртывание `apache/age:latest` с БД `fedoc`.
+  2. Инициализация AGE: `CREATE EXTENSION`, `create_graph`, `create_vlabel`, таблица `mg.design_to_block`.
+  3. Установка зависимостей и запуск `pytest -m integration` с `FEDOC_DATABASE_URL` из секретов.
+
+### Покрытие
+- `/api/blocks` — CRUD + негативные (`404`, `422`).
+- `/api/designs` — CRUD, связи `block_id`, негативные (`404`, `409`, `422`).
+- `/api/projects` — CRUD, управление `design_edge_to_project`, граф (`designs`, `edges`, `blocks`), устойчивость к удалённым рёбрам.
+
+**Последнее обновление:** 2025-11-09  
 **Версия документа:** 1.0.0
 
