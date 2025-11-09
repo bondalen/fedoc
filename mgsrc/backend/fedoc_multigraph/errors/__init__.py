@@ -8,6 +8,17 @@ from .blocks import BlockConflictError, BlockError, BlockNotFoundError
 from .designs import DesignConflictError, DesignError, DesignNotFoundError
 
 
+def _serialise_validation_errors(errors: list[dict]) -> list[dict]:
+    serialised: list[dict] = []
+    for error in errors:
+        entry = dict(error)
+        ctx = entry.get("ctx")
+        if isinstance(ctx, dict):
+            entry["ctx"] = {key: (str(value) if isinstance(value, Exception) else value) for key, value in ctx.items()}
+        serialised.append(entry)
+    return serialised
+
+
 def register_error_handlers(app: Flask) -> None:
     """Register default error handlers."""
 
@@ -29,7 +40,7 @@ def register_error_handlers(app: Flask) -> None:
 
     @app.errorhandler(ValidationError)
     def _handle_validation_error(exc: ValidationError):
-        return jsonify({"error": "validation_error", "details": exc.errors()}), 422
+        return jsonify({"error": "validation_error", "details": _serialise_validation_errors(exc.errors())}), 422
 
     @app.errorhandler(ValueError)
     def _handle_value_error(exc: ValueError):

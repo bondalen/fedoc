@@ -79,3 +79,13 @@ def test_blocks_crud_flow(client):
     final_count = final_payload.get("pagination", {}).get("count", len(final_items))
     assert final_count == initial_count
     assert len(final_items) == len(initial_items)
+
+
+def test_blocks_get_nonexistent_returns_404(client):
+    resp = client.get("/api/blocks/999999999999999")
+    assert resp.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_blocks_create_invalid_payload_returns_422(client):
+    resp = client.post("/api/blocks/", json={"description": "Missing required fields"})
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY

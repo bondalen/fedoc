@@ -306,8 +306,8 @@
   Чаты: *(нет)*  
   Задачи: bb-tasks 5.1.1
 - **5.3 Integration / Smoke Tests (`tests/integration`) — *Component***  
-  Статус: `in progress`  
-  Чаты: [chat-25-1109-resume-08-10.md](../bb-chats/chat-25-1109-resume-08-10.md)  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-08-10.md](../bb-chats/chat-25-1109-resume-08-10.md), [chat-25-1109-resume-10-30.md](../bb-chats/chat-25-1109-resume-10-30.md)  
   Задачи: bb-tasks 5.2.1
 
 ---

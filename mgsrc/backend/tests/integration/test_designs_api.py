@@ -70,3 +70,23 @@ def test_designs_crud_flow(client):
             client.delete(f"/api/designs/{design_id}")
         client.delete(f"/api/blocks/{block_id}")
 
+
+def test_designs_get_nonexistent_returns_404(client):
+    resp = client.get("/api/designs/999999999999999")
+    assert resp.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_designs_create_invalid_status_returns_422(client):
+    payload = {"name": "invalid-status-design", "status": "unsupported"}
+    resp = client.post("/api/designs/", json=payload)
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_designs_create_with_unknown_block_returns_409(client):
+    payload = {
+        "name": f"design-with-unknown-block-{uuid.uuid4().hex[:6]}",
+        "block_id": "999999:999999",
+    }
+    resp = client.post("/api/designs/", json=payload)
+    assert resp.status_code == HTTPStatus.CONFLICT
+
