@@ -8,6 +8,7 @@ from .config.settings import Settings
 from .errors import register_error_handlers
 from .db import init_app as init_db
 from .middleware import register_middlewares
+from .realtime import graph_hub
 
 
 def create_app() -> Flask:
@@ -23,5 +24,6 @@ def create_app() -> Flask:
     register_error_handlers(app)
     init_db(app, settings.database_url)
     register_api(app)
+    graph_hub.init_app(app)
 
     return app
