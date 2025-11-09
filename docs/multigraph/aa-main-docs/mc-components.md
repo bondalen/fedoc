@@ -72,6 +72,16 @@
     Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
     Задачи: bb-tasks 1.2.2  
     ФС:  mgsrc/backend/fedoc_multigraph/errors/designs.py
+  - **1.1.5.5 ProjectNotFoundError (`errors.projects:ProjectNotFoundError`) — *Class***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+    Задачи: bb-tasks 1.2.3  
+    ФС:  mgsrc/backend/fedoc_multigraph/errors/projects.py
+  - **1.1.5.6 ProjectConflictError (`errors.projects:ProjectConflictError`) — *Class***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+    Задачи: bb-tasks 1.2.3  
+    ФС:  mgsrc/backend/fedoc_multigraph/errors/projects.py
 - **1.1.6 Validation Schemas (`fedoc_multigraph.validators`) — *Component***  
   Статус: `done`  
   Чаты: [chat-25-1108-resume-23-10.md](../bb-chats/chat-25-1108-resume-23-10.md), [chat-25-1109-resume-06-37.md](../bb-chats/chat-25-1109-resume-06-37.md), [chat-25-1109-resume-07-35.md](../bb-chats/chat-25-1109-resume-07-35.md)  
@@ -107,6 +117,21 @@
     Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
     Задачи: bb-tasks 1.2.2  
     ФС:  mgsrc/backend/fedoc_multigraph/validators/designs.py
+  - **1.1.6.7 ProjectCreateSchema (`validators.projects:ProjectCreateSchema`) — *Class***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+    Задачи: bb-tasks 1.2.3  
+    ФС:  mgsrc/backend/fedoc_multigraph/validators/projects.py
+  - **1.1.6.8 ProjectUpdateSchema (`validators.projects:ProjectUpdateSchema`) — *Class***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+    Задачи: bb-tasks 1.2.3  
+    ФС:  mgsrc/backend/fedoc_multigraph/validators/projects.py
+  - **1.1.6.9 ProjectQuerySchema (`validators.projects:ProjectQuerySchema`) — *Class***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+    Задачи: bb-tasks 1.2.3  
+    ФС:  mgsrc/backend/fedoc_multigraph/validators/projects.py
 - **1.1.7 Auth Decorators (`fedoc_multigraph.auth`) — *Component***  
   Статус: `done`  
   Чаты: [chat-25-1108-resume-23-10.md](../bb-chats/chat-25-1108-resume-23-10.md)  
@@ -143,9 +168,25 @@
   Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
   Задачи: bb-tasks 1.2.2
 - **1.2.3 Projects API (`api.projects`) — *Component***  
-  Статус: `planned`  
-  Чаты: *(нет)*  
-  Задачи: bb-tasks 1.2.3
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+  Задачи: bb-tasks 1.2.3  
+  ФС:  mgsrc/backend/fedoc_multigraph/api/projects.py
+- **1.2.3.1 Projects Blueprint (`api.projects:projects_bp`) — *Component***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+  Задачи: bb-tasks 1.2.3  
+  ФС:  mgsrc/backend/fedoc_multigraph/api/projects.py
+- **1.2.3.2 Project CRUD Endpoints (`api.projects` view functions) — *Class***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+  Задачи: bb-tasks 1.2.3  
+  ФС:  mgsrc/backend/fedoc_multigraph/api/projects.py
+- **1.2.3.3 Project Graph Endpoint (`api.projects:get_project_graph`) — *Class***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+  Задачи: bb-tasks 1.2.3  
+  ФС:  mgsrc/backend/fedoc_multigraph/api/projects.py
 - **1.2.4 Health Check (`api.health`) — *Component***  
   Статус: `done`  
   Чаты: [chat-25-1108-resume-23-10.md](../bb-chats/chat-25-1108-resume-23-10.md)  
@@ -173,9 +214,15 @@
   Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
   Задачи: bb-tasks 1.3.1
 - **1.3.3 Projects Aggregator (`services.projects`) — *Component***  
-  Статус: `planned`  
-  Чаты: *(нет)*  
-  Задачи: bb-tasks 1.3.1
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+  Задачи: bb-tasks 1.3.1  
+  ФС:  mgsrc/backend/fedoc_multigraph/services/projects.py
+- **1.3.3.1 ProjectsService (`services.projects:ProjectsService`) — *Class***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+  Задачи: bb-tasks 1.3.1  
+  ФС:  mgsrc/backend/fedoc_multigraph/services/projects.py
 - **1.3.4 MCP Bridge (`handlers.mcp`) — *Component***  
   Статус: `planned`  
   Чаты: *(нет)*  
@@ -217,9 +264,14 @@
   Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
     Задачи: bb-tasks 1.2.2  
     ФС:  mgsrc/backend/fedoc_multigraph/db/repositories/designs.py
+- **1.4.3.3 ProjectsRepository (`repositories.projects:ProjectsRepository`) — *Class***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+    Задачи: bb-tasks 1.2.3  
+    ФС:  mgsrc/backend/fedoc_multigraph/db/repositories/projects.py
 - **1.4.5 Seed Script (`scripts.seed_multigraph`) — *Component***  
   Статус: `done`  
-  Чаты: [chat-25-1109-resume-11-30.md](../bb-chats/chat-25-1109-resume-11-30.md)  
+  Чаты: [chat-25-1109-resume-11-30.md](../bb-chats/chat-25-1109-resume-11-30.md), [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
   Задачи: *(уточнить)*  
   ФС:  mgsrc/backend/fedoc_multigraph/scripts/seed_multigraph.py
 - **1.4.4 Task Queue Integration (`infra.tasks`) — *Component***  
@@ -314,6 +366,11 @@
   Статус: `done`  
   Чаты: [chat-25-1109-resume-08-10.md](../bb-chats/chat-25-1109-resume-08-10.md), [chat-25-1109-resume-10-30.md](../bb-chats/chat-25-1109-resume-10-30.md)  
   Задачи: bb-tasks 5.2.1
+  - **5.3.1 Projects API Integration (`tests.integration.test_projects_api`) — *Component***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
+    Задачи: bb-tasks 5.1.2  
+    ФС:  mgsrc/backend/tests/integration/test_projects_api.py
 
 ---
 

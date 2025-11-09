@@ -5,6 +5,7 @@ from flask import Blueprint, Flask, jsonify
 
 from .blocks import blocks_bp
 from .designs import designs_bp
+from .projects import projects_bp
 
 API_PREFIX = "/api"
 
@@ -21,3 +22,4 @@ def register_api(app: Flask) -> None:
     app.register_blueprint(health_bp)
     app.register_blueprint(blocks_bp)
     app.register_blueprint(designs_bp)
+    app.register_blueprint(projects_bp)

@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from .blocks import BlockConflictError, BlockError, BlockNotFoundError
 from .designs import DesignConflictError, DesignError, DesignNotFoundError
+from .projects import ProjectConflictError, ProjectError, ProjectNotFoundError
 
 
 def _serialise_validation_errors(errors: list[dict]) -> list[dict]:
@@ -36,6 +37,10 @@ def register_error_handlers(app: Flask) -> None:
 
     @app.errorhandler(DesignError)
     def _handle_design_error(exc: DesignError):
+        return jsonify(exc.to_response()), exc.status_code
+
+    @app.errorhandler(ProjectError)
+    def _handle_project_error(exc: ProjectError):
         return jsonify(exc.to_response()), exc.status_code
 
     @app.errorhandler(ValidationError)

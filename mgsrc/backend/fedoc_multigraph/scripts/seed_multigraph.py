@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import json
 from datetime import datetime, timezone
 from typing import Dict
 
@@ -11,6 +12,7 @@ from ..config.settings import Settings
 from ..db.session import SessionManager
 from ..db.repositories.blocks import BlocksRepository
 from ..db.repositories.designs import DesignsRepository
+from ..db.repositories.projects import ProjectsRepository
 
 
 def _ensure_graph_empty(session_manager: SessionManager, graph_name: str) -> None:
@@ -108,6 +110,39 @@ def seed_designs(repository: DesignsRepository, blocks: Dict[str, Dict[str, str]
     return created
 
 
+def _create_design_edge(session_manager: SessionManager, source_id: str, target_id: str, relation_type: str) -> str | None:
+    payload = json.dumps({"relation_type": relation_type}, ensure_ascii=False)
+    with session_manager.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO mg_designs.design_edge (start_id, end_id, properties) "
+            "VALUES (%s::graphid, %s::graphid, %s::agtype) "
+            "RETURNING id::text AS edge_id",
+            (source_id, target_id, payload),
+        )
+        row = cursor.fetchone()
+    return row["edge_id"] if row else None
+
+
+def seed_projects(repository: ProjectsRepository, session_manager: SessionManager, designs: Dict[str, Dict[str, str]]) -> Dict[str, Dict[str, str]]:
+    design_items = list(designs.values())
+    edge_id = None
+    if len(design_items) >= 2:
+        edge_id = _create_design_edge(session_manager, design_items[0]["id"], design_items[1]["id"], "references")
+
+    project = repository.create(
+        {
+            "name": "Reference Implementation",
+            "description": "Проект для демонстрации связей дизайнов и блоков.",
+        }
+    )
+    if edge_id:
+        repository.set_design_edge_ids(project["id"], [edge_id])
+        project["design_edge_ids"] = [edge_id]
+    else:
+        project["design_edge_ids"] = []
+    return {"project": project, "design_edge_id": edge_id}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Seed demo data for the multigraph project.")
     parser.add_argument(
@@ -144,6 +179,7 @@ def main() -> int:
     settings = Settings.from_env()
     blocks_repository = BlocksRepository(session_manager, settings=settings)
     designs_repository = DesignsRepository(session_manager, settings=settings)
+    projects_repository = ProjectsRepository(session_manager, settings=settings)
 
     print("Clearing existing graph data...")
     _ensure_graph_empty(session_manager, settings.graph_blocks_name)
@@ -157,6 +193,10 @@ def main() -> int:
     print("Seeding sample designs...")
     designs = seed_designs(designs_repository, blocks)
     print(f"Inserted {len(designs)} designs.")
+
+    print("Seeding sample project...")
+    project_data = seed_projects(projects_repository, session_manager, designs)
+    print("Inserted 1 project.")
 
     print("Seed data successfully loaded.")
     return 0
