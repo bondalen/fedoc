@@ -1,0 +1,38 @@
+name: Integration Tests
+
+on:
+  push:
+    paths:
+      - "mgsrc/backend/**"
+      - ".github/workflows/integration-tests.yml"
+  pull_request:
+    paths:
+      - "mgsrc/backend/**"
+      - ".github/workflows/integration-tests.yml"
+
+jobs:
+  run-integration-tests:
+    if: ${{ secrets.FEDOC_DATABASE_URL != '' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r mgsrc/backend/requirements-dev.txt
+
+      - name: Run integration tests
+        env:
+          FEDOC_DATABASE_URL: ${{ secrets.FEDOC_DATABASE_URL }}
+        run: |
+          cd mgsrc/backend
+          pytest -m integration
+

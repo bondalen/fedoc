@@ -52,3 +52,7 @@ export FEDOC_DATABASE_URL="postgresql://postgres:fedoc_test_2025@127.0.0.1:15432
 cd mgsrc/backend
 pytest -m integration
 ```
+
+### CI
+
+GitHub Actions workflow `.github/workflows/integration-tests.yml` выполняет `pytest -m integration`, если в секретах репозитория определён `FEDOC_DATABASE_URL`. Секрет должен указывать на доступную PostgreSQL/AGE базу с тестовыми данными (аналогично локальной переменной окружения).
