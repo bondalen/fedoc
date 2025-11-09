@@ -252,7 +252,7 @@
 
 ## 5. Тесты и контроль качества — *Module*
 - Задачи: bb-tasks 5.*
-- ФС:  tests
+- ФС:  mgsrc/backend/tests
 - **5.1 Backend Unit Tests (`tests/backend`) — *Component***  
   Статус: `planned`  
   Чаты: *(нет)*  
@@ -262,10 +262,10 @@
   Чаты: *(нет)*  
   Задачи: bb-tasks 5.1.1
 - **5.3 Integration / Smoke Tests (`tests/integration`) — *Component***  
-  Статус: `planned`  
-  Чаты: *(нет)*  
+  Статус: `in progress`  
+  Чаты: [chat-25-1109-resume-08-10.md](../bb-chats/chat-25-1109-resume-08-10.md)  
   Задачи: bb-tasks 5.2.1
 
 ---
 
-*Последнее обновление: 2025-11-08*
+*Последнее обновление: 2025-11-09*
