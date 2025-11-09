@@ -319,6 +319,8 @@ GET    /api/projects/:id/graph  # Граф проекта (дизайны + бл
 
 **Подключение:** `ws://localhost:8080/ws`
 
+**Подробное описание протокола:** см. [../cc-preliminary/25-1109/ws-channel-requirements.md](../cc-preliminary/25-1109/ws-channel-requirements.md).
+
 **События (Client → Server):**
 ```json
 {
