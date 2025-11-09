@@ -1,0 +1,109 @@
+@startuml dc-components-flask
+left to right direction
+skinparam componentStyle rectangle
+skinparam componentBorderColor #E67E22
+skinparam componentBackgroundColor #FFF4E6
+skinparam ArrowColor #E67E22
+skinparam shadowing false
+
+package "API Gateway::Flask Blueprint" {
+  component "Application Factory\ncreate_app()" as AppFactory
+  component "Blueprint registry\napp.register_blueprint" as BlueprintRegistry
+  component "Routing Table\nurls.py" as Routing
+  component "Dependency Injection\ncontainer.py" as DIContainer
+  component "Request Lifecycle\nmiddlewares" as Middlewares
+  component "Error Handlers\nerror_handlers.py" as ErrorHandlers
+  component "Schema Validation\nvalidators.py" as Validators
+  component "Response Adapter\nserializers.py" as ResponseAdapter
+  component "Auth Decorators\nauth.py" as AuthDecorators
+  component "Logging\nlogging.py" as Logging
+}
+
+package "REST Endpoints" {
+  component "Blocks API\napi.blocks" as BlocksAPI
+  component "Designs API\napi.designs" as DesignsAPI
+  component "Projects API\napi.projects" as ProjectsAPI
+  component "Health Check\napi.health" as HealthAPI
+}
+
+package "Service Layer" {
+  component "Blocks Service" as BlocksService
+  component "Designs Service" as DesignsService
+  component "Projects Service" as ProjectsService
+  component "MCP Bridge\nhandlers.mcp" as MCPBridge
+  component "WebSocket Hub\nws.hub" as WebSocketHub
+}
+
+package "Infrastructure" {
+  component "Config Provider" as Config
+  component "DB Session Factory" as DBFactory
+  component "Task Queue / Scheduler" as TaskQueue
+}
+
+AppFactory --> BlueprintRegistry
+AppFactory --> Config
+AppFactory --> Logging
+AppFactory --> DBFactory
+AppFactory --> DIContainer
+AppFactory --> Middlewares
+AppFactory --> ErrorHandlers
+AppFactory --> AuthDecorators
+AppFactory --> Validators
+AppFactory --> ResponseAdapter
+
+BlueprintRegistry --> Routing
+Routing --> BlocksAPI
+Routing --> DesignsAPI
+Routing --> ProjectsAPI
+Routing --> HealthAPI
+
+BlocksAPI --> Validators
+BlocksAPI --> AuthDecorators
+BlocksAPI --> BlocksService
+BlocksAPI --> ResponseAdapter
+
+DesignsAPI --> Validators
+DesignsAPI --> AuthDecorators
+DesignsAPI --> DesignsService
+DesignsAPI --> ResponseAdapter
+
+ProjectsAPI --> Validators
+ProjectsAPI --> AuthDecorators
+ProjectsAPI --> ProjectsService
+ProjectsAPI --> ResponseAdapter
+
+HealthAPI --> ResponseAdapter
+
+BlocksService --> MCPBridge
+DesignsService --> MCPBridge
+ProjectsService --> MCPBridge
+
+BlocksService --> DBFactory
+DesignsService --> DBFactory
+ProjectsService --> DBFactory
+MCPBridge --> WebSocketHub
+
+Middlewares --> Logging
+AuthDecorators --> Config
+TaskQueue --> BlocksService
+TaskQueue --> DesignsService
+TaskQueue --> ProjectsService
+
+note right of AppFactory
+Создаёт приложение:
+- init Flask()
+- загружает конфиг
+- подключает middleware/логи
+end note
+
+note bottom of Validators
+Использует pydantic
+для проверки тела запросов
+end note
+
+note right of MCPBridge
+Связывает REST API и MCP-команды,
+отправляет события через WebSocket
+end note
+
+@enduml

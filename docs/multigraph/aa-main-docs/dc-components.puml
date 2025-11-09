@@ -1,0 +1,100 @@
+@startuml dc-components
+left to right direction
+skinparam componentStyle rectangle
+skinparam componentBorderColor #4A90E2
+skinparam componentBackgroundColor #F5F8FF
+skinparam ArrowColor #4A90E2
+skinparam shadowing false
+
+actor "Александр" as User
+
+package "Client Tier" {
+  component "Cursor AI IDE\n<<MCP Client>>" as Cursor
+  component "Graph Viewer UI\n<<SPA>>" as Viewer
+  component "CLI Tools\n<<Local scripts>>" as CliTools
+}
+
+package "Integration Tier" {
+  component "SSH Tunnel\n(local ↔ 8080)" as Tunnel
+}
+
+package "Application Components::Backend" as BackendPackage {
+  component "API Gateway\nFlask Blueprint" as ApiGateway
+  component "MCP Command Handler\nhandlers.mcp" as MCPHandler
+  component "WebSocket Hub\nSocket.IO" as WebSocketHub
+  component "Blocks Service\nservices.blocks" as BlocksService
+  component "Designs Service\nservices.designs" as DesignsService
+  component "Projects Aggregator\nservices.projects" as ProjectService
+  component "Validation Layer\npydantic models" as Validation
+  component "Persistence Adapter\nrepositories.pg" as Repository
+  component "Config Provider\nsettings.env" as Config
+  component "Shiv Runtime\n(pyinstaller entry)" as ShivRuntime
+}
+
+package "Infrastructure Components" {
+  component "Docker Container\nfedoc-multigraph" as Container
+  component "Supervisor\nprocess control" as SupervisorCtl
+  component "PostgreSQL 16 + AGE\nschema mg" as Database
+}
+
+User --> Cursor
+User --> Viewer
+User --> CliTools
+
+Cursor --> Tunnel : MCP protocol
+Viewer --> Tunnel : HTTPS / WebSocket
+CliTools --> Tunnel : REST CLI
+
+Tunnel --> ApiGateway : REST
+Tunnel --> WebSocketHub : WS events
+
+ApiGateway --> Validation
+ApiGateway --> BlocksService
+ApiGateway --> DesignsService
+ApiGateway --> ProjectService
+ApiGateway --> MCPHandler : forward MCP calls
+
+MCPHandler --> BlocksService
+MCPHandler --> DesignsService
+MCPHandler --> ProjectService
+MCPHandler --> WebSocketHub : broadcast selections
+
+WebSocketHub --> ApiGateway : notify subscribers
+
+BlocksService --> Repository
+DesignsService --> Repository
+ProjectService --> Repository
+
+Repository --> Database : psycopg2 / Cypher
+Config --> Repository
+Config --> ApiGateway
+Config --> MCPHandler
+Config --> WebSocketHub
+
+ShivRuntime --> ApiGateway
+ShivRuntime --> MCPHandler
+ShivRuntime --> WebSocketHub
+
+Container --> SupervisorCtl
+SupervisorCtl --> ShivRuntime
+Container --> Database
+
+note right of MCPHandler
+Команды от MCP-fedoc:
+- управление блоками
+- запросы дизайнов
+- синхронизация с UI
+end note
+
+note bottom of WebSocketHub
+Рассылает события фронтенду:
+- выделения узлов
+- обновления графа
+end note
+
+note bottom of Repository
+Изолирует SQL/AGE запросы,
+управляет подключениями и транзакциями
+end note
+
+@enduml
