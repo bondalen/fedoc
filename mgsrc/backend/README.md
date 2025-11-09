@@ -49,5 +49,6 @@ python -m fedoc_multigraph.app
 
 ```bash
 export FEDOC_DATABASE_URL="postgresql://postgres:fedoc_test_2025@127.0.0.1:15432/fedoc"
+cd mgsrc/backend
 pytest -m integration
 ```

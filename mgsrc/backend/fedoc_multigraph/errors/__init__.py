@@ -5,6 +5,7 @@ from flask import Flask, jsonify
 from pydantic import ValidationError
 
 from .blocks import BlockConflictError, BlockError, BlockNotFoundError
+from .designs import DesignConflictError, DesignError, DesignNotFoundError
 
 
 def register_error_handlers(app: Flask) -> None:
@@ -20,6 +21,10 @@ def register_error_handlers(app: Flask) -> None:
 
     @app.errorhandler(BlockError)
     def _handle_block_error(exc: BlockError):
+        return jsonify(exc.to_response()), exc.status_code
+
+    @app.errorhandler(DesignError)
+    def _handle_design_error(exc: DesignError):
         return jsonify(exc.to_response()), exc.status_code
 
     @app.errorhandler(ValidationError)

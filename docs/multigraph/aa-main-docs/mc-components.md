@@ -49,7 +49,7 @@
   ФС:  mgsrc/backend/fedoc_multigraph/middleware
 - **1.1.5 Error Handlers (`fedoc_multigraph.errors`) — *Component***  
   Статус: `done`  
-  Чаты: [chat-25-1108-resume-23-10.md](../bb-chats/chat-25-1108-resume-23-10.md), [chat-25-1109-resume-06-37.md](../bb-chats/chat-25-1109-resume-06-37.md), [chat-25-1109-resume-07-35.md](../bb-chats/chat-25-1109-resume-07-35.md)  
+  Чаты: [chat-25-1108-resume-23-10.md](../bb-chats/chat-25-1108-resume-23-10.md), [chat-25-1109-resume-06-37.md](../bb-chats/chat-25-1109-resume-06-37.md), [chat-25-1109-resume-07-35.md](../bb-chats/chat-25-1109-resume-07-35.md), [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
   Задачи: bb-tasks 1.1.1  
   ФС:  mgsrc/backend/fedoc_multigraph/errors
   - **1.1.5.1 BlockNotFoundError (`errors.blocks:BlockNotFoundError`) — *Class***  
@@ -62,6 +62,16 @@
     Чаты: [chat-25-1109-resume-06-37.md](../bb-chats/chat-25-1109-resume-06-37.md), [chat-25-1109-resume-07-35.md](../bb-chats/chat-25-1109-resume-07-35.md)  
     Задачи: bb-tasks 1.2.1  
     ФС:  mgsrc/backend/fedoc_multigraph/errors/blocks.py
+  - **1.1.5.3 DesignNotFoundError (`errors.designs:DesignNotFoundError`) — *Class***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
+    Задачи: bb-tasks 1.2.2  
+    ФС:  mgsrc/backend/fedoc_multigraph/errors/designs.py
+  - **1.1.5.4 DesignConflictError (`errors.designs:DesignConflictError`) — *Class***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
+    Задачи: bb-tasks 1.2.2  
+    ФС:  mgsrc/backend/fedoc_multigraph/errors/designs.py
 - **1.1.6 Validation Schemas (`fedoc_multigraph.validators`) — *Component***  
   Статус: `done`  
   Чаты: [chat-25-1108-resume-23-10.md](../bb-chats/chat-25-1108-resume-23-10.md), [chat-25-1109-resume-06-37.md](../bb-chats/chat-25-1109-resume-06-37.md), [chat-25-1109-resume-07-35.md](../bb-chats/chat-25-1109-resume-07-35.md)  
@@ -82,6 +92,21 @@
     Чаты: [chat-25-1109-resume-06-37.md](../bb-chats/chat-25-1109-resume-06-37.md), [chat-25-1109-resume-07-35.md](../bb-chats/chat-25-1109-resume-07-35.md)  
     Задачи: bb-tasks 1.2.1  
     ФС:  mgsrc/backend/fedoc_multigraph/validators/blocks.py
+  - **1.1.6.4 DesignCreateSchema (`validators.designs:DesignCreateSchema`) — *Class***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
+    Задачи: bb-tasks 1.2.2  
+    ФС:  mgsrc/backend/fedoc_multigraph/validators/designs.py
+  - **1.1.6.5 DesignUpdateSchema (`validators.designs:DesignUpdateSchema`) — *Class***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
+    Задачи: bb-tasks 1.2.2  
+    ФС:  mgsrc/backend/fedoc_multigraph/validators/designs.py
+  - **1.1.6.6 DesignQuerySchema (`validators.designs:DesignQuerySchema`) — *Class***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
+    Задачи: bb-tasks 1.2.2  
+    ФС:  mgsrc/backend/fedoc_multigraph/validators/designs.py
 - **1.1.7 Auth Decorators (`fedoc_multigraph.auth`) — *Component***  
   Статус: `done`  
   Чаты: [chat-25-1108-resume-23-10.md](../bb-chats/chat-25-1108-resume-23-10.md)  
@@ -105,8 +130,17 @@
   Чаты: [chat-25-1109-resume-06-37.md](../bb-chats/chat-25-1109-resume-06-37.md), [chat-25-1109-resume-07-35.md](../bb-chats/chat-25-1109-resume-07-35.md)  
   Задачи: bb-tasks 1.2.1
 - **1.2.2 Designs API (`api.designs`) — *Component***  
-  Статус: `planned`  
-  Чаты: *(нет)*  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
+  Задачи: bb-tasks 1.2.2  
+  ФС:  mgsrc/backend/fedoc_multigraph/api/designs.py
+- **1.2.2.1 Designs Blueprint (`api.designs:designs_bp`) — *Component***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
+  Задачи: bb-tasks 1.2.2
+- **1.2.2.2 Design CRUD Endpoints (`api.designs` view functions) — *Class***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
   Задачи: bb-tasks 1.2.2
 - **1.2.3 Projects API (`api.projects`) — *Component***  
   Статус: `planned`  
@@ -130,8 +164,13 @@
   Чаты: [chat-25-1109-resume-06-37.md](../bb-chats/chat-25-1109-resume-06-37.md), [chat-25-1109-resume-07-35.md](../bb-chats/chat-25-1109-resume-07-35.md)  
   Задачи: bb-tasks 1.3.1
 - **1.3.2 Designs Service (`services.designs`) — *Component***  
-  Статус: `planned`  
-  Чаты: *(нет)*  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
+  Задачи: bb-tasks 1.3.1  
+  ФС:  mgsrc/backend/fedoc_multigraph/services/designs.py
+- **1.3.2.1 DesignsService (`services.designs:DesignsService`) — *Class***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
   Задачи: bb-tasks 1.3.1
 - **1.3.3 Projects Aggregator (`services.projects`) — *Component***  
   Статус: `planned`  
@@ -173,6 +212,11 @@
   Чаты: [chat-25-1109-resume-06-37.md](../bb-chats/chat-25-1109-resume-06-37.md), [chat-25-1109-resume-07-35.md](../bb-chats/chat-25-1109-resume-07-35.md)  
     Задачи: bb-tasks 1.2.1  
     ФС:  mgsrc/backend/fedoc_multigraph/db/repositories/blocks.py
+- **1.4.3.2 DesignsRepository (`repositories.designs:DesignsRepository`) — *Class***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-09-45.md](../bb-chats/chat-25-1109-resume-09-45.md)  
+    Задачи: bb-tasks 1.2.2  
+    ФС:  mgsrc/backend/fedoc_multigraph/db/repositories/designs.py
 - **1.4.4 Task Queue Integration (`infra.tasks`) — *Component***  
   Статус: `planned`  
   Чаты: *(нет)*  
