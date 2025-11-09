@@ -292,21 +292,44 @@
 - Задачи: bb-tasks 2.*
 - ФС:  mgsrc/frontend
 - **2.1 SPA Core (`src/main.ts`, `App.vue`) — *Component***  
-  Статус: `planned`  
-  Чаты: *(нет)*  
+  Статус: `in progress`  
+  Чаты: [chat-25-1109-resume-16-30.md](../bb-chats/chat-25-1109-resume-16-30.md)  
   Задачи: bb-tasks 2.1.1
-- **2.2 Graph Visualization (`src/modules/graph`) — *Component***  
-  Статус: `planned`  
-  Чаты: *(нет)*  
-  Задачи: bb-tasks 2.2.1
+  - **2.1.1.1 Root Layout (`App.vue` layout) — *Component***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-16-30.md](../bb-chats/chat-25-1109-resume-16-30.md)  
+    Задачи: bb-tasks 2.1.1  
+    ФС:  mgsrc/frontend/src/App.vue
+  - **2.1.1.2 Entry point (`src/main.ts`) — *Component***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-16-30.md](../bb-chats/chat-25-1109-resume-16-30.md)  
+    Задачи: bb-tasks 2.1.1  
+    ФС:  mgsrc/frontend/src/main.ts
+- **2.2 Graph Visualization (`src/components/GraphCanvas.vue`) — *Component***  
+  Статус: `in progress`  
+  Чаты: [chat-25-1109-resume-16-30.md](../bb-chats/chat-25-1109-resume-16-30.md)  
+  Задачи: bb-tasks 2.2.1  
+  ФС:  mgsrc/frontend/src/components/GraphCanvas.vue
 - **2.3 API Client (`src/services/api.ts`) — *Component***  
-  Статус: `planned`  
-  Чаты: *(нет)*  
-  Задачи: bb-tasks 2.1.2
-- **2.4 UI Common Components (`src/components/common`) — *Component***  
-  Статус: `planned`  
-  Чаты: *(нет)*  
-  Задачи: bb-tasks 2.2.3
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-16-30.md](../bb-chats/chat-25-1109-resume-16-30.md)  
+  Задачи: bb-tasks 2.1.2  
+  ФС:  mgsrc/frontend/src/services/api.ts
+- **2.4 Realtime Client (`src/services/realtime.ts`) — *Component***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-16-30.md](../bb-chats/chat-25-1109-resume-16-30.md)  
+  Задачи: bb-tasks 2.1.2  
+  ФС:  mgsrc/frontend/src/services/realtime.ts
+- **2.5 UI Panels (`src/components/SelectionPanel.vue`) — *Component***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-16-30.md](../bb-chats/chat-25-1109-resume-16-30.md)  
+  Задачи: bb-tasks 2.1.1  
+  ФС:  mgsrc/frontend/src/components/SelectionPanel.vue
+- **2.6 Styling (`src/style.css`) — *Component***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-16-30.md](../bb-chats/chat-25-1109-resume-16-30.md)  
+  Задачи: bb-tasks 2.1.1  
+  ФС:  mgsrc/frontend/src/style.css
 
 ---
 
