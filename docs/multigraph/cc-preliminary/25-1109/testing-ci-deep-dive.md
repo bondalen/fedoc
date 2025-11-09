@@ -27,10 +27,11 @@ python -m fedoc_multigraph.scripts.seed_multigraph --force \
   --dsn "postgresql://postgres:fedoc_test_2025@127.0.0.1:15432/fedoc"
 ```
 Что делает скрипт:
-1. Очищает графы `mg_blocks`, `mg_designs` и таблицу `mg.design_to_block`.
-2. Создаёт базовые блоки: Core Platform, Authentication Module, UI Library.
-3. Добавляет дизайны: Project Atlas, Prototype Nova, Docs Template.
-4. Формирует проект **Reference Implementation** с ребром `design_edge` между двумя дизайнами.
+1. Очищает графы `mg_blocks`, `mg_designs`, таблицы `mg.design_to_block`, `mg.design_edge_to_project`, `mg.projects`.
+2. Создаёт **7** блоков (Core Platform, Authentication Module, UI Library, Data Warehouse, Analytics Engine, Reporting Service, Notification Service) с различными типами связей `contains`, `depends_on`, `extends`.
+3. Добавляет **7** дизайнов (Project Atlas, Prototype Nova, Docs Template, Customer Portal, Security Dashboard, Data Insights Workspace, Mobile Companion) и связывает их с блоками.
+4. Формирует **5** рёбер `design_edge` с типами `depends_on`, `extends`, `observes`, `references`.
+5. Создаёт **4** проекта (Reference Implementation, Customer Rollout, Analytics Enablement, Mobile Pilot), присваивая каждый набор соответствующих рёбер.
 
 ### 2.3 Запуск интеграционных тестов
 ```bash
@@ -50,7 +51,7 @@ pytest -m integration
 - Создан корневой `pytest.ini`, поэтому при запуске из корня репозитория автоматически подхватываются `markers = integration`.
 - Дублирующий `mgsrc/backend/pytest.ini` удалён.
 - В `tests/integration/utils.py` вынесены функции `create_block`, `create_design`, `create_project` и соответствующие `delete_*`, уменьшая дублирование кода в тестах.
-- Обновлены сценарии для дизайнов и проектов, все проверки проходят (`16 passed`).
+- Обновлены сценарии для дизайнов и проектов; все проверки проходят (`16 passed`).
 
 ---
 
