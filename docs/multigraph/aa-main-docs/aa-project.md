@@ -321,6 +321,8 @@ GET    /api/projects/:id/graph  # Граф проекта (дизайны + бл
 
 **Подробное описание протокола:** см. [../cc-preliminary/25-1109/ws-channel-requirements.md](../cc-preliminary/25-1109/ws-channel-requirements.md).
 
+**Реализация:** серверный хаб (`GraphHub`, `_GraphNamespace`) расположен в `mgsrc/backend/fedoc_multigraph/realtime/hub.py`; интеграция описана в [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md).
+
 **События (Client → Server):**
 ```json
 {
@@ -399,6 +401,8 @@ mcp.call("open_graph_viewer", {
 # Получить выделенные элементы из браузера
 selected = mcp.call("get_selected_elements")
 ```
+
+**MCP Bridge:** новая реализация располагается в `mgsrc/mcp_bridge/`; поддерживает синхронизацию выделений и приём событий `graph_updated` (см. [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)).
 
 ---
 

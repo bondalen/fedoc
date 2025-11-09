@@ -223,14 +223,21 @@
   Чаты: [chat-25-1109-resume-12-45.md](../bb-chats/chat-25-1109-resume-12-45.md)  
   Задачи: bb-tasks 1.3.1  
   ФС:  mgsrc/backend/fedoc_multigraph/services/projects.py
-- **1.3.4 MCP Bridge (`handlers.mcp`) — *Component***  
-  Статус: `planned`  
-  Чаты: *(нет)*  
-  Задачи: bb-tasks 1.3.1
-- **1.3.5 WebSocket Hub (`ws.hub`) — *Component***  
-  Статус: `planned`  
-  Чаты: *(нет)*  
-  Задачи: bb-tasks 1.3.1
+- **1.3.4 WebSocket Hub (`realtime.hub`) — *Component***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)  
+  Задачи: bb-tasks 1.3.1  
+  ФС:  mgsrc/backend/fedoc_multigraph/realtime/hub.py
+  - **1.3.4.1 GraphHub (`realtime.hub:GraphHub`) — *Class***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)  
+    Задачи: bb-tasks 1.3.1  
+    ФС:  mgsrc/backend/fedoc_multigraph/realtime/hub.py
+  - **1.3.4.2 GraphNamespace (`realtime.hub:_GraphNamespace`) — *Class***  
+    Статус: `done`  
+    Чаты: [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)  
+    Задачи: bb-tasks 1.3.1  
+    ФС:  mgsrc/backend/fedoc_multigraph/realtime/hub.py
 
 ### 1.4 Persistence & Infrastructure (`fedoc_multigraph/db`, `fedoc_multigraph/config`) — *Module*
 - Задачи: *(уточнить в bb-tasks)*
@@ -322,6 +329,30 @@
   Статус: `planned`  
   Чаты: *(нет)*  
   Задачи: bb-tasks 3.2.1
+
+### 3.5 MCP Bridge (mgsrc/mcp_bridge) — *Module*
+- Задачи: bb-tasks 1.3.B
+- ФС:  mgsrc/mcp_bridge
+- **3.5.1 BridgeConfig (`mcp_bridge.config:BridgeConfig`) — *Class***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)  
+  Задачи: bb-tasks 1.3.B  
+  ФС:  mgsrc/mcp_bridge/mcp_bridge/config.py
+- **3.5.2 WebSocketBridge (`mcp_bridge.websocket_bridge:WebSocketBridge`) — *Class***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)  
+  Задачи: bb-tasks 1.3.B  
+  ФС:  mgsrc/mcp_bridge/mcp_bridge/websocket_bridge.py
+- **3.5.3 MCPBridge (`mcp_bridge.server:MCPBridge`) — *Class***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)  
+  Задачи: bb-tasks 1.3.B  
+  ФС:  mgsrc/mcp_bridge/mcp_bridge/server.py
+- **3.5.4 MCP Bridge Tests (`tests.test_mcp_bridge`) — *Component***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)  
+  Задачи: bb-tasks 1.3.B  
+  ФС:  mgsrc/mcp_bridge/tests
 
 ---
 

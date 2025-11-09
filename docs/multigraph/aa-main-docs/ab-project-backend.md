@@ -156,6 +156,10 @@ fedoc/mgsrc/
 - **Новый прогресс ([chat-25-1109-resume-14-55.md](../bb-chats/chat-25-1109-resume-14-55.md)):**
   - Сформирован pre-PR чек-лист и инструкции по анализу логов интеграционных тестов (разделы 2.6–2.7 `testing-ci-deep-dive.md`).
   - `aa-project.md` дополнён ссылкой на чек-лист для быстрого доступа.
+- **Новый прогресс ([chat-25-1109-resume-15-45.md](../bb-chats/chat-25-1109-resume-15-45.md)):**
+  - Workflow `integration-tests.yml` доведён до полного цикла: запуск контейнера AGE, сидирование, выгрузка артефактов (`integration-junit.xml`, `postgres.log`).
+  - Реализован WebSocket hub (`GraphHub`, `_GraphNamespace`) и подключён к Flask-приложению; добавлены интеграционные тесты `test_websocket_hub.py`.
+  - Подготовлен скрипт `scripts/run_integration_diagnostics.sh` для быстрого повторения шагов диагностики (pytest, psql, логи контейнера).
 
 ### Локальная разработка
 
