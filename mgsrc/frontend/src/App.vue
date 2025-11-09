@@ -7,6 +7,8 @@
       </header>
       <nav>
         <button class="nav-button" @click="refreshData">Обновить данные</button>
+        <button class="nav-button" :disabled="!canUndo" @click="undo">Отменить</button>
+        <button class="nav-button" :disabled="!canRedo" @click="redo">Повторить</button>
         <button class="nav-button" @click="requestSelection">Получить выделение</button>
       </nav>
       <section class="status-panel">
@@ -14,13 +16,14 @@
         <ul>
           <li>API: <span :class="{ ok: apiStatus === 'ok', fail: apiStatus !== 'ok' }">{{ apiStatusLabel }}</span></li>
           <li>WS: <span :class="{ ok: wsConnected, fail: !wsConnected }">{{ wsConnected ? 'подключено' : 'нет соединения' }}</span></li>
+          <li>Снимков: <span>{{ historyLabel }}</span></li>
         </ul>
       </section>
     </aside>
     <main class="workspace">
       <GraphCanvas
-        :nodes="graph.nodes"
-        :edges="graph.edges"
+        :nodes="activeNodes"
+        :edges="activeEdges"
         :selected-nodes="selection.nodes"
         @select="handleGraphSelect"
       />
@@ -37,14 +40,30 @@ import GraphCanvas from "./components/GraphCanvas.vue";
 import SelectionPanel from "./components/SelectionPanel.vue";
 import { useApi } from "./services/api";
 import { useRealtime } from "./services/realtime";
+import { useGraphHistory } from "./stores/graphHistory";
 
 const api = useApi();
 const realtime = useRealtime();
+const history = useGraphHistory();
 
 const apiStatus = ref("unknown");
 const wsConnected = ref(false);
-const graph = ref({ nodes: [], edges: [] } as { nodes: any[]; edges: any[] });
-const selection = ref({ nodes: [], edges: [] } as { nodes: string[]; edges: string[] });
+
+const activeSnapshot = history.activeSnapshot;
+const selection = history.selection;
+const canUndo = computed(() => history.canUndo.value);
+const canRedo = computed(() => history.canRedo.value);
+const historyDepth = history.depth;
+const historyPointer = history.pointer;
+const historyLabel = computed(() => {
+  if (!historyDepth.value) {
+    return "0/0";
+  }
+  return `${historyPointer.value + 1}/${historyDepth.value}`;
+});
+
+const activeNodes = computed(() => activeSnapshot.value.nodes);
+const activeEdges = computed(() => activeSnapshot.value.edges);
 
 const apiStatusLabel = computed(() => {
   switch (apiStatus.value) {
@@ -57,10 +76,9 @@ const apiStatusLabel = computed(() => {
   }
 });
 
-function refreshData() {
-  api.getProjectGraph().then((data) => {
-    graph.value = normalizeGraph(data);
-  });
+async function refreshData() {
+  const raw = await api.getProjectGraph();
+  history.pushState(normalizeGraph(raw));
 }
 
 function requestSelection() {
@@ -72,15 +90,24 @@ function pushSelection(payload: { nodes: string[]; edges: string[] }) {
 }
 
 function handleGraphSelect(payload: { nodes: string[]; edges: string[] }) {
-  selection.value = {
-    nodes: payload.nodes,
-    edges: payload.edges,
-  };
+  history.setSelection(payload);
   pushSelection(payload);
 }
 
+function undo() {
+  if (history.undo()) {
+    pushSelection(history.selection.value);
+  }
+}
+
+function redo() {
+  if (history.redo()) {
+    pushSelection(history.selection.value);
+  }
+}
+
 function normalizeGraph(raw: any) {
-  const nodes = (raw?.nodes || []).map((node: any) => ({
+  const nodes = (raw?.nodes || raw?.vertices || []).map((node: any) => ({
     id: node.id || node.vertex_id || node.name,
     label: node.name || node.label || node.id,
   }));
@@ -97,17 +124,19 @@ function normalizeGraph(raw: any) {
 
 onMounted(async () => {
   apiStatus.value = (await api.healthCheck()) ? "ok" : "error";
+
   realtime.onSelection((payload) => {
-    selection.value = payload;
+    history.setSelection(payload);
   });
   realtime.onConnectionChange((connected) => {
     wsConnected.value = connected;
   });
-  realtime.onGraphUpdate((payload) => {
-    graph.value = normalizeGraph(payload);
+  realtime.onGraphUpdate(() => {
+    refreshData();
   });
+
   realtime.connect();
-  refreshData();
+  await refreshData();
 });
 </script>
 
@@ -148,7 +177,12 @@ onMounted(async () => {
   cursor: pointer;
 }
 
-.nav-button:hover {
+.nav-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.nav-button:hover:enabled {
   background: #1d4ed8;
 }
 

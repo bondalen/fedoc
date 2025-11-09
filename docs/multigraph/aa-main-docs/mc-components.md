@@ -306,8 +306,8 @@
     Задачи: bb-tasks 2.1.1  
     ФС:  mgsrc/frontend/src/main.ts
 - **2.2 Graph Visualization (`src/components/GraphCanvas.vue`) — *Component***  
-  Статус: `in progress`  
-  Чаты: [chat-25-1109-resume-16-30.md](../bb-chats/chat-25-1109-resume-16-30.md)  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-16-30.md](../bb-chats/chat-25-1109-resume-16-30.md), [chat-25-1109-resume-17-10.md](../bb-chats/chat-25-1109-resume-17-10.md)  
   Задачи: bb-tasks 2.2.1  
   ФС:  mgsrc/frontend/src/components/GraphCanvas.vue
 - **2.3 API Client (`src/services/api.ts`) — *Component***  
@@ -330,6 +330,11 @@
   Чаты: [chat-25-1109-resume-16-30.md](../bb-chats/chat-25-1109-resume-16-30.md)  
   Задачи: bb-tasks 2.1.1  
   ФС:  mgsrc/frontend/src/style.css
+- **2.7 Graph History Store (`src/stores/graphHistory.ts`) — *Component***  
+  Статус: `done`  
+  Чаты: [chat-25-1109-resume-17-10.md](../bb-chats/chat-25-1109-resume-17-10.md)  
+  Задачи: bb-tasks 2.2.4  
+  ФС:  mgsrc/frontend/src/stores/graphHistory.ts
 
 ---
 
