@@ -536,6 +536,7 @@ Apache License 2.0 (аналогично основному проекту fedoc
 - `/api/blocks` — CRUD + негативные (`404`, `422`).
 - `/api/designs` — CRUD, связи `block_id`, негативные (`404`, `409`, `422`).
 - `/api/projects` — CRUD, управление `design_edge_to_project`, граф (`designs`, `edges`, `blocks`), устойчивость к удалённым рёбрам.
+- **Детали:** см. расширенный отчёт [cc-preliminary/25-1109/testing-ci-deep-dive.md](../cc-preliminary/25-1109/testing-ci-deep-dive.md).
 
 **Последнее обновление:** 2025-11-09  
 **Версия документа:** 1.0.0
